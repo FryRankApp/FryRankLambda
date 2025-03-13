@@ -1,8 +1,6 @@
 package com.fryrank;
 
 import com.fryrank.model.Review;
-import com.fryrank.model.PublicUserMetadata;
-import com.fryrank.model.PublicUserMetadataOutput;
 
 import java.util.ArrayList;
 import java.util.List;
