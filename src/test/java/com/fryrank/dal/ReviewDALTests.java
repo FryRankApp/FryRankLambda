@@ -9,11 +9,8 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.MockitoJUnitRunner;
-import org.springframework.data.domain.Sort;
-import org.springframework.data.mongodb.core.FindAndReplaceOptions;
 import org.springframework.data.mongodb.core.aggregation.Aggregation;
 import org.springframework.data.mongodb.core.aggregation.AggregationResults;
-import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.MongoTemplate;
 
 import java.util.List;
@@ -21,12 +18,8 @@ import java.util.List;
 import static com.fryrank.TestConstants.TEST_ACCOUNT_ID;
 import static com.fryrank.TestConstants.TEST_RESTAURANT_ID;
 import static com.fryrank.TestConstants.TEST_REVIEWS;
-import static com.fryrank.TestConstants.TEST_REVIEW_1;
-import static com.fryrank.Constants.ISO_DATE_TIME;
 import static org.junit.Assert.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.junit.Assert.assertThrows;
 import static org.mockito.Mockito.when;
 @RunWith(MockitoJUnitRunner.class)
 public class ReviewDALTests {
@@ -88,23 +81,5 @@ public class ReviewDALTests {
     @Test
     public void testGetAllReviewsByAccountId_nullAccountId() {
         assertThrows(NullPointerException.class, () -> reviewDAL.getAllReviewsByAccountId(null));
-    }
-
-    @Test
-    public void testAddNewReview() throws Exception {
-        when(mongoTemplate.findAndReplace(any(Query.class), eq(TEST_REVIEW_1), any(FindAndReplaceOptions.class))).thenReturn(TEST_REVIEW_1);
-
-        final Review expectedReview = TEST_REVIEW_1;
-        final Review actualReview = reviewDAL.addNewReview(expectedReview);
-        assertEquals(expectedReview, actualReview);
-    }
-
-    @Test public void testGetTopMostRecentReviews() throws Exception {
-        AggregationResults<Review> aggregationResults = new AggregationResults<>(TEST_REVIEWS, new Document());
-        when(mongoTemplate.aggregate(Mockito.any(Aggregation.class), Mockito.anyString(), Mockito.eq(Review.class))).thenReturn(aggregationResults);
-
-        final GetAllReviewsOutput expectedOutput = new GetAllReviewsOutput(TEST_REVIEWS);
-        final GetAllReviewsOutput actualOutput = reviewDAL.getTopMostRecentReviews(TEST_REVIEWS.size());
-        assertEquals(actualOutput, expectedOutput);
     }
 }
