@@ -51,7 +51,7 @@ java {
 
 application {
     // Define the main class for the application.
-    mainClass = "com.Fryrank.ReviewHandler"
+    mainClass = "com.fryrank.ReviewHandler"
 }
 
 tasks {
@@ -59,9 +59,7 @@ tasks {
         useJUnitPlatform()
     }
 
-    register<Zip>("buildZip") {
-        dependsOn(jar)
-        archiveFileName = "FryRankLambda.zip"
+    val buildZip by creating(Zip::class) {
         from(compileJava)
         from(processResources)
         into("lib") {
@@ -70,6 +68,6 @@ tasks {
     }
 
     build {
-        dependsOn("buildZip")
+        dependsOn(buildZip)
     }
 }

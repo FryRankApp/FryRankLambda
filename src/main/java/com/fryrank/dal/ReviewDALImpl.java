@@ -1,8 +1,8 @@
 package com.fryrank.dal;
 
 import com.fryrank.model.*;
+import com.mongodb.client.MongoClients;
 import lombok.NonNull;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.aggregation.Aggregation;
 import org.springframework.data.mongodb.core.aggregation.AggregationOperation;
@@ -27,8 +27,11 @@ public class ReviewDALImpl implements ReviewDAL {
 
     public static final String RESTAURANT_ID_KEY = "restaurantId";
 
-    @Autowired
-    private MongoTemplate mongoTemplate;
+    final MongoTemplate mongoTemplate;
+
+    public ReviewDALImpl() {
+        this.mongoTemplate = new MongoTemplate(MongoClients.create(), System.getenv("DATABASE_NAME")); // Replace "testDBName" with your actual database name
+    }
 
     private static final List<AggregationOperation> AGGREGATION_OPERATIONS_FOR_PUBLIC_USER_METADATA_COLLECTION_JOIN =
             new ArrayList<>(Arrays.asList(
