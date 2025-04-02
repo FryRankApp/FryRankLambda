@@ -1,8 +1,9 @@
 package com.fryrank.dal;
 
 import com.fryrank.model.*;
-import com.mongodb.client.MongoClients;
+import lombok.AllArgsConstructor;
 import lombok.NonNull;
+import lombok.extern.log4j.Log4j2;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.aggregation.Aggregation;
 import org.springframework.data.mongodb.core.aggregation.AggregationOperation;
@@ -23,17 +24,15 @@ import static com.fryrank.Constants.USER_METADATA_OUTPUT_FIELD_NAME;
 import static org.springframework.data.mongodb.core.aggregation.Aggregation.*;
 
 @Repository
+@Log4j2
+@AllArgsConstructor
 public class ReviewDALImpl implements ReviewDAL {
 
-    public static final String RESTAURANT_ID_KEY = "restaurantId";
+    final String RESTAURANT_ID_KEY = "restaurantId";
 
-    final MongoTemplate mongoTemplate;
+    MongoTemplate mongoTemplate;
 
-    public ReviewDALImpl() {
-        this.mongoTemplate = new MongoTemplate(MongoClients.create(), System.getenv("DATABASE_NAME")); // Replace "testDBName" with your actual database name
-    }
-
-    private static final List<AggregationOperation> AGGREGATION_OPERATIONS_FOR_PUBLIC_USER_METADATA_COLLECTION_JOIN =
+    private final List<AggregationOperation> AGGREGATION_OPERATIONS_FOR_PUBLIC_USER_METADATA_COLLECTION_JOIN =
             new ArrayList<>(Arrays.asList(
                     LookupOperation.newLookup()
                             .from(PUBLIC_USER_METADATA_COLLECTION_NAME)
@@ -45,6 +44,8 @@ public class ReviewDALImpl implements ReviewDAL {
 
     @Override
     public GetAllReviewsOutput getAllReviewsByRestaurantId(@NonNull final String restaurantId) {
+        log.info("Getting all reviews for restaurantId: {}", restaurantId);
+
         List<AggregationOperation> aggregationOperations = new ArrayList<>(AGGREGATION_OPERATIONS_FOR_PUBLIC_USER_METADATA_COLLECTION_JOIN);
         final Criteria equalToRestaurantIdCriteria = Criteria.where(RESTAURANT_ID_KEY).is(restaurantId);
         aggregationOperations.add(match(equalToRestaurantIdCriteria));
@@ -57,6 +58,7 @@ public class ReviewDALImpl implements ReviewDAL {
 
     @Override
     public GetAllReviewsOutput getAllReviewsByAccountId(@NonNull final String accountId) {
+        log.info("Getting all reviews for accountId: {}", accountId);
         List<AggregationOperation> aggregationOperations = new ArrayList<>(AGGREGATION_OPERATIONS_FOR_PUBLIC_USER_METADATA_COLLECTION_JOIN);
         final Criteria equalToAccountIdCriteria = Criteria.where(ACCOUNT_ID_KEY).is(accountId);
         aggregationOperations.add(match(equalToAccountIdCriteria));
