@@ -10,8 +10,8 @@ plugins {
     application
     id("io.freefair.lombok") version "8.13"
     java
-    id("org.springframework.boot") version "3.4.3"
-    id("io.spring.dependency-management") version "1.1.7"
+    id("org.springframework.boot") version "3.2.3"
+    id("io.spring.dependency-management") version "1.1.4"
 }
 
 repositories {
@@ -30,14 +30,17 @@ dependencies {
     implementation("com.amazonaws:aws-lambda-java-core:1.2.2")
     implementation("com.amazonaws:aws-lambda-java-events:3.11.1")
 
-    // Logging
+    // Logging - Fixed configuration for AWS Lambda
     implementation("org.apache.logging.log4j:log4j-api:2.17.1")
     implementation("org.apache.logging.log4j:log4j-core:2.17.1")
-    runtimeOnly("org.apache.logging.log4j:log4j-slf4j18-impl:2.17.1")
+    // Remove the conflicting dependency
+    // runtimeOnly("org.apache.logging.log4j:log4j-slf4j18-impl:2.17.1")
+    // Add the correct AWS Lambda logging adapter
     runtimeOnly("com.amazonaws:aws-lambda-java-log4j2:1.5.1")
 
     // MongoDB
     implementation("org.springframework.boot:spring-boot-starter-data-mongodb")
+    implementation("org.mongodb:mongodb-driver-sync:4.11.1")
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
@@ -51,7 +54,7 @@ java {
 
 application {
     // Define the main class for the application.
-    mainClass = "com.fryrank.ReviewHandler"
+    mainClass = "com.fryrank.handler.ReviewHandler"
 }
 
 tasks {
