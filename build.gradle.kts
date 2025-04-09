@@ -23,19 +23,14 @@ dependencies {
     // Use JUnit for testing.
     testImplementation("junit:junit:4.13.2")
 
-    // This dependency is used by the application.
     implementation(libs.guava)
 
     // Lambda
     implementation("com.amazonaws:aws-lambda-java-core:1.2.2")
     implementation("com.amazonaws:aws-lambda-java-events:3.11.1")
 
-    // Logging - Fixed configuration for AWS Lambda
     implementation("org.apache.logging.log4j:log4j-api:2.17.1")
     implementation("org.apache.logging.log4j:log4j-core:2.17.1")
-    // Remove the conflicting dependency
-    // runtimeOnly("org.apache.logging.log4j:log4j-slf4j18-impl:2.17.1")
-    // Add the correct AWS Lambda logging adapter
     runtimeOnly("com.amazonaws:aws-lambda-java-log4j2:1.5.1")
 
     // MongoDB
