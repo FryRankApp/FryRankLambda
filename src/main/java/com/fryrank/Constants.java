@@ -1,5 +1,8 @@
 package com.fryrank;
 
+/**
+ * Constants used throughout the application.
+ */
 public class Constants {
 
     public static final String ISO_DATE_TIME = "isoDateTime";
@@ -19,4 +22,19 @@ public class Constants {
     // MongoDB collection names
     public static final String REVIEW_COLLECTION_NAME = "review";
     public static final String PUBLIC_USER_METADATA_COLLECTION_NAME = "user-metadata";
+
+    /**
+     * Environment variable name for the MongoDB connection URI.
+     */
+    public static final String DATABASE_URI_ENV_VAR = "DATABASE_URI";
+
+    /**
+     * Collection name for reviews.
+     */
+    public static final String REVIEW_COLLECTION = "reviews";
+    
+    /**
+     * Collection name for user metadata.
+     */
+    public static final String USER_METADATA_COLLECTION = "user-metadata";
 }
