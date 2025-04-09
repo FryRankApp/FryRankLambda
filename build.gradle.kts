@@ -22,6 +22,7 @@ repositories {
 dependencies {
     // Use JUnit for testing.
     testImplementation("junit:junit:4.13.2")
+    testImplementation("org.mockito:mockito-core:5.11.0")
 
     implementation(libs.guava)
 
@@ -37,7 +38,6 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-data-mongodb")
     implementation("org.mongodb:mongodb-driver-sync:4.11.1")
     testImplementation("org.springframework.boot:spring-boot-starter-test")
-    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
 // Apply a specific Java toolchain to ease working on different environments.
@@ -54,7 +54,32 @@ application {
 
 tasks {
     test {
-        useJUnitPlatform()
+        useJUnit()  // Use JUnit 4
+        
+        // Enable test output in console
+        testLogging {
+            events("passed", "skipped", "failed", "started")
+            showStandardStreams = true
+            showExceptions = true
+            showCauses = true
+            showStackTraces = true
+            exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
+            // Add more detailed output
+            info {
+                events("passed", "skipped", "failed", "standardOut", "standardError")
+                exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
+            }
+            debug {
+                events("passed", "skipped", "failed", "standardOut", "standardError")
+                exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
+            }
+        }
+        
+        // Generate HTML test report
+        reports {
+            html.required.set(true)
+            junitXml.required.set(true)
+        }
     }
 
     val buildZip by creating(Zip::class) {
@@ -66,6 +91,7 @@ tasks {
     }
 
     build {
+        dependsOn(test)
         dependsOn(buildZip)
     }
 }

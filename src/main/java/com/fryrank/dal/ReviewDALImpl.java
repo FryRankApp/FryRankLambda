@@ -36,11 +36,9 @@ import static org.springframework.data.mongodb.core.aggregation.Aggregation.*;
 @AllArgsConstructor
 public class ReviewDALImpl implements ReviewDAL {
 
-    final String RESTAURANT_ID_KEY = "restaurantId";
+    final static String RESTAURANT_ID_KEY = "restaurantId";
 
-    private final MongoTemplate mongoTemplate;
-
-    private final List<AggregationOperation> AGGREGATION_OPERATIONS_FOR_PUBLIC_USER_METADATA_COLLECTION_JOIN =
+    private static final List<AggregationOperation> AGGREGATION_OPERATIONS_FOR_PUBLIC_USER_METADATA_COLLECTION_JOIN =
             new ArrayList<>(Arrays.asList(
                     LookupOperation.newLookup()
                             .from(PUBLIC_USER_METADATA_COLLECTION_NAME)
@@ -49,6 +47,8 @@ public class ReviewDALImpl implements ReviewDAL {
                             .as(USER_METADATA_OUTPUT_FIELD_NAME),
                     Aggregation.unwind("userMetadata")
             ));
+
+    private final MongoTemplate mongoTemplate;
 
     public ReviewDALImpl() {
         String databaseUri = System.getenv(DATABASE_URI_ENV_VAR);
