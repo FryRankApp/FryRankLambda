@@ -58,7 +58,7 @@ tasks {
         
         // Enable test output in console
         testLogging {
-            events("passed", "skipped", "failed", "started")
+            events("passed", "skipped", "failed")
             showStandardStreams = true
             showExceptions = true
             showCauses = true
@@ -66,10 +66,6 @@ tasks {
             exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
             // Add more detailed output
             info {
-                events("passed", "skipped", "failed", "standardOut", "standardError")
-                exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
-            }
-            debug {
                 events("passed", "skipped", "failed", "standardOut", "standardError")
                 exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
             }
