@@ -51,7 +51,6 @@ public class ReviewDALImpl implements ReviewDAL {
             ));
 
     public ReviewDALImpl() {
-        log.info("Initializing ReviewDALImpl");
         String databaseUri = System.getenv(DATABASE_URI_ENV_VAR);
         
         if (databaseUri == null || databaseUri.isEmpty()) {
@@ -68,27 +67,9 @@ public class ReviewDALImpl implements ReviewDAL {
                        .readTimeout(10, TimeUnit.SECONDS))
             .build();
 
-        log.info("Creating MongoDB client with custom settings");
         MongoClient mongoClient = MongoClients.create(settings);
         
-        log.info("Creating MongoTemplate");
         this.mongoTemplate = new MongoTemplate(mongoClient, connectionString.getDatabase());
-        
-        // Test the connection
-        try {
-            log.info("Testing MongoDB connection with ping command");
-            Document pingResult = this.mongoTemplate.getDb().runCommand(new Document("ping", 1));
-            log.info("Successfully connected to MongoDB. Ping result: {}", pingResult);
-        } catch (MongoException e) {
-            log.error("Failed to connect to MongoDB: {}", e.getMessage(), e);
-            if (e.getMessage().contains("Authentication failed")) {
-                throw new IllegalStateException("MongoDB authentication failed. Please check username and password.", e);
-            } else if (e.getMessage().contains("Server selection timed out")) {
-                throw new IllegalStateException("MongoDB server selection timed out. Please check network connectivity and MongoDB Atlas status.", e);
-            } else {
-                throw new IllegalStateException("Failed to connect to MongoDB: " + e.getMessage(), e);
-            }
-        }
     }
 
     @Override

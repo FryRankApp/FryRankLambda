@@ -37,4 +37,8 @@ public class Constants {
      * Collection name for user metadata.
      */
     public static final String USER_METADATA_COLLECTION = "user-metadata";
+
+    // Query parameters
+    public static final String RESTAURANT_ID_QUERY_PARAM = "restaurantId";
+    public static final String ACCOUNT_ID_QUERY_PARAM = "accountId";
 }
