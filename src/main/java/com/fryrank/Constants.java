@@ -28,16 +28,6 @@ public class Constants {
      */
     public static final String DATABASE_URI_ENV_VAR = "DATABASE_URI";
 
-    /**
-     * Collection name for reviews.
-     */
-    public static final String REVIEW_COLLECTION = "reviews";
-    
-    /**
-     * Collection name for user metadata.
-     */
-    public static final String USER_METADATA_COLLECTION = "user-metadata";
-
     // Query parameters
     public static final String RESTAURANT_ID_QUERY_PARAM = "restaurantId";
     public static final String ACCOUNT_ID_QUERY_PARAM = "accountId";
