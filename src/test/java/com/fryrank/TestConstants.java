@@ -2,6 +2,7 @@ package com.fryrank;
 
 import com.fryrank.model.Review;
 import com.fryrank.model.PublicUserMetadata;
+import com.fryrank.model.PublicUserMetadataOutput;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -82,6 +83,24 @@ public class TestConstants {
                     TEST_ACCOUNT_ID,
                     TEST_USER_METADATA_1)
             );
+        }
+    };
+
+    public static final String TEST_RESTAURANT_ID_2 = "ChIJ1wHcROHNj4ARmNwmP2PcUWw";
+    public static final String TEST_ACCOUNT_ID_NO_USER_METADATA = "test_account_id_no_user_metadata";
+
+    public static final PublicUserMetadataOutput TEST_USER_METADATA_OUTPUT_1 = new PublicUserMetadataOutput(
+        TEST_USERNAME
+    );
+
+    public static final String TEST_DEFAULT_NAME = "test user name";
+    public static final PublicUserMetadataOutput TEST_PUBLIC_USER_METADATA_OUTPUT_WITH_DEFAULT_NAME = new PublicUserMetadataOutput(TEST_DEFAULT_NAME);
+
+    public static final PublicUserMetadataOutput TEST_PUBLIC_USER_METADATA_OUTPUT_EMPTY = new PublicUserMetadataOutput(null);
+
+    public static final List<PublicUserMetadata> TEST_PUBLIC_USER_METADATA_LIST = new ArrayList<>() {
+        {
+            add(new PublicUserMetadata(TEST_ACCOUNT_ID, TEST_USERNAME));
         }
     };
 }

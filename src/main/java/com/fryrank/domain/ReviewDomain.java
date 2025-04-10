@@ -1,6 +1,12 @@
 package com.fryrank.domain;
 
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
+
 import com.fryrank.dal.ReviewDAL;
+import com.fryrank.model.AggregateReviewFilter;
+import com.fryrank.model.GetAggregateReviewInformationOutput;
 import com.fryrank.model.GetAllReviewsOutput;
 import lombok.AllArgsConstructor;
 import lombok.extern.log4j.Log4j2;
@@ -28,5 +34,14 @@ public class ReviewDomain {
 
     public GetAllReviewsOutput getTopReviews(final Integer count) {
         return reviewDAL.getTopMostRecentReviews(count);
+    }
+
+    public GetAggregateReviewInformationOutput getAggregateReviewInformationForRestaurants(
+            String ids,
+            Boolean includeRating
+    ) {
+        List<String> parsedIDs = Arrays.stream(ids.split(",")).sorted().collect(Collectors.toList());
+        AggregateReviewFilter filter = new AggregateReviewFilter(includeRating != null ? includeRating : false);
+        return reviewDAL.getAggregateReviewInformationForRestaurants(parsedIDs, filter);
     }
 }
