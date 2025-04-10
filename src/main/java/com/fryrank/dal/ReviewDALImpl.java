@@ -4,6 +4,8 @@ import com.fryrank.model.*;
 import lombok.AllArgsConstructor;
 import lombok.NonNull;
 import lombok.extern.log4j.Log4j2;
+
+import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.aggregation.Aggregation;
 import org.springframework.data.mongodb.core.aggregation.AggregationOperation;
@@ -29,6 +31,7 @@ import static com.fryrank.Constants.REVIEW_COLLECTION_NAME;
 import static com.fryrank.Constants.PUBLIC_USER_METADATA_COLLECTION_NAME;
 import static com.fryrank.Constants.USER_METADATA_OUTPUT_FIELD_NAME;
 import static com.fryrank.Constants.DATABASE_URI_ENV_VAR;
+import static com.fryrank.Constants.ISO_DATE_TIME;
 import static org.springframework.data.mongodb.core.aggregation.Aggregation.*;
 
 @Repository
@@ -92,6 +95,18 @@ public class ReviewDALImpl implements ReviewDAL {
         List<AggregationOperation> aggregationOperations = new ArrayList<>(AGGREGATION_OPERATIONS_FOR_PUBLIC_USER_METADATA_COLLECTION_JOIN);
         final Criteria equalToAccountIdCriteria = Criteria.where(ACCOUNT_ID_KEY).is(accountId);
         aggregationOperations.add(match(equalToAccountIdCriteria));
+
+        final Aggregation aggregation = newAggregation(aggregationOperations);
+        final AggregationResults<Review> result = mongoTemplate.aggregate(aggregation, REVIEW_COLLECTION_NAME, Review.class);
+
+        return new GetAllReviewsOutput(result.getMappedResults());
+    }
+
+    @Override
+    public GetAllReviewsOutput getTopMostRecentReviews(@NonNull final Integer count){
+        List<AggregationOperation> aggregationOperations = new ArrayList<>(AGGREGATION_OPERATIONS_FOR_PUBLIC_USER_METADATA_COLLECTION_JOIN);
+        aggregationOperations.add(sort(Sort.by(Sort.Direction.DESC, ISO_DATE_TIME)));
+        aggregationOperations.add(limit(count));
 
         final Aggregation aggregation = newAggregation(aggregationOperations);
         final AggregationResults<Review> result = mongoTemplate.aggregate(aggregation, REVIEW_COLLECTION_NAME, Review.class);

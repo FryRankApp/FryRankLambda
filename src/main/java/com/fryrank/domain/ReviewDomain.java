@@ -25,4 +25,8 @@ public class ReviewDomain {
             throw new NullPointerException("At least one of restaurantId and accountId must not be null.");
         }
     }
+
+    public GetAllReviewsOutput getTopReviews(final Integer count) {
+        return reviewDAL.getTopMostRecentReviews(count);
+    }
 }

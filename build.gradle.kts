@@ -20,9 +20,10 @@ repositories {
 }
 
 dependencies {
-    // Use JUnit for testing.
-    testImplementation("junit:junit:4.13.2")
+    // Use JUnit Jupiter for testing.
+    testImplementation("org.junit.jupiter:junit-jupiter:5.10.2")
     testImplementation("org.mockito:mockito-core:5.11.0")
+    testImplementation("org.springframework.boot:spring-boot-starter-test")
 
     implementation(libs.guava)
 
@@ -30,14 +31,15 @@ dependencies {
     implementation("com.amazonaws:aws-lambda-java-core:1.2.2")
     implementation("com.amazonaws:aws-lambda-java-events:3.11.1")
 
+    // Logging
     implementation("org.apache.logging.log4j:log4j-api:2.17.1")
     implementation("org.apache.logging.log4j:log4j-core:2.17.1")
+    implementation("org.apache.logging.log4j:log4j-slf4j-impl:2.17.1")
     runtimeOnly("com.amazonaws:aws-lambda-java-log4j2:1.5.1")
 
     // MongoDB
     implementation("org.springframework.boot:spring-boot-starter-data-mongodb")
     implementation("org.mongodb:mongodb-driver-sync:4.11.1")
-    testImplementation("org.springframework.boot:spring-boot-starter-test")
 }
 
 // Apply a specific Java toolchain to ease working on different environments.
@@ -49,26 +51,21 @@ java {
 
 application {
     // Define the main class for the application.
-    mainClass = "com.fryrank.handler.ReviewHandler"
+    mainClass = "com.fryrank.handler.GetAllReviewsHandler"
 }
 
 tasks {
     test {
-        useJUnit()  // Use JUnit 4
+        useJUnitPlatform()  // Use JUnit 5
         
         // Enable test output in console
         testLogging {
-            events("passed", "skipped", "failed")
+            events("passed", "skipped", "failed", "started")
             showStandardStreams = true
             showExceptions = true
             showCauses = true
             showStackTraces = true
             exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
-            // Add more detailed output
-            info {
-                events("passed", "skipped", "failed", "standardOut", "standardError")
-                exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
-            }
         }
         
         // Generate HTML test report

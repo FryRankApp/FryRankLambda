@@ -2,21 +2,20 @@ package com.fryrank.domain;
 
 import com.fryrank.dal.ReviewDAL;
 import com.fryrank.model.*;
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnitRunner;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import static com.fryrank.TestConstants.TEST_ACCOUNT_ID;
 import static com.fryrank.TestConstants.TEST_RESTAURANT_ID;
 import static com.fryrank.TestConstants.TEST_REVIEWS;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.when;
 
-
-@RunWith(MockitoJUnitRunner.class)
+@ExtendWith(MockitoExtension.class)
 public class ReviewDomainTests {
     @Mock
     ReviewDAL reviewDAL;
@@ -46,5 +45,14 @@ public class ReviewDomainTests {
     @Test
     public void testGetAllReviewsNoParameter() throws Exception {
         assertThrows(NullPointerException.class, () -> controller.getAllReviews(null, null));
+    }
+
+    @Test
+    public void testGetTopReviews() throws Exception {
+        final GetAllReviewsOutput expectedOutput = new GetAllReviewsOutput(TEST_REVIEWS);
+        when(reviewDAL.getTopMostRecentReviews(TEST_REVIEWS.size())).thenReturn(expectedOutput);
+
+        final GetAllReviewsOutput actualOutput = controller.getTopReviews(TEST_REVIEWS.size());
+        assertEquals(expectedOutput.getReviews().size(), actualOutput.getReviews().size());
     }
 }

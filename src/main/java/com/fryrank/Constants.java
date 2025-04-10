@@ -31,4 +31,5 @@ public class Constants {
     // Query parameters
     public static final String RESTAURANT_ID_QUERY_PARAM = "restaurantId";
     public static final String ACCOUNT_ID_QUERY_PARAM = "accountId";
+    public static final String COUNT_QUERY_PARAM = "count";
 }

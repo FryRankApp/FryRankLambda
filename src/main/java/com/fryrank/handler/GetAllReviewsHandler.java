@@ -12,12 +12,12 @@ import static com.fryrank.Constants.RESTAURANT_ID_QUERY_PARAM;
 import static com.fryrank.Constants.ACCOUNT_ID_QUERY_PARAM;
 
 @Log4j2
-public class ReviewHandler implements RequestHandler<APIGatewayV2HTTPEvent, APIGatewayV2HTTPResponse> {
+public class GetAllReviewsHandler implements RequestHandler<APIGatewayV2HTTPEvent, APIGatewayV2HTTPResponse> {
 
     private final ReviewDALImpl reviewDAL;
     private final ReviewDomain reviewDomain;
 
-    public ReviewHandler() {
+    public GetAllReviewsHandler() {
         this.reviewDAL = new ReviewDALImpl();
         this.reviewDomain = new ReviewDomain(reviewDAL);
     }
