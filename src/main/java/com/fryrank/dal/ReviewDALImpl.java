@@ -1,8 +1,9 @@
 package com.fryrank.dal;
 
 import com.fryrank.model.*;
+import lombok.AllArgsConstructor;
 import lombok.NonNull;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.extern.log4j.Log4j2;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.aggregation.Aggregation;
 import org.springframework.data.mongodb.core.aggregation.AggregationOperation;
@@ -10,6 +11,13 @@ import org.springframework.data.mongodb.core.aggregation.AggregationResults;
 import org.springframework.data.mongodb.core.aggregation.LookupOperation;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.stereotype.Repository;
+import com.mongodb.MongoClientSettings;
+import com.mongodb.ConnectionString;
+import com.mongodb.MongoException;
+import com.mongodb.client.MongoClients;
+import com.mongodb.client.MongoClient;
+import org.bson.Document;
+import java.util.concurrent.TimeUnit;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -20,15 +28,15 @@ import static com.fryrank.Constants.PRIMARY_KEY;
 import static com.fryrank.Constants.REVIEW_COLLECTION_NAME;
 import static com.fryrank.Constants.PUBLIC_USER_METADATA_COLLECTION_NAME;
 import static com.fryrank.Constants.USER_METADATA_OUTPUT_FIELD_NAME;
+import static com.fryrank.Constants.DATABASE_URI_ENV_VAR;
 import static org.springframework.data.mongodb.core.aggregation.Aggregation.*;
 
 @Repository
+@Log4j2
+@AllArgsConstructor
 public class ReviewDALImpl implements ReviewDAL {
 
-    public static final String RESTAURANT_ID_KEY = "restaurantId";
-
-    @Autowired
-    private MongoTemplate mongoTemplate;
+    final static String RESTAURANT_ID_KEY = "restaurantId";
 
     private static final List<AggregationOperation> AGGREGATION_OPERATIONS_FOR_PUBLIC_USER_METADATA_COLLECTION_JOIN =
             new ArrayList<>(Arrays.asList(
@@ -40,8 +48,34 @@ public class ReviewDALImpl implements ReviewDAL {
                     Aggregation.unwind("userMetadata")
             ));
 
+    private final MongoTemplate mongoTemplate;
+
+    public ReviewDALImpl() {
+        String databaseUri = System.getenv(DATABASE_URI_ENV_VAR);
+        
+        if (databaseUri == null || databaseUri.isEmpty()) {
+            throw new IllegalStateException("DATABASE_URI_ENV_VAR is not set");
+        }
+
+        ConnectionString connectionString = new ConnectionString(databaseUri);
+
+        // Configure MongoDB client with explicit settings
+        MongoClientSettings settings = MongoClientSettings.builder()
+            .applyConnectionString(connectionString)
+            .applyToSocketSettings(builder -> 
+                builder.connectTimeout(10, TimeUnit.SECONDS)
+                       .readTimeout(10, TimeUnit.SECONDS))
+            .build();
+
+        MongoClient mongoClient = MongoClients.create(settings);
+        
+        this.mongoTemplate = new MongoTemplate(mongoClient, connectionString.getDatabase());
+    }
+
     @Override
     public GetAllReviewsOutput getAllReviewsByRestaurantId(@NonNull final String restaurantId) {
+        log.info("Getting all reviews for restaurantId: {}", restaurantId);
+
         List<AggregationOperation> aggregationOperations = new ArrayList<>(AGGREGATION_OPERATIONS_FOR_PUBLIC_USER_METADATA_COLLECTION_JOIN);
         final Criteria equalToRestaurantIdCriteria = Criteria.where(RESTAURANT_ID_KEY).is(restaurantId);
         aggregationOperations.add(match(equalToRestaurantIdCriteria));
@@ -54,6 +88,7 @@ public class ReviewDALImpl implements ReviewDAL {
 
     @Override
     public GetAllReviewsOutput getAllReviewsByAccountId(@NonNull final String accountId) {
+        log.info("Getting all reviews for accountId: {}", accountId);
         List<AggregationOperation> aggregationOperations = new ArrayList<>(AGGREGATION_OPERATIONS_FOR_PUBLIC_USER_METADATA_COLLECTION_JOIN);
         final Criteria equalToAccountIdCriteria = Criteria.where(ACCOUNT_ID_KEY).is(accountId);
         aggregationOperations.add(match(equalToAccountIdCriteria));
