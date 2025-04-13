@@ -1,6 +1,7 @@
 package com.fryrank.dal;
 
 import com.fryrank.model.*;
+import com.fryrank.util.SSMParameterStore;
 import lombok.AllArgsConstructor;
 import lombok.NonNull;
 import lombok.extern.log4j.Log4j2;
@@ -18,10 +19,6 @@ import com.mongodb.client.MongoClients;
 import com.mongodb.client.MongoClient;
 import org.bson.Document;
 import java.util.concurrent.TimeUnit;
-import software.amazon.awssdk.services.ssm.SsmClient;
-import software.amazon.awssdk.services.ssm.model.GetParameterRequest;
-import software.amazon.awssdk.services.ssm.model.GetParameterResponse;
-import software.amazon.awssdk.services.ssm.model.SsmException;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -32,7 +29,6 @@ import static com.fryrank.Constants.PRIMARY_KEY;
 import static com.fryrank.Constants.REVIEW_COLLECTION_NAME;
 import static com.fryrank.Constants.PUBLIC_USER_METADATA_COLLECTION_NAME;
 import static com.fryrank.Constants.USER_METADATA_OUTPUT_FIELD_NAME;
-import static com.fryrank.Constants.DATABASE_URI_PARAMETER_NAME_ENV_VAR;
 import static org.springframework.data.mongodb.core.aggregation.Aggregation.*;
 
 @Repository
@@ -55,7 +51,7 @@ public class ReviewDALImpl implements ReviewDAL {
     private final MongoTemplate mongoTemplate;
 
     public ReviewDALImpl() {
-        String databaseUri = getDatabaseUriFromSSM();
+        String databaseUri = SSMParameterStore.getDatabaseUriFromSSM();
         
         if (databaseUri == null || databaseUri.isEmpty()) {
             throw new IllegalStateException("Database URI could not be retrieved from SSM Parameter Store");
@@ -74,22 +70,6 @@ public class ReviewDALImpl implements ReviewDAL {
         MongoClient mongoClient = MongoClients.create(settings);
         
         this.mongoTemplate = new MongoTemplate(mongoClient, connectionString.getDatabase());
-    }
-
-    private String getDatabaseUriFromSSM() {
-        try (SsmClient ssmClient = SsmClient.create()) {
-            GetParameterRequest parameterRequest = GetParameterRequest.builder()
-                .name(System.getenv(DATABASE_URI_PARAMETER_NAME_ENV_VAR))
-                .withDecryption(true)
-                .build();
-
-            GetParameterResponse parameterResponse = ssmClient.getParameter(parameterRequest);
-            log.info("Database URI retrieved from SSM Parameter successfully");
-            return parameterResponse.parameter().value();
-        } catch (SsmException e) {
-            log.error("Error retrieving database URI from SSM Parameter Store", e);
-            throw new IllegalStateException("Failed to retrieve database URI from SSM Parameter Store", e);
-        }
     }
 
     @Override
