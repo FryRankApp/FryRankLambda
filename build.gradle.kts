@@ -38,6 +38,9 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-data-mongodb")
     implementation("org.mongodb:mongodb-driver-sync:4.11.1")
     testImplementation("org.springframework.boot:spring-boot-starter-test")
+
+    // AWS SSM
+    implementation("software.amazon.awssdk:ssm:2.24.0")
 }
 
 // Apply a specific Java toolchain to ease working on different environments.

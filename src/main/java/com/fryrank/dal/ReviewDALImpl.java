@@ -1,6 +1,7 @@
 package com.fryrank.dal;
 
 import com.fryrank.model.*;
+import com.fryrank.util.SSMParameterStore;
 import lombok.AllArgsConstructor;
 import lombok.NonNull;
 import lombok.extern.log4j.Log4j2;
@@ -28,7 +29,6 @@ import static com.fryrank.Constants.PRIMARY_KEY;
 import static com.fryrank.Constants.REVIEW_COLLECTION_NAME;
 import static com.fryrank.Constants.PUBLIC_USER_METADATA_COLLECTION_NAME;
 import static com.fryrank.Constants.USER_METADATA_OUTPUT_FIELD_NAME;
-import static com.fryrank.Constants.DATABASE_URI_ENV_VAR;
 import static org.springframework.data.mongodb.core.aggregation.Aggregation.*;
 
 @Repository
@@ -51,10 +51,10 @@ public class ReviewDALImpl implements ReviewDAL {
     private final MongoTemplate mongoTemplate;
 
     public ReviewDALImpl() {
-        String databaseUri = System.getenv(DATABASE_URI_ENV_VAR);
+        String databaseUri = SSMParameterStore.getDatabaseUriFromSSM();
         
         if (databaseUri == null || databaseUri.isEmpty()) {
-            throw new IllegalStateException("DATABASE_URI_ENV_VAR is not set");
+            throw new IllegalStateException("Database URI could not be retrieved from SSM Parameter Store");
         }
 
         ConnectionString connectionString = new ConnectionString(databaseUri);
