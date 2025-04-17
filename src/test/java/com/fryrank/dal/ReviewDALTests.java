@@ -11,6 +11,8 @@ import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.mongodb.core.aggregation.Aggregation;
 import org.springframework.data.mongodb.core.aggregation.AggregationResults;
+import org.springframework.data.mongodb.core.query.Query;
+import org.springframework.data.mongodb.core.FindAndReplaceOptions;
 import org.springframework.data.mongodb.core.MongoTemplate;
 
 import java.util.List;
@@ -18,8 +20,10 @@ import java.util.List;
 import static com.fryrank.TestConstants.TEST_ACCOUNT_ID;
 import static com.fryrank.TestConstants.TEST_RESTAURANT_ID;
 import static com.fryrank.TestConstants.TEST_REVIEWS;
+import static com.fryrank.TestConstants.TEST_REVIEW_1;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -92,4 +96,19 @@ public class ReviewDALTests {
         final GetAllReviewsOutput actualOutput = reviewDAL.getTopMostRecentReviews(TEST_REVIEWS.size());
         assertEquals(actualOutput, expectedOutput);
     }
+
+    @Test
+    public void testAddNewReview() throws Exception {
+        when(mongoTemplate.findAndReplace(any(Query.class), eq(TEST_REVIEW_1), any(FindAndReplaceOptions.class))).thenReturn(TEST_REVIEW_1);
+
+        final Review expectedReview = TEST_REVIEW_1;
+        final Review actualReview = reviewDAL.addNewReview(expectedReview);
+        assertEquals(expectedReview, actualReview);
+    }
+
+    @Test
+    public void testAddNewReview_nullReview() {
+        assertThrows(NullPointerException.class, () -> reviewDAL.addNewReview(null));
+    }
+    
 }

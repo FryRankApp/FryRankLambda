@@ -6,6 +6,7 @@ import lombok.NonNull;
 import lombok.extern.log4j.Log4j2;
 
 import org.springframework.data.domain.Sort;
+import org.springframework.data.mongodb.core.FindAndReplaceOptions;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.aggregation.Aggregation;
 import org.springframework.data.mongodb.core.aggregation.AggregationOperation;
@@ -14,13 +15,12 @@ import org.springframework.data.mongodb.core.aggregation.GroupOperation;
 import org.springframework.data.mongodb.core.aggregation.LookupOperation;
 import org.springframework.data.mongodb.core.aggregation.MatchOperation;
 import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Repository;
 import com.mongodb.MongoClientSettings;
 import com.mongodb.ConnectionString;
-import com.mongodb.MongoException;
 import com.mongodb.client.MongoClients;
 import com.mongodb.client.MongoClient;
-import org.bson.Document;
 import java.util.concurrent.TimeUnit;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -143,5 +143,14 @@ public class ReviewDALImpl implements ReviewDAL {
         );
 
         return new GetAggregateReviewInformationOutput(restaurantIdToAggregateReviewInformation);
+    }
+
+    @Override
+    public Review addNewReview(@NonNull final Review review) {
+        final Query query = new Query().addCriteria(Criteria.where("_id").is(review.getRestaurantId() + ":" + review.getAccountId()));
+        final FindAndReplaceOptions options = new FindAndReplaceOptions();
+        options.upsert();
+
+        return mongoTemplate.findAndReplace(query, review, options);
     }
 }

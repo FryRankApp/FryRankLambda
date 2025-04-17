@@ -27,7 +27,6 @@ public class GetAllReviewsHandler implements RequestHandler<APIGatewayV2HTTPEven
         try {
             log.info("Handling request: {}", input);
             
-            // Using pattern matching for instanceof (Java 21 feature)
             if (input.getQueryStringParameters() == null) {
                 throw new IllegalArgumentException("Query parameters are required");
             }

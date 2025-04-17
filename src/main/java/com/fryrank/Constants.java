@@ -8,6 +8,7 @@ public class Constants {
     public static final String ISO_DATE_TIME = "isoDateTime";
 
     // Input Validator
+    public static final String GENERIC_VALIDATOR_ERROR_MESSAGE = "Encountered error while validating API input.";
     public static final String REVIEW_VALIDATOR_ERRORS_OBJECT_NAME = "review";
     public static final String REJECTION_REQUIRED_CODE = "field.required";
     public static final String REJECTION_FORMAT_CODE = "field.invalidFormat";
@@ -34,4 +35,5 @@ public class Constants {
     public static final String COUNT_QUERY_PARAM = "count";
     public static final String IDS_QUERY_PARAM = "ids";
     public static final String INCLUDE_RATING_QUERY_PARAM = "includeRating";
+    
 }

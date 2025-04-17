@@ -1,24 +1,23 @@
 package com.fryrank.handler;
+
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayV2HTTPEvent;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayV2HTTPResponse;
-import com.fryrank.dal.ReviewDAL;
 import com.fryrank.dal.ReviewDALImpl;
 import com.fryrank.domain.ReviewDomain;
-import com.fryrank.model.GetAggregateReviewInformationOutput;
+import com.fryrank.model.Review;
+import com.google.gson.Gson;
 
 import lombok.extern.log4j.Log4j2;
-import static com.fryrank.Constants.IDS_QUERY_PARAM;
-import static com.fryrank.Constants.INCLUDE_RATING_QUERY_PARAM;
 
 @Log4j2
-public class GetAggregateReviewInformationHandler implements RequestHandler<APIGatewayV2HTTPEvent, APIGatewayV2HTTPResponse> {
+public class AddNewReviewForRestaurantHandler implements RequestHandler<APIGatewayV2HTTPEvent, APIGatewayV2HTTPResponse> {
 
+    private final ReviewDALImpl reviewDAL;
     private final ReviewDomain reviewDomain;
-    private final ReviewDAL reviewDAL;
 
-    public GetAggregateReviewInformationHandler() {
+    public AddNewReviewForRestaurantHandler() {
         this.reviewDAL = new ReviewDALImpl();
         this.reviewDomain = new ReviewDomain(reviewDAL);
     }
@@ -27,20 +26,21 @@ public class GetAggregateReviewInformationHandler implements RequestHandler<APIG
     public APIGatewayV2HTTPResponse handleRequest(APIGatewayV2HTTPEvent input, Context context) {
         try {
             log.info("Handling request: {}", input);
-
-            if (input.getQueryStringParameters() == null || input.getQueryStringParameters().getOrDefault(IDS_QUERY_PARAM, null) == null) {
-                throw new IllegalArgumentException("Ids are required");
+            
+            if (input.getQueryStringParameters() == null) {
+                throw new IllegalArgumentException("Query parameters are required");
             }
 
-            GetAggregateReviewInformationOutput output = reviewDomain.getAggregateReviewInformationForRestaurants(
-                input.getQueryStringParameters().getOrDefault(IDS_QUERY_PARAM, null),
-                Boolean.parseBoolean(input.getQueryStringParameters().getOrDefault(INCLUDE_RATING_QUERY_PARAM, "false"))
-            );
+            Review review = new Gson().fromJson(input.getBody(), Review.class);
+
+            Review output = reviewDomain.addNewReviewForRestaurant(review);
+
 
             APIGatewayV2HTTPResponse response = new APIGatewayV2HTTPResponse();
             response.setStatusCode(200);
             response.setBody(output.toString());
             
+            log.info("Request processed successfully");
             return response;
         } catch (Exception e) {
             log.error("Error processing request", e);
@@ -50,7 +50,4 @@ public class GetAggregateReviewInformationHandler implements RequestHandler<APIG
             return errorResponse;
         }
     }
-    
-    
-
 }

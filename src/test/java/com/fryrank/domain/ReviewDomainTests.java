@@ -2,6 +2,8 @@ package com.fryrank.domain;
 
 import com.fryrank.dal.ReviewDAL;
 import com.fryrank.model.*;
+import com.fryrank.validator.ValidatorException;
+
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -9,8 +11,16 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import static com.fryrank.TestConstants.TEST_ACCOUNT_ID;
+import static com.fryrank.TestConstants.TEST_BODY_1;
+import static com.fryrank.TestConstants.TEST_ISO_DATE_TIME_1;
 import static com.fryrank.TestConstants.TEST_RESTAURANT_ID;
 import static com.fryrank.TestConstants.TEST_REVIEWS;
+import static com.fryrank.TestConstants.TEST_REVIEW_1;
+import static com.fryrank.TestConstants.TEST_REVIEW_BAD_ISO_DATETIME;
+import static com.fryrank.TestConstants.TEST_REVIEW_ID_1;
+import static com.fryrank.TestConstants.TEST_REVIEW_NULL_ACCOUNT_ID;
+import static com.fryrank.TestConstants.TEST_REVIEW_NULL_ISO_DATETIME;
+import static com.fryrank.TestConstants.TEST_TITLE_1;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.when;
@@ -29,7 +39,7 @@ public class ReviewDomainTests {
     ReviewDAL reviewDAL;
 
     @InjectMocks
-    ReviewDomain controller;
+    ReviewDomain domain;
 
     // /api/reviews endpoint tests
     @Test
@@ -37,7 +47,7 @@ public class ReviewDomainTests {
         final GetAllReviewsOutput expectedOutput = new GetAllReviewsOutput(TEST_REVIEWS);
         when(reviewDAL.getAllReviewsByRestaurantId(TEST_RESTAURANT_ID)).thenReturn(expectedOutput);
 
-        final GetAllReviewsOutput actualOutput = controller.getAllReviews(TEST_RESTAURANT_ID, null);
+        final GetAllReviewsOutput actualOutput = domain.getAllReviews(TEST_RESTAURANT_ID, null);
         assertEquals(expectedOutput, actualOutput);
     }
 
@@ -46,13 +56,13 @@ public class ReviewDomainTests {
         final GetAllReviewsOutput expectedOutput = new GetAllReviewsOutput(TEST_REVIEWS);
         when(reviewDAL.getAllReviewsByAccountId(TEST_ACCOUNT_ID)).thenReturn(expectedOutput);
 
-        final GetAllReviewsOutput actualOutput = controller.getAllReviews(null, TEST_ACCOUNT_ID);
+        final GetAllReviewsOutput actualOutput = domain.getAllReviews(null, TEST_ACCOUNT_ID);
         assertEquals(expectedOutput, actualOutput);
     }
 
     @Test
     public void testGetAllReviewsNoParameter() throws Exception {
-        assertThrows(NullPointerException.class, () -> controller.getAllReviews(null, null));
+        assertThrows(NullPointerException.class, () -> domain.getAllReviews(null, null));
     }
 
     @Test
@@ -60,7 +70,7 @@ public class ReviewDomainTests {
         final GetAllReviewsOutput expectedOutput = new GetAllReviewsOutput(TEST_REVIEWS);
         when(reviewDAL.getTopMostRecentReviews(TEST_REVIEWS.size())).thenReturn(expectedOutput);
 
-        final GetAllReviewsOutput actualOutput = controller.getTopReviews(TEST_REVIEWS.size());
+        final GetAllReviewsOutput actualOutput = domain.getTopReviews(TEST_REVIEWS.size());
         assertEquals(expectedOutput.getReviews().size(), actualOutput.getReviews().size());
     }
 
@@ -80,7 +90,7 @@ public class ReviewDomainTests {
 
         when(reviewDAL.getAggregateReviewInformationForRestaurants(restaurantIds, aggregateReviewFilter)).thenReturn(expectedOutput);
 
-        final GetAggregateReviewInformationOutput actualOutput = controller.getAggregateReviewInformationForRestaurants(TEST_RESTAURANT_ID_1, true);
+        final GetAggregateReviewInformationOutput actualOutput = domain.getAggregateReviewInformationForRestaurants(TEST_RESTAURANT_ID_1, true);
         assertEquals(expectedOutput, actualOutput);
     }
 
@@ -101,10 +111,10 @@ public class ReviewDomainTests {
 
         when(reviewDAL.getAggregateReviewInformationForRestaurants(restaurantIds.stream().sorted().collect(Collectors.toList()), aggregateReviewFilter)).thenReturn(expectedOutput);
 
-        final GetAggregateReviewInformationOutput inOrderOutput = controller.getAggregateReviewInformationForRestaurants(TEST_RESTAURANT_ID_1 + "," + TEST_RESTAURANT_ID_2, true);
+        final GetAggregateReviewInformationOutput inOrderOutput = domain.getAggregateReviewInformationForRestaurants(TEST_RESTAURANT_ID_1 + "," + TEST_RESTAURANT_ID_2, true);
         assertEquals(expectedOutput, inOrderOutput);
 
-        final GetAggregateReviewInformationOutput reversedOutput = controller.getAggregateReviewInformationForRestaurants(TEST_RESTAURANT_ID_2 + "," + TEST_RESTAURANT_ID_1, true);
+        final GetAggregateReviewInformationOutput reversedOutput = domain.getAggregateReviewInformationForRestaurants(TEST_RESTAURANT_ID_2 + "," + TEST_RESTAURANT_ID_1, true);
         assertEquals(expectedOutput, reversedOutput);
     }
 
@@ -123,7 +133,7 @@ public class ReviewDomainTests {
 
         when(reviewDAL.getAggregateReviewInformationForRestaurants(restaurantIds, aggregateReviewFilter)).thenReturn(expectedOutput);
 
-        final GetAggregateReviewInformationOutput actualOutput = controller.getAggregateReviewInformationForRestaurants(TEST_RESTAURANT_ID_1, false);
+        final GetAggregateReviewInformationOutput actualOutput = domain.getAggregateReviewInformationForRestaurants(TEST_RESTAURANT_ID_1, false);
         assertEquals(expectedOutput, actualOutput);
     }
 
@@ -144,7 +154,71 @@ public class ReviewDomainTests {
 
         when(reviewDAL.getAggregateReviewInformationForRestaurants(restaurantIds.stream().sorted().collect(Collectors.toList()), aggregateReviewFilter)).thenReturn(expectedOutput);
 
-        final GetAggregateReviewInformationOutput actualOutput = controller.getAggregateReviewInformationForRestaurants(TEST_RESTAURANT_ID_2 + "," + TEST_RESTAURANT_ID_1, false);
+        final GetAggregateReviewInformationOutput actualOutput = domain.getAggregateReviewInformationForRestaurants(TEST_RESTAURANT_ID_2 + "," + TEST_RESTAURANT_ID_1, false);
         assertEquals(expectedOutput, actualOutput);
+    }
+
+    @Test
+    public void testAddNewReviewForRestaurant() throws Exception {
+        when(reviewDAL.addNewReview(TEST_REVIEW_1)).thenReturn(TEST_REVIEW_1);
+
+        Review actualReview = domain.addNewReviewForRestaurant(TEST_REVIEW_1);
+
+        assertEquals(TEST_REVIEW_1, actualReview);
+    }
+
+    @Test
+    public void testAddNewReviewForNullRestaurant() throws Exception {
+        assertThrows(NullPointerException.class, () -> domain.addNewReviewForRestaurant(null));
+    }
+
+    @Test
+    public void testAddNewReviewNullReviewID() throws Exception {
+        Review expectedReview = new Review(null, TEST_RESTAURANT_ID_1, 5.0, TEST_TITLE_1, TEST_BODY_1, TEST_ISO_DATE_TIME_1, TEST_ACCOUNT_ID, null);
+
+        when(reviewDAL.addNewReview(expectedReview)).thenReturn(expectedReview);
+
+        Review actualReview = domain.addNewReviewForRestaurant(expectedReview);
+
+        assertEquals(expectedReview, actualReview);
+    }
+
+    @Test
+    public void testAddNewReviewNullRestaurantID() throws Exception {
+        Review expectedReview = new Review(TEST_REVIEW_ID_1, null, 5.0, TEST_TITLE_1, TEST_BODY_1, TEST_ISO_DATE_TIME_1, TEST_ACCOUNT_ID, null);
+        assertThrows(NullPointerException.class, () -> domain.addNewReviewForRestaurant(expectedReview));
+    }
+
+    @Test
+    public void testAddNewReviewNullScore() throws Exception {
+        Review expectedReview = new Review(TEST_REVIEW_ID_1, TEST_RESTAURANT_ID_1, null, TEST_TITLE_1, TEST_BODY_1, TEST_ISO_DATE_TIME_1, TEST_ACCOUNT_ID, null);
+        assertThrows(NullPointerException.class, () -> domain.addNewReviewForRestaurant(expectedReview));
+    }
+
+    @Test
+    public void testAddNewReviewNullTitle() throws Exception {
+        Review expectedReview = new Review(TEST_REVIEW_ID_1, TEST_RESTAURANT_ID_1, 5.0, null, TEST_BODY_1, TEST_ISO_DATE_TIME_1, TEST_ACCOUNT_ID, null);
+        assertThrows(NullPointerException.class, () -> domain.addNewReviewForRestaurant(expectedReview));
+    }
+
+    @Test
+    public void testAddNewReviewNullBody() throws Exception {
+        Review expectedReview = new Review(TEST_REVIEW_ID_1, TEST_RESTAURANT_ID_1, 5.0, TEST_TITLE_1, null, TEST_ISO_DATE_TIME_1, TEST_ACCOUNT_ID, null);
+        assertThrows(NullPointerException.class, () -> domain.addNewReviewForRestaurant(expectedReview));
+    }
+
+    @Test
+    public void testAddNewReviewNullISODateTime() throws Exception {
+        assertThrows(ValidatorException.class, () -> domain.addNewReviewForRestaurant(TEST_REVIEW_NULL_ISO_DATETIME));
+    }
+
+    @Test
+    public void testAddNewBadFormatISODateTime() throws Exception {
+        assertThrows(ValidatorException.class, () -> domain.addNewReviewForRestaurant(TEST_REVIEW_BAD_ISO_DATETIME));
+    }
+
+    @Test
+    public void testAddNewReviewNullAccountId() throws Exception {
+        assertThrows(ValidatorException.class, () -> domain.addNewReviewForRestaurant(TEST_REVIEW_NULL_ACCOUNT_ID));
     }
 }
