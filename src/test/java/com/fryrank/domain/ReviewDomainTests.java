@@ -185,26 +185,30 @@ public class ReviewDomainTests {
 
     @Test
     public void testAddNewReviewNullRestaurantID() throws Exception {
-        Review expectedReview = new Review(TEST_REVIEW_ID_1, null, 5.0, TEST_TITLE_1, TEST_BODY_1, TEST_ISO_DATE_TIME_1, TEST_ACCOUNT_ID, null);
-        assertThrows(NullPointerException.class, () -> domain.addNewReviewForRestaurant(expectedReview));
+        assertThrows(NullPointerException.class, () -> 
+            new Review(TEST_REVIEW_ID_1, null, 5.0, TEST_TITLE_1, TEST_BODY_1, TEST_ISO_DATE_TIME_1, TEST_ACCOUNT_ID, null)
+        );
     }
 
     @Test
     public void testAddNewReviewNullScore() throws Exception {
-        Review expectedReview = new Review(TEST_REVIEW_ID_1, TEST_RESTAURANT_ID_1, null, TEST_TITLE_1, TEST_BODY_1, TEST_ISO_DATE_TIME_1, TEST_ACCOUNT_ID, null);
-        assertThrows(NullPointerException.class, () -> domain.addNewReviewForRestaurant(expectedReview));
+        assertThrows(NullPointerException.class, () -> 
+            new Review(TEST_REVIEW_ID_1, TEST_RESTAURANT_ID_1, null, TEST_TITLE_1, TEST_BODY_1, TEST_ISO_DATE_TIME_1, TEST_ACCOUNT_ID, null)
+        );
     }
 
     @Test
     public void testAddNewReviewNullTitle() throws Exception {
-        Review expectedReview = new Review(TEST_REVIEW_ID_1, TEST_RESTAURANT_ID_1, 5.0, null, TEST_BODY_1, TEST_ISO_DATE_TIME_1, TEST_ACCOUNT_ID, null);
-        assertThrows(NullPointerException.class, () -> domain.addNewReviewForRestaurant(expectedReview));
+        assertThrows(NullPointerException.class, () -> 
+            new Review(TEST_REVIEW_ID_1, TEST_RESTAURANT_ID_1, 5.0, null, TEST_BODY_1, TEST_ISO_DATE_TIME_1, TEST_ACCOUNT_ID, null)
+        );
     }
 
     @Test
     public void testAddNewReviewNullBody() throws Exception {
-        Review expectedReview = new Review(TEST_REVIEW_ID_1, TEST_RESTAURANT_ID_1, 5.0, TEST_TITLE_1, null, TEST_ISO_DATE_TIME_1, TEST_ACCOUNT_ID, null);
-        assertThrows(NullPointerException.class, () -> domain.addNewReviewForRestaurant(expectedReview));
+        assertThrows(NullPointerException.class, () -> 
+            new Review(TEST_REVIEW_ID_1, TEST_RESTAURANT_ID_1, 5.0, TEST_TITLE_1, null, TEST_ISO_DATE_TIME_1, TEST_ACCOUNT_ID, null)
+        );
     }
 
     @Test

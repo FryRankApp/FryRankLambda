@@ -7,6 +7,9 @@ public class Constants {
 
     public static final String ISO_DATE_TIME = "isoDateTime";
 
+    // SSM Parameter Store
+    public static final String DATABASE_URI_PARAMETER_NAME_ENV_VAR = "SSM_DATABASE_URI_PARAMETER_KEY";
+
     // Input Validator
     public static final String GENERIC_VALIDATOR_ERROR_MESSAGE = "Encountered error while validating API input.";
     public static final String REVIEW_VALIDATOR_ERRORS_OBJECT_NAME = "review";
@@ -23,11 +26,6 @@ public class Constants {
     // MongoDB collection names
     public static final String REVIEW_COLLECTION_NAME = "review";
     public static final String PUBLIC_USER_METADATA_COLLECTION_NAME = "user-metadata";
-
-    /**
-     * Environment variable name for the MongoDB connection URI.
-     */
-    public static final String DATABASE_URI_ENV_VAR = "DATABASE_URI";
 
     // Query parameters
     public static final String RESTAURANT_ID_QUERY_PARAM = "restaurantId";
