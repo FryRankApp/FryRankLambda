@@ -28,12 +28,12 @@ public class GetAggregateReviewInformationHandler implements RequestHandler<APIG
         try {
             log.info("Handling request: {}", input);
 
-            if (input.getQueryStringParameters() == null || input.getQueryStringParameters().getOrDefault(IDS_QUERY_PARAM, null) == null) {
+            if (input.getQueryStringParameters() == null || !input.getQueryStringParameters().containsKey(IDS_QUERY_PARAM)) {
                 throw new IllegalArgumentException("Ids are required");
             }
 
             GetAggregateReviewInformationOutput output = reviewDomain.getAggregateReviewInformationForRestaurants(
-                input.getQueryStringParameters().getOrDefault(IDS_QUERY_PARAM, null),
+                input.getQueryStringParameters().get(IDS_QUERY_PARAM),
                 Boolean.parseBoolean(input.getQueryStringParameters().getOrDefault(INCLUDE_RATING_QUERY_PARAM, "false"))
             );
 

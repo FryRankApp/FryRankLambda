@@ -27,8 +27,8 @@ public class AddNewReviewForRestaurantHandler implements RequestHandler<APIGatew
         try {
             log.info("Handling request: {}", input);
             
-            if (input.getQueryStringParameters() == null) {
-                throw new IllegalArgumentException("Query parameters are required");
+            if (input.getBody() == null) {
+                throw new IllegalArgumentException("Request body is required");
             }
 
             Review review = new Gson().fromJson(input.getBody(), Review.class);
