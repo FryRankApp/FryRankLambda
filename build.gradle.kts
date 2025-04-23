@@ -57,7 +57,7 @@ java {
 }
 
 application {
-    // Define the main class for the application.
+    // Define the main class for the application. It is only used during the build process.
     mainClass = "com.fryrank.handler.GetAllReviewsHandler"
 }
 
