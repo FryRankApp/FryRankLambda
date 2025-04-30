@@ -18,9 +18,6 @@ public class APIGatewayRequestValidator {
     public void validateRequest(String className, APIGatewayV2HTTPEvent request) {
         log.info("Validating API Gateway Request for handler class: {}", className);
 
-        // Extract the resource path (e.g., /addNewReview)
-        final String resourcePath = request.getRequestContext().getHttp().getPath();
-
         // switch on the class name to determine the validation rules
         switch (className) {
             case ADD_NEW_REVIEW_HANDLER:
@@ -47,8 +44,6 @@ public class APIGatewayRequestValidator {
                     throw new IllegalArgumentException(QUERY_PARAMS_REQUIRED_ERROR_MESSAGE);
                 }
                 break;
-            default:
-                log.warn("No validation rules defined for resource path: {}", resourcePath);
         }
     }
 }
