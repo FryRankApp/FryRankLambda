@@ -7,8 +7,9 @@ import com.amazonaws.services.lambda.runtime.events.APIGatewayV2HTTPResponse;
 import com.fryrank.dal.ReviewDALImpl;
 import com.fryrank.domain.ReviewDomain;
 import com.fryrank.model.Review;
+import com.fryrank.util.APIGatewayResponseBuilder;
+import com.fryrank.validator.APIGatewayRequestValidator;
 import com.google.gson.Gson;
-
 import lombok.extern.log4j.Log4j2;
 
 @Log4j2
@@ -16,38 +17,27 @@ public class AddNewReviewForRestaurantHandler implements RequestHandler<APIGatew
 
     private final ReviewDALImpl reviewDAL;
     private final ReviewDomain reviewDomain;
+    private final APIGatewayRequestValidator requestValidator;
 
     public AddNewReviewForRestaurantHandler() {
-        this.reviewDAL = new ReviewDALImpl();
-        this.reviewDomain = new ReviewDomain(reviewDAL);
+        reviewDAL = new ReviewDALImpl();
+        reviewDomain = new ReviewDomain(reviewDAL);
+        requestValidator = new APIGatewayRequestValidator();
     }
 
     @Override
     public APIGatewayV2HTTPResponse handleRequest(APIGatewayV2HTTPEvent input, Context context) {
-        try {
-            log.info("Handling request: {}", input);
-            
-            if (input.getBody() == null) {
-                throw new IllegalArgumentException("Request body is required");
-            }
+        log.info("Handling request: {}", input);
+        
+        final String handlerName = getClass().getSimpleName();
+        return APIGatewayResponseBuilder.handleRequest(handlerName, () -> {
+            requestValidator.validateRequest(handlerName, input);
 
-            Review review = new Gson().fromJson(input.getBody(), Review.class);
+            final Review review = new Gson().fromJson(input.getBody(), Review.class);
+            final Review output = reviewDomain.addNewReviewForRestaurant(review);
 
-            Review output = reviewDomain.addNewReviewForRestaurant(review);
-
-
-            APIGatewayV2HTTPResponse response = new APIGatewayV2HTTPResponse();
-            response.setStatusCode(200);
-            response.setBody(output.toString());
-            
             log.info("Request processed successfully");
-            return response;
-        } catch (Exception e) {
-            log.error("Error processing request", e);
-            APIGatewayV2HTTPResponse errorResponse = new APIGatewayV2HTTPResponse();
-            errorResponse.setStatusCode(500);
-            errorResponse.setBody("Internal Server Error: " + e.getMessage());
-            return errorResponse;
-        }
+            return APIGatewayResponseBuilder.buildSuccessResponse(output);
+        });
     }
 }

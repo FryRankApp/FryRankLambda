@@ -43,8 +43,8 @@ public class ReviewDomain {
         }
     }
 
-    public GetAllReviewsOutput getTopReviews(final Integer count) {
-        return reviewDAL.getTopMostRecentReviews(count);
+    public GetAllReviewsOutput getRecentReviews(final Integer count) {
+        return reviewDAL.getRecentReviews(count);
     }
 
     public GetAggregateReviewInformationOutput getAggregateReviewInformationForRestaurants(

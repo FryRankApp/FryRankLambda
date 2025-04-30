@@ -108,7 +108,7 @@ public class ReviewDALImpl implements ReviewDAL {
     }
 
     @Override
-    public GetAllReviewsOutput getTopMostRecentReviews(@NonNull final Integer count){
+    public GetAllReviewsOutput getRecentReviews(@NonNull final Integer count){
         List<AggregationOperation> aggregationOperations = new ArrayList<>(AGGREGATION_OPERATIONS_FOR_PUBLIC_USER_METADATA_COLLECTION_JOIN);
         aggregationOperations.add(sort(Sort.by(Sort.Direction.DESC, ISO_DATE_TIME)));
         aggregationOperations.add(limit(count));

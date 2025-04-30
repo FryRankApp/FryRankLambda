@@ -66,11 +66,11 @@ public class ReviewDomainTests {
     }
 
     @Test
-    public void testGetTopReviews() throws Exception {
+    public void testGetRecentReviews() throws Exception {
         final GetAllReviewsOutput expectedOutput = new GetAllReviewsOutput(TEST_REVIEWS);
-        when(reviewDAL.getTopMostRecentReviews(TEST_REVIEWS.size())).thenReturn(expectedOutput);
+        when(reviewDAL.getRecentReviews(TEST_REVIEWS.size())).thenReturn(expectedOutput);
 
-        final GetAllReviewsOutput actualOutput = domain.getTopReviews(TEST_REVIEWS.size());
+        final GetAllReviewsOutput actualOutput = domain.getRecentReviews(TEST_REVIEWS.size());
         assertEquals(expectedOutput.getReviews().size(), actualOutput.getReviews().size());
     }
 

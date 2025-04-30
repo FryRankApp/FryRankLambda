@@ -11,22 +11,20 @@ import com.fryrank.model.enums.QueryParam;
 import com.fryrank.util.APIGatewayResponseBuilder;
 import com.fryrank.validator.APIGatewayRequestValidator;
 import lombok.extern.log4j.Log4j2;
-import org.springframework.stereotype.Service;
 
 @Log4j2
-@Service
-public class GetAllReviewsHandler implements RequestHandler<APIGatewayV2HTTPEvent, APIGatewayV2HTTPResponse> {
+public class GetRecentReviewsHandler implements RequestHandler<APIGatewayV2HTTPEvent, APIGatewayV2HTTPResponse> {
 
     private final ReviewDALImpl reviewDAL;
     private final ReviewDomain reviewDomain;
     private final APIGatewayRequestValidator requestValidator;
 
-    public GetAllReviewsHandler() {
+    public GetRecentReviewsHandler() {
         reviewDAL = new ReviewDALImpl();
         reviewDomain = new ReviewDomain(reviewDAL);
         requestValidator = new APIGatewayRequestValidator();
     }
-
+    
     @Override
     public APIGatewayV2HTTPResponse handleRequest(APIGatewayV2HTTPEvent input, Context context) {
         log.info("Handling request: {}", input);
@@ -35,9 +33,8 @@ public class GetAllReviewsHandler implements RequestHandler<APIGatewayV2HTTPEven
         return APIGatewayResponseBuilder.handleRequest(handlerName, () -> {
             requestValidator.validateRequest(handlerName, input);
 
-            final GetAllReviewsOutput output = reviewDomain.getAllReviews(
-                    input.getQueryStringParameters().getOrDefault(QueryParam.RESTAURANT_ID.getValue(), null),
-                    input.getQueryStringParameters().getOrDefault(QueryParam.ACCOUNT_ID.getValue(), null));
+            final GetAllReviewsOutput output = reviewDomain.getRecentReviews(
+                    Integer.parseInt(input.getQueryStringParameters().get(QueryParam.COUNT.getValue())));
 
             log.info("Request processed successfully");
             return APIGatewayResponseBuilder.buildSuccessResponse(output);

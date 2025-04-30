@@ -27,11 +27,10 @@ public class Constants {
     public static final String REVIEW_COLLECTION_NAME = "review";
     public static final String PUBLIC_USER_METADATA_COLLECTION_NAME = "user-metadata";
 
-    // Query parameters
-    public static final String RESTAURANT_ID_QUERY_PARAM = "restaurantId";
-    public static final String ACCOUNT_ID_QUERY_PARAM = "accountId";
-    public static final String COUNT_QUERY_PARAM = "count";
-    public static final String IDS_QUERY_PARAM = "ids";
-    public static final String INCLUDE_RATING_QUERY_PARAM = "rating";
-    
+    // Handler class names
+    public static final String ADD_NEW_REVIEW_HANDLER = "AddNewReviewForRestaurantHandler";
+    public static final String GET_ALL_REVIEWS_HANDLER = "GetAllReviewsHandler";
+    public static final String GET_AGGREGATE_REVIEW_HANDLER = "GetAggregateReviewInformationHandler";
+    public static final String GET_RECENT_REVIEWS_HANDLER = "GetRecentReviewsHandler";
+
 }

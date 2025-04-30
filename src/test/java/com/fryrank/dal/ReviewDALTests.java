@@ -89,12 +89,12 @@ public class ReviewDALTests {
         assertThrows(NullPointerException.class, () -> reviewDAL.getAllReviewsByAccountId(null));
     }
 
-    @Test public void testGetTopMostRecentReviews() throws Exception {
+    @Test public void testGetRecentReviews() throws Exception {
         AggregationResults<Review> aggregationResults = new AggregationResults<>(TEST_REVIEWS, new Document());
         when(mongoTemplate.aggregate(Mockito.any(Aggregation.class), Mockito.anyString(), Mockito.eq(Review.class))).thenReturn(aggregationResults);
 
         final GetAllReviewsOutput expectedOutput = new GetAllReviewsOutput(TEST_REVIEWS);
-        final GetAllReviewsOutput actualOutput = reviewDAL.getTopMostRecentReviews(TEST_REVIEWS.size());
+        final GetAllReviewsOutput actualOutput = reviewDAL.getRecentReviews(TEST_REVIEWS.size());
         assertEquals(actualOutput, expectedOutput);
     }
 

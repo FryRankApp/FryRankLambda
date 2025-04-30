@@ -7,50 +7,39 @@ import com.fryrank.dal.ReviewDAL;
 import com.fryrank.dal.ReviewDALImpl;
 import com.fryrank.domain.ReviewDomain;
 import com.fryrank.model.GetAggregateReviewInformationOutput;
-
+import com.fryrank.model.enums.QueryParam;
+import com.fryrank.util.APIGatewayResponseBuilder;
+import com.fryrank.validator.APIGatewayRequestValidator;
 import lombok.extern.log4j.Log4j2;
-import static com.fryrank.Constants.IDS_QUERY_PARAM;
-import static com.fryrank.Constants.INCLUDE_RATING_QUERY_PARAM;
 
 @Log4j2
 public class GetAggregateReviewInformationHandler implements RequestHandler<APIGatewayV2HTTPEvent, APIGatewayV2HTTPResponse> {
 
     private final ReviewDomain reviewDomain;
     private final ReviewDAL reviewDAL;
+    private final APIGatewayRequestValidator requestValidator;
 
     public GetAggregateReviewInformationHandler() {
-        this.reviewDAL = new ReviewDALImpl();
-        this.reviewDomain = new ReviewDomain(reviewDAL);
+        reviewDAL = new ReviewDALImpl();
+        reviewDomain = new ReviewDomain(reviewDAL);
+        requestValidator = new APIGatewayRequestValidator();
     }
 
     @Override
     public APIGatewayV2HTTPResponse handleRequest(APIGatewayV2HTTPEvent input, Context context) {
-        try {
-            log.info("Handling request: {}", input);
+        log.info("Handling request: {}", input);
 
-            if (input.getQueryStringParameters() == null || !input.getQueryStringParameters().containsKey(IDS_QUERY_PARAM)) {
-                throw new IllegalArgumentException("Ids are required");
-            }
+        final String handlerName = getClass().getSimpleName();
+        return APIGatewayResponseBuilder.handleRequest(handlerName, () -> {
+            requestValidator.validateRequest(handlerName, input);
 
-            GetAggregateReviewInformationOutput output = reviewDomain.getAggregateReviewInformationForRestaurants(
-                input.getQueryStringParameters().get(IDS_QUERY_PARAM),
-                Boolean.parseBoolean(input.getQueryStringParameters().getOrDefault(INCLUDE_RATING_QUERY_PARAM, "false"))
+            final GetAggregateReviewInformationOutput output = reviewDomain.getAggregateReviewInformationForRestaurants(
+                input.getQueryStringParameters().get(QueryParam.IDS.getValue()),
+                Boolean.parseBoolean(input.getQueryStringParameters().getOrDefault(QueryParam.INCLUDE_RATING.getValue(), "false"))
             );
 
-            APIGatewayV2HTTPResponse response = new APIGatewayV2HTTPResponse();
-            response.setStatusCode(200);
-            response.setBody(output.toString());
-            
-            return response;
-        } catch (Exception e) {
-            log.error("Error processing request", e);
-            APIGatewayV2HTTPResponse errorResponse = new APIGatewayV2HTTPResponse();
-            errorResponse.setStatusCode(500);
-            errorResponse.setBody("Internal Server Error: " + e.getMessage());
-            return errorResponse;
-        }
+            log.info("Request processed successfully");
+            return APIGatewayResponseBuilder.buildSuccessResponse(output);
+        });
     }
-    
-    
-
 }
