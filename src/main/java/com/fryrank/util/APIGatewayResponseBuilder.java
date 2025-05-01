@@ -25,7 +25,7 @@ public class APIGatewayResponseBuilder {
         return response;
     }
 
-    private static APIGatewayV2HTTPResponse buildErrorResponse(int statusCode, String message) {
+    public static APIGatewayV2HTTPResponse buildErrorResponse(int statusCode, String message) {
         APIGatewayV2HTTPResponse response = new APIGatewayV2HTTPResponse();
         response.setStatusCode(statusCode);
         response.setBody(message);
