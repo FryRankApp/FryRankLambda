@@ -127,13 +127,14 @@ class APIGatewayRequestValidatorTest {
     }
 
     @Test
-    void validateRequest_GetAllReviewsHandler_WithNoParams_Succeeds() {
+    void validateRequest_GetAllReviewsHandler_WithNoParams_ThrowsException() {
         // Arrange
         event.setQueryStringParameters(new HashMap<>());
 
         // Act & Assert
-        assertDoesNotThrow(() ->
-            validator.validateRequest(GET_ALL_REVIEWS_HANDLER, event)
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () ->
+            validator.validateRequest(GET_RECENT_REVIEWS_HANDLER, event)
         );
+        assertTrue(exception.getMessage().contains("Query parameters are required"));
     }
 }
