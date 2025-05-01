@@ -11,6 +11,7 @@ public class Constants {
     public static final String DATABASE_URI_PARAMETER_NAME_ENV_VAR = "SSM_DATABASE_URI_PARAMETER_KEY";
 
     // Input Validator
+    public static final String GENERIC_VALIDATOR_ERROR_MESSAGE = "Encountered error while validating API input.";
     public static final String REVIEW_VALIDATOR_ERRORS_OBJECT_NAME = "review";
     public static final String REJECTION_REQUIRED_CODE = "field.required";
     public static final String REJECTION_FORMAT_CODE = "field.invalidFormat";
@@ -26,7 +27,10 @@ public class Constants {
     public static final String REVIEW_COLLECTION_NAME = "review";
     public static final String PUBLIC_USER_METADATA_COLLECTION_NAME = "user-metadata";
 
-    // Query parameters
-    public static final String RESTAURANT_ID_QUERY_PARAM = "restaurantId";
-    public static final String ACCOUNT_ID_QUERY_PARAM = "accountId";
+    // Handler class names
+    public static final String ADD_NEW_REVIEW_HANDLER = "AddNewReviewForRestaurantHandler";
+    public static final String GET_ALL_REVIEWS_HANDLER = "GetAllReviewsHandler";
+    public static final String GET_AGGREGATE_REVIEW_HANDLER = "GetAggregateReviewInformationHandler";
+    public static final String GET_RECENT_REVIEWS_HANDLER = "GetRecentReviewsHandler";
+
 }
