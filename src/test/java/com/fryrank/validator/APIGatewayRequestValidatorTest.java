@@ -1,21 +1,24 @@
 package com.fryrank.validator;
 
 import com.amazonaws.services.lambda.runtime.events.APIGatewayV2HTTPEvent;
+import com.fryrank.model.enums.QueryParam;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static com.fryrank.validator.APIGatewayRequestValidator.REQUEST_BODY_REQUIRED_ERROR_MESSAGE;
+import static com.fryrank.validator.APIGatewayRequestValidator.QUERY_PARAMS_REQUIRED_ERROR_MESSAGE;
+
+import static com.fryrank.Constants.ADD_NEW_REVIEW_HANDLER;
+import static com.fryrank.Constants.GET_ALL_REVIEWS_HANDLER;
+import static com.fryrank.Constants.GET_AGGREGATE_REVIEW_HANDLER;
+import static com.fryrank.Constants.GET_RECENT_REVIEWS_HANDLER;
 
 import java.util.HashMap;
 import java.util.Map;
 
 class APIGatewayRequestValidatorTest {
-
-    private static final String ADD_NEW_REVIEW_HANDLER = "AddNewReviewForRestaurantHandler";
-    private static final String GET_AGGREGATE_REVIEW_INFORMATION_HANDLER = "GetAggregateReviewInformationHandler";
-    private static final String GET_RECENT_REVIEWS_HANDLER = "GetRecentReviewsHandler";
-    private static final String GET_ALL_REVIEWS_HANDLER = "GetAllReviewsHandler";
 
     private APIGatewayRequestValidator validator;
     private APIGatewayV2HTTPEvent event;
@@ -46,7 +49,7 @@ class APIGatewayRequestValidatorTest {
         IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () ->
             validator.validateRequest(ADD_NEW_REVIEW_HANDLER, event)
         );
-        assertTrue(exception.getMessage().contains("Request body is required"));
+        assertTrue(exception.getMessage().contains(REQUEST_BODY_REQUIRED_ERROR_MESSAGE));
     }
 
     @Test
@@ -58,40 +61,40 @@ class APIGatewayRequestValidatorTest {
         IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () ->
             validator.validateRequest(ADD_NEW_REVIEW_HANDLER, event)
         );
-        assertTrue(exception.getMessage().contains("Request body is required"));
+        assertTrue(exception.getMessage().contains(REQUEST_BODY_REQUIRED_ERROR_MESSAGE));
     }
 
     @Test
-    void validateRequest_GetAggregateReviewInformationHandler_WithValidParams_Succeeds() {
+    void validateRequest_GetAggregateReviewHandler_WithValidParams_Succeeds() {
         // Arrange
         Map<String, String> queryParams = new HashMap<>();
-        queryParams.put("ids", "1,2,3");
-        queryParams.put("includeRating", "true");
+        queryParams.put(QueryParam.IDS.getValue(), "1,2,3");
+        queryParams.put(QueryParam.INCLUDE_RATING.getValue(), "true");
         event.setQueryStringParameters(queryParams);
 
         // Act & Assert
         assertDoesNotThrow(() ->
-            validator.validateRequest(GET_AGGREGATE_REVIEW_INFORMATION_HANDLER, event)
+            validator.validateRequest(GET_AGGREGATE_REVIEW_HANDLER, event)
         );
     }
 
     @Test
-    void validateRequest_GetAggregateReviewInformationHandler_WithMissingParams_ThrowsException() {
+    void validateRequest_GetAggregateReviewHandler_WithMissingParams_ThrowsException() {
         // Arrange
         event.setQueryStringParameters(null);
 
         // Act & Assert
         IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () ->
-            validator.validateRequest(GET_AGGREGATE_REVIEW_INFORMATION_HANDLER, event)
+            validator.validateRequest(GET_AGGREGATE_REVIEW_HANDLER, event)
         );
-        assertTrue(exception.getMessage().contains("Query parameters are required"));
+        assertTrue(exception.getMessage().contains(QUERY_PARAMS_REQUIRED_ERROR_MESSAGE));
     }
 
     @Test
     void validateRequest_GetRecentReviewsHandler_WithValidParams_Succeeds() {
         // Arrange
         Map<String, String> queryParams = new HashMap<>();
-        queryParams.put("count", "5");
+        queryParams.put(QueryParam.COUNT.getValue(), "5");
         event.setQueryStringParameters(queryParams);
 
         // Act & Assert
@@ -109,15 +112,15 @@ class APIGatewayRequestValidatorTest {
         IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () ->
             validator.validateRequest(GET_RECENT_REVIEWS_HANDLER, event)
         );
-        assertTrue(exception.getMessage().contains("Query parameters are required"));
+        assertTrue(exception.getMessage().contains(QUERY_PARAMS_REQUIRED_ERROR_MESSAGE));
     }
 
     @Test
     void validateRequest_GetAllReviewsHandler_WithOptionalParams_Succeeds() {
         // Arrange
         Map<String, String> queryParams = new HashMap<>();
-        queryParams.put("restaurantId", "123");
-        queryParams.put("accountId", "456");
+        queryParams.put(QueryParam.RESTAURANT_ID.getValue(), "123");
+        queryParams.put(QueryParam.ACCOUNT_ID.getValue(), "456");
         event.setQueryStringParameters(queryParams);
 
         // Act & Assert
@@ -133,8 +136,8 @@ class APIGatewayRequestValidatorTest {
 
         // Act & Assert
         IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () ->
-            validator.validateRequest(GET_RECENT_REVIEWS_HANDLER, event)
+            validator.validateRequest(GET_ALL_REVIEWS_HANDLER, event)
         );
-        assertTrue(exception.getMessage().contains("Query parameters are required"));
+        assertTrue(exception.getMessage().contains(QUERY_PARAMS_REQUIRED_ERROR_MESSAGE));
     }
 }

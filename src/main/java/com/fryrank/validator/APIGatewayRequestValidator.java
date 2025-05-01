@@ -12,8 +12,8 @@ import static com.fryrank.Constants.GET_RECENT_REVIEWS_HANDLER;
 @Log4j2
 public class APIGatewayRequestValidator {
 
-    private static final String REQUEST_BODY_REQUIRED_ERROR_MESSAGE = "Request body is required";
-    private static final String QUERY_PARAMS_REQUIRED_ERROR_MESSAGE = "Query parameters are required";
+    public static final String REQUEST_BODY_REQUIRED_ERROR_MESSAGE = "Request body is required";
+    public static final String QUERY_PARAMS_REQUIRED_ERROR_MESSAGE = "Query parameters are required";
 
     public void validateRequest(String className, APIGatewayV2HTTPEvent request) {
         log.info("Validating API Gateway Request for handler class: {}", className);
