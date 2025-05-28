@@ -26,6 +26,26 @@ public class TestConstants {
             TEST_USERNAME
     );
 
+    public static final PublicUserMetadata TEST_USER_METADATA_VALID = new PublicUserMetadata(
+            "test-account-id", 
+            "test-username"
+    );
+
+    public static final PublicUserMetadata TEST_USER_METADATA_NULL_USERNAME = new PublicUserMetadata(
+            "test-account-id", 
+            null
+    );
+
+    public static final PublicUserMetadata TEST_USER_METADATA_NULL_ACCOUNT_ID = new PublicUserMetadata(
+            null, 
+            "test-username"
+    );
+
+    public static final PublicUserMetadata TEST_USER_METADATA_BOTH_NULL = new PublicUserMetadata(
+            null, 
+            null
+    );
+
     public static final Review TEST_REVIEW_1 = new Review(
             TEST_REVIEW_ID_1,
             TEST_RESTAURANT_ID,
@@ -103,4 +123,21 @@ public class TestConstants {
             add(new PublicUserMetadata(TEST_ACCOUNT_ID, TEST_USERNAME));
         }
     };
+
+    // APIGatewayRequestValidator test constants
+    public static final String TEST_VALID_BODY = "valid-body";
+    public static final String TEST_EMPTY_BODY = "";
+    public static final String TEST_RESTAURANT_ID_PARAM = "restaurant-id";
+    public static final String TEST_ACCOUNT_ID_PARAM = "account-id";
+    public static final String TEST_USERNAME_PARAM = "username";
+    public static final String TEST_IDS_PARAM = "id1,id2";
+    public static final String TEST_COUNT_PARAM = "10";
+    public static final String TEST_UNSUPPORTED_HANDLER = "UnsupportedHandler";
+
+    // Error messages
+    public static final String REQUEST_BODY_REQUIRED_ERROR = "Request body is required";
+    public static final String QUERY_PARAMS_REQUIRED_ERROR = "Query parameters are required";
+    public static final String ACCOUNT_ID_REQUIRED_ERROR = "Account ID is required";
+    public static final String USERNAME_REQUIRED_ERROR = "Username is required";
+    public static final String UNSUPPORTED_HANDLER_ERROR = "Validation for handler 'UnsupportedHandler' is not supported";
 }

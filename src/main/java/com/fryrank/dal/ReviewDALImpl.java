@@ -1,7 +1,6 @@
 package com.fryrank.dal;
 
 import com.fryrank.model.*;
-import com.fryrank.util.SSMParameterStore;
 import lombok.AllArgsConstructor;
 import lombok.NonNull;
 import lombok.extern.log4j.Log4j2;
@@ -18,11 +17,6 @@ import org.springframework.data.mongodb.core.aggregation.MatchOperation;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Repository;
-import com.mongodb.MongoClientSettings;
-import com.mongodb.ConnectionString;
-import com.mongodb.client.MongoClients;
-import com.mongodb.client.MongoClient;
-import java.util.concurrent.TimeUnit;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
@@ -59,25 +53,7 @@ public class ReviewDALImpl implements ReviewDAL {
     private final MongoTemplate mongoTemplate;
 
     public ReviewDALImpl() {
-        String databaseUri = SSMParameterStore.getDatabaseUriFromSSM();
-        
-        if (databaseUri == null || databaseUri.isEmpty()) {
-            throw new IllegalStateException("Database URI could not be retrieved from SSM Parameter Store");
-        }
-
-        ConnectionString connectionString = new ConnectionString(databaseUri);
-
-        // Configure MongoDB client with explicit settings
-        MongoClientSettings settings = MongoClientSettings.builder()
-            .applyConnectionString(connectionString)
-            .applyToSocketSettings(builder -> 
-                builder.connectTimeout(10, TimeUnit.SECONDS)
-                       .readTimeout(10, TimeUnit.SECONDS))
-            .build();
-
-        MongoClient mongoClient = MongoClients.create(settings);
-        
-        this.mongoTemplate = new MongoTemplate(mongoClient, connectionString.getDatabase());
+        this.mongoTemplate = MongoDBUtils.createMongoTemplate();
     }
 
     @Override

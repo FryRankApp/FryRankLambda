@@ -12,6 +12,8 @@ import com.fryrank.util.APIGatewayResponseBuilder;
 import com.fryrank.validator.APIGatewayRequestValidator;
 import lombok.extern.log4j.Log4j2;
 
+import java.util.Map;
+
 @Log4j2
 public class GetAllReviewsHandler implements RequestHandler<APIGatewayV2HTTPEvent, APIGatewayV2HTTPResponse> {
 
@@ -33,9 +35,10 @@ public class GetAllReviewsHandler implements RequestHandler<APIGatewayV2HTTPEven
         return APIGatewayResponseBuilder.handleRequest(handlerName, () -> {
             requestValidator.validateRequest(handlerName, input);
 
+            Map<String, String> params = input.getQueryStringParameters();
             final GetAllReviewsOutput output = reviewDomain.getAllReviews(
-                    input.getQueryStringParameters().getOrDefault(QueryParam.RESTAURANT_ID.getValue(), null),
-                    input.getQueryStringParameters().getOrDefault(QueryParam.ACCOUNT_ID.getValue(), null));
+                    params.get(QueryParam.RESTAURANT_ID.getValue()),
+                    params.get(QueryParam.ACCOUNT_ID.getValue()));
 
             log.info("Request processed successfully");
             return APIGatewayResponseBuilder.buildSuccessResponse(output);
