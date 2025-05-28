@@ -4,25 +4,38 @@ import boto3
 import yaml
 import hcl2
 
-def load_lambda_functions():
-    # Get the project root directory (one level up from build directory)
-    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    lambda_tf_path = os.path.join(project_root, 'stack', 'lambda.tf')
+def load_lambda_functions(s3_client=None):
+    if s3_client is None:
+        s3_client = boto3.client('s3')
     
-    with open(lambda_tf_path, 'r') as f:
-        tf_config = hcl2.load(f)
-        # Extract lambda_functions from locals block
-        if 'locals' in tf_config:
-            locals_blocks = tf_config['locals']
-            if isinstance(locals_blocks, list) and len(locals_blocks) > 0:
-                locals_block = locals_blocks[0]  # Get the first locals block
-                if 'lambda_functions' in locals_block:
-                    return locals_block['lambda_functions']
-    return {}
+    # Read terraform.tfstate from S3 bucket
+    response = s3_client.get_object(
+        Bucket='fryrank-terraform-state-bucket',
+        Key='terraform.tfstate'
+    )
+    
+    # Parse the JSON content
+    tf_state = json.loads(response['Body'].read().decode('utf-8'))
+    
+    # Extract Lambda functions from the state file
+    lambda_functions = {}
+    
+    # Look for aws_lambda_function resources
+    for resource in tf_state.get('resources', []):
+        if resource['type'] == 'aws_lambda_function':
+            for instance in resource['instances']:
+                function_name = instance['attributes']['function_name']
+                lambda_functions[function_name] = {
+                    'name': function_name,
+                    'arn': instance['attributes']['arn']
+                }
+    
+    return lambda_functions
 
-def generate_appspec():
-    lambda_client = boto3.client('lambda')
-    lambda_functions = load_lambda_functions()
+def generate_appspec(lambda_client=None, s3_client=None):
+    if lambda_client is None:
+        lambda_client = boto3.client('lambda')
+    lambda_functions = load_lambda_functions(s3_client)
     
     # Create resources list for all functions
     resources = []
