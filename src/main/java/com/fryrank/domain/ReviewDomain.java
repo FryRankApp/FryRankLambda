@@ -1,14 +1,10 @@
 package com.fryrank.domain;
 
-import static com.fryrank.Constants.GENERIC_VALIDATOR_ERROR_MESSAGE;
 import static com.fryrank.Constants.REVIEW_VALIDATOR_ERRORS_OBJECT_NAME;
 
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
-
-import org.springframework.validation.BeanPropertyBindingResult;
-import org.springframework.validation.BindingResult;
 
 import com.fryrank.dal.ReviewDAL;
 import com.fryrank.model.AggregateReviewFilter;
@@ -17,6 +13,7 @@ import com.fryrank.model.GetAllReviewsOutput;
 import com.fryrank.model.Review;
 import com.fryrank.validator.ReviewValidator;
 import com.fryrank.validator.ValidatorException;
+import com.fryrank.validator.ValidatorUtils;
 
 import lombok.AllArgsConstructor;
 import lombok.NonNull;
@@ -57,13 +54,7 @@ public class ReviewDomain {
     }
 
     public Review addNewReviewForRestaurant(@NonNull final Review review) throws ValidatorException {
-        BindingResult bindingResult = new BeanPropertyBindingResult(review, REVIEW_VALIDATOR_ERRORS_OBJECT_NAME);
-        ReviewValidator validator = new ReviewValidator();
-        validator.validate(review, bindingResult);
-
-        if(bindingResult.hasErrors()) {
-            throw new ValidatorException(bindingResult.getAllErrors(), GENERIC_VALIDATOR_ERROR_MESSAGE);
-        }
+        ValidatorUtils.validateAndThrow(review, REVIEW_VALIDATOR_ERRORS_OBJECT_NAME, new ReviewValidator());
         return reviewDAL.addNewReview(review);
     }
 }

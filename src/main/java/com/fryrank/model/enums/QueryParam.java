@@ -5,7 +5,8 @@ public enum QueryParam {
     ACCOUNT_ID("accountId"),
     COUNT("count"),
     IDS("ids"),
-    INCLUDE_RATING("rating");
+    INCLUDE_RATING("rating"),
+    USERNAME("defaultUsername");
 
     private final String value;
 
