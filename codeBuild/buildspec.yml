@@ -15,7 +15,7 @@ phases:
       - echo Build completed on `date`
       - pip install boto3 pyyaml python-hcl2
       - python3 codeBuild/generate_appspec.py
-      - echo Generated AppSpec files:
+      - echo Generated AppSpec files
       - ls -la appspec-*.yml
 
 artifacts:
