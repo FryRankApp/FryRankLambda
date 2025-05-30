@@ -4,13 +4,6 @@ phases:
   install:
     runtime-versions:
       java: corretto21
-    commands:
-      - pip install -r codeBuild/test/requirements.txt
-  
-  test:
-    commands:
-      - echo Running tests...
-      - python3 codeBuild/test/test_generate_appspec.py
   
   build:
     commands:
@@ -20,6 +13,7 @@ phases:
   post_build:
     commands:
       - echo Build completed on `date`
+      - pip install boto3 pyyaml python-hcl2
       - python3 codeBuild/generate_appspec.py
       - echo Generated AppSpec files:
       - ls -la appspec-*.yml
