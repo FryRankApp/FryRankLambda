@@ -9,7 +9,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from generate_appspec import generate_appspec, load_lambda_functions
 
 def validate_appspec():
-    print("\nValidating appspec.yml...")
+    print("\nValidating appspec files...")
     
     # Mock S3 response
     mock_s3 = MagicMock()
@@ -46,37 +46,33 @@ def validate_appspec():
     }
     mock_lambda.publish_version.return_value = {'Version': '2'}
     
-    # Generate the appspec file with mocked AWS clients
-    print("Generating appspec.yml...")
+    # Generate the appspec files with mocked AWS clients
+    print("Generating appspec files...")
     generate_appspec(lambda_client=mock_lambda, s3_client=mock_s3)
-    
-    # Verify the file was created
-    assert os.path.exists('appspec.yml'), "AppSpec file appspec.yml was not created"
-    
-    # Read and parse the generated file
-    with open('appspec.yml', 'r') as f:
-        generated = yaml.safe_load(f)
-    
-    # Validate structure
-    assert generated['version'] == '0.0', "Version should be 0.0"
-    assert 'Resources' in generated, "Should have Resources section"
     
     # Get all function names from mocked state
     lambda_functions = load_lambda_functions(s3_client=mock_s3)
-    expected_function_count = len(lambda_functions)
-    assert len(generated['Resources']) == expected_function_count, f"Should have exactly {expected_function_count} resources"
     
-    # Validate each function
+    # Validate each function's appspec file
     for key, function in lambda_functions.items():
         function_name = function['name']
-        # Find the resource for this function
-        function_resource = None
-        for resource in generated['Resources']:
-            if function_name in resource:
-                function_resource = resource[function_name]
-                break
+        appspec_filename = f'appspec-{function_name}.yml'
         
-        assert function_resource is not None, f"Resource for {function_name} not found"
+        # Verify the file was created
+        assert os.path.exists(appspec_filename), f"AppSpec file {appspec_filename} was not created"
+        
+        # Read and parse the generated file
+        with open(appspec_filename, 'r') as f:
+            generated = yaml.safe_load(f)
+        
+        # Validate structure
+        assert generated['version'] == '0.0', f"Version should be 0.0 in {appspec_filename}"
+        assert 'Resources' in generated, f"Should have Resources section in {appspec_filename}"
+        assert len(generated['Resources']) == 1, f"Should have exactly 1 resource in {appspec_filename}"
+        
+        # Get the function resource
+        function_resource = generated['Resources'][0][function_name]
+        
         assert function_resource['Type'] == 'AWS::Lambda::Function', f"Type should be AWS::Lambda::Function for {function_name}"
         
         properties = function_resource['Properties']
@@ -88,11 +84,13 @@ def validate_appspec():
         assert properties['Alias'] == 'Production', f"Alias should be Production for {function_name}"
         assert properties['CurrentVersion'] == '1', f"CurrentVersion should be 1 for {function_name}"
         assert properties['TargetVersion'] == '2', f"TargetVersion should be 2 for {function_name}"
+        
+        print(f"[PASS] Validation passed for {function_name}")
+        print(f"Generated AppSpec for {function_name}:")
+        print(yaml.dump(generated, default_flow_style=False))
+        print("---")
     
     print("[PASS] Validation passed for all functions")
-    print("Generated AppSpec:")
-    print(yaml.dump(generated, default_flow_style=False))
-    print("---")
 
 def main():
     validate_appspec()
