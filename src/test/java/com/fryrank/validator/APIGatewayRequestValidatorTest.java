@@ -4,11 +4,15 @@ import com.amazonaws.services.lambda.runtime.events.APIGatewayV2HTTPEvent;
 import com.fryrank.model.enums.QueryParam;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+
+import static com.fryrank.TestConstants.RESTAURANT_ID_ACCOUNT_ID_REQUIRED_PARAMETERS_ERROR_STRING;
+import static com.fryrank.validator.APIGatewayRequestValidator.AT_LEAST_ONE_PARAM_REQUIRED_ERROR_FORMAT;
+import static com.fryrank.validator.APIGatewayRequestValidator.QUERY_PARAMS_REQUIRED_ERROR_MESSAGE;
+import static com.fryrank.validator.APIGatewayRequestValidator.QUERY_PARAM_MISSING_ERROR_FORMAT;
+import static com.fryrank.validator.APIGatewayRequestValidator.REQUEST_BODY_REQUIRED_ERROR_MESSAGE;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static com.fryrank.validator.APIGatewayRequestValidator.REQUEST_BODY_REQUIRED_ERROR_MESSAGE;
-import static com.fryrank.validator.APIGatewayRequestValidator.QUERY_PARAMS_REQUIRED_ERROR_MESSAGE;
 
 import static com.fryrank.Constants.ADD_NEW_REVIEW_HANDLER;
 import static com.fryrank.Constants.GET_ALL_REVIEWS_HANDLER;
@@ -106,13 +110,14 @@ class APIGatewayRequestValidatorTest {
     @Test
     void validateRequest_GetRecentReviewsHandler_WithMissingParams_ThrowsException() {
         // Arrange
-        event.setQueryStringParameters(null);
+        event.setQueryStringParameters(new HashMap<>());
 
         // Act & Assert
         IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () ->
             validator.validateRequest(GET_RECENT_REVIEWS_HANDLER, event)
         );
-        assertTrue(exception.getMessage().contains(QUERY_PARAMS_REQUIRED_ERROR_MESSAGE));
+        String expectedMessage = String.format(QUERY_PARAM_MISSING_ERROR_FORMAT, QueryParam.COUNT.getValue());
+        assertTrue(exception.getMessage().contains(expectedMessage));
     }
 
     @Test
@@ -130,6 +135,32 @@ class APIGatewayRequestValidatorTest {
     }
 
     @Test
+    void validateRequest_GetAllReviewsHandler_WithRestaurantIdParam_Succeeds() {
+        // Arrange
+        Map<String, String> queryParams = new HashMap<>();
+        queryParams.put(QueryParam.RESTAURANT_ID.getValue(), "123");
+        event.setQueryStringParameters(queryParams);
+
+        // Act & Assert
+        assertDoesNotThrow(() ->
+                validator.validateRequest(GET_ALL_REVIEWS_HANDLER, event)
+        );
+    }
+
+    @Test
+    void validateRequest_GetAllReviewsHandler_WithAccountIdParam_Succeeds() {
+        // Arrange
+        Map<String, String> queryParams = new HashMap<>();
+        queryParams.put(QueryParam.ACCOUNT_ID.getValue(), "456");
+        event.setQueryStringParameters(queryParams);
+
+        // Act & Assert
+        assertDoesNotThrow(() ->
+                validator.validateRequest(GET_ALL_REVIEWS_HANDLER, event)
+        );
+    }
+
+    @Test
     void validateRequest_GetAllReviewsHandler_WithNoParams_ThrowsException() {
         // Arrange
         event.setQueryStringParameters(new HashMap<>());
@@ -138,6 +169,7 @@ class APIGatewayRequestValidatorTest {
         IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () ->
             validator.validateRequest(GET_ALL_REVIEWS_HANDLER, event)
         );
-        assertTrue(exception.getMessage().contains(QUERY_PARAMS_REQUIRED_ERROR_MESSAGE));
+        String expectedMessage = String.format(AT_LEAST_ONE_PARAM_REQUIRED_ERROR_FORMAT, RESTAURANT_ID_ACCOUNT_ID_REQUIRED_PARAMETERS_ERROR_STRING);
+        assertTrue(exception.getMessage().contains(expectedMessage));
     }
 }

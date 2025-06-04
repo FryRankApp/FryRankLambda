@@ -3,6 +3,7 @@ package com.fryrank;
 import com.fryrank.model.Review;
 import com.fryrank.model.PublicUserMetadata;
 import com.fryrank.model.PublicUserMetadataOutput;
+import com.fryrank.model.enums.QueryParam;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -109,6 +110,8 @@ public class TestConstants {
     public static final String TEST_RESTAURANT_ID_2 = "ChIJ1wHcROHNj4ARmNwmP2PcUWw";
     public static final String TEST_ACCOUNT_ID_NO_USER_METADATA = "test_account_id_no_user_metadata";
 
+    public static final String RESTAURANT_ID_ACCOUNT_ID_REQUIRED_PARAMETERS_ERROR_STRING = "'" + QueryParam.RESTAURANT_ID.getValue() + "' or '" + QueryParam.ACCOUNT_ID.getValue() + "'";
+
     public static final PublicUserMetadataOutput TEST_USER_METADATA_OUTPUT_1 = new PublicUserMetadataOutput(
         TEST_USERNAME
     );
@@ -123,21 +126,4 @@ public class TestConstants {
             add(new PublicUserMetadata(TEST_ACCOUNT_ID, TEST_USERNAME));
         }
     };
-
-    // APIGatewayRequestValidator test constants
-    public static final String TEST_VALID_BODY = "valid-body";
-    public static final String TEST_EMPTY_BODY = "";
-    public static final String TEST_RESTAURANT_ID_PARAM = "restaurant-id";
-    public static final String TEST_ACCOUNT_ID_PARAM = "account-id";
-    public static final String TEST_USERNAME_PARAM = "username";
-    public static final String TEST_IDS_PARAM = "id1,id2";
-    public static final String TEST_COUNT_PARAM = "10";
-    public static final String TEST_UNSUPPORTED_HANDLER = "UnsupportedHandler";
-
-    // Error messages
-    public static final String REQUEST_BODY_REQUIRED_ERROR = "Request body is required";
-    public static final String QUERY_PARAMS_REQUIRED_ERROR = "Query parameters are required";
-    public static final String ACCOUNT_ID_REQUIRED_ERROR = "Account ID is required";
-    public static final String USERNAME_REQUIRED_ERROR = "Username is required";
-    public static final String UNSUPPORTED_HANDLER_ERROR = "Validation for handler 'UnsupportedHandler' is not supported";
 }
