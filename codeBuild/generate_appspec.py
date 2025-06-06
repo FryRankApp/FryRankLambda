@@ -37,7 +37,8 @@ def generate_appspec(lambda_client=None, s3_client=None):
         lambda_client = boto3.client('lambda')
     lambda_functions = load_lambda_functions(s3_client)
     
-    # Process each function separately
+    # Create resources list for all functions
+    resources = []
     for key, function in lambda_functions.items():
         function_name = function['name']
         
@@ -50,8 +51,8 @@ def generate_appspec(lambda_client=None, s3_client=None):
             FunctionName=function_name
         )['Version']
         
-        # Create single resource for this function
-        resource = {
+        # Add function to resources
+        resources.append({
             function_name: {
                 'Type': 'AWS::Lambda::Function',
                 'Properties': {
@@ -61,19 +62,17 @@ def generate_appspec(lambda_client=None, s3_client=None):
                     'TargetVersion': new_version
                 }
             }
-        }
-        
-        # Create appspec for this function
-        appspec = {
-            'version': '0.0',
-            'Resources': [resource]
-        }
-        
-        # Write appspec file for this function
-        appspec_filename = f'appspec-{function_name}.yml'
-        with open(appspec_filename, 'w') as f:
-            f.write(yaml.dump(appspec, default_flow_style=False))
-        print(f"Generated {appspec_filename}")
+        })
+    
+    # Create single appspec with all functions
+    appspec = {
+        'version': '0.0',
+        'Resources': resources
+    }
+    
+    # Write appspec file
+    with open('appspec.yml', 'w') as f:
+        f.write(yaml.dump(appspec, default_flow_style=False))
 
 def main():
     generate_appspec()
