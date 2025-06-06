@@ -10,6 +10,7 @@ from generate_appspec import generate_appspec, load_lambda_function
 
 def validate_appspec():
     print("\nValidating appspec.yml...")
+    print("\nValidating appspec.yml...")
     
     # Mock S3 response
     mock_s3 = MagicMock()
