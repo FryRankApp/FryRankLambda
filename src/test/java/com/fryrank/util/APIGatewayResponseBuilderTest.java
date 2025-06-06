@@ -1,7 +1,12 @@
 package com.fryrank.util;
 
 import com.amazonaws.services.lambda.runtime.events.APIGatewayV2HTTPResponse;
+import com.fryrank.model.GetAllReviewsOutput;
+import com.google.gson.Gson;
 import org.junit.jupiter.api.Test;
+
+import static com.fryrank.TestConstants.TEST_REVIEWS;
+import static com.fryrank.TestConstants.TEST_REVIEWS_JSON_STRING;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -24,7 +29,7 @@ class APIGatewayResponseBuilderTest {
     void handleRequest_SuccessfulExecution_ReturnsSuccessResponse() {
         // Arrange
         String handlerName = TEST_HANDLER_NAME;
-        String testData = TEST_RESPONSE_DATA;
+        final GetAllReviewsOutput testData = new GetAllReviewsOutput(TEST_REVIEWS);
 
         // Act
         APIGatewayV2HTTPResponse response = APIGatewayResponseBuilder.handleRequest(handlerName, () -> {
@@ -34,7 +39,7 @@ class APIGatewayResponseBuilderTest {
         // Assert
         assertNotNull(response);
         assertEquals(HTTP_OK, response.getStatusCode());
-        assertEquals(testData.toString(), response.getBody());
+        assertEquals(TEST_REVIEWS_JSON_STRING, response.getBody());
     }
 
     @Test
