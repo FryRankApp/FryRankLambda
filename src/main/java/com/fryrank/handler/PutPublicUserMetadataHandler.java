@@ -16,6 +16,8 @@ import lombok.extern.log4j.Log4j2;
 
 import java.util.Map;
 
+import static com.fryrank.Constants.CORS_MAPPING_HEADERS;
+
 @Log4j2
 public class PutPublicUserMetadataHandler implements RequestHandler<APIGatewayV2HTTPEvent, APIGatewayV2HTTPResponse> {
 
@@ -43,7 +45,7 @@ public class PutPublicUserMetadataHandler implements RequestHandler<APIGatewayV2
                 params.get(QueryParam.USERNAME.getValue()));
 
         log.info("Request processed successfully");
-        return APIGatewayResponseBuilder.buildSuccessResponse(output);
+        return APIGatewayResponseBuilder.buildSuccessResponse(output, CORS_MAPPING_HEADERS);
     });
 }
 }

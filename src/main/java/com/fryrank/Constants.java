@@ -1,5 +1,7 @@
 package com.fryrank;
 
+import java.util.Map;
+
 /**
  * Constants used throughout the application.
  */
@@ -37,4 +39,17 @@ public class Constants {
     public static final String PUT_PUBLIC_USER_METADATA_HANDLER = "PutPublicUserMetadataHandler";
     public static final String UPSERT_PUBLIC_USER_METADATA_HANDLER = "UpsertPublicUserMetadataHandler";
 
+    // Allowed Origins
+    public static final String LOCALHOST = "http://localhost:3000";
+    public static final String FRYRANK_STAGE = "https://fryrank-beta-stage.oxyserver.com";
+    public static final String FRYRANK_BETA_STAGE_ALT_URL = "https://pure-temple-61679-beta-stage-84eefac76015.herokuapp.com";
+    public static final String FRYRANK_PROD = "https://fryrank.oxyserver.com";
+    public static final String FRYRANK_PROD_ALT_URL = "https://pure-temple-61679-98a4d5c2d04e.herokuapp.com";
+    public static final String ALLOWED_ORIGINS = String.join(",", LOCALHOST, FRYRANK_STAGE, FRYRANK_PROD, FRYRANK_BETA_STAGE_ALT_URL, FRYRANK_PROD_ALT_URL);
+
+    // Default Headers
+    public static final Map<String, String> CORS_MAPPING_HEADERS = Map.ofEntries(
+            Map.entry("Access-Control-Allow-Origin", ALLOWED_ORIGINS),
+            Map.entry("Access-Control-Allow-Methods", "GET, POST, PUT")
+    );
 }
