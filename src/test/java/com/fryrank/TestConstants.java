@@ -107,6 +107,8 @@ public class TestConstants {
         }
     };
 
+    public static final String TEST_REVIEWS_JSON_STRING = "{\"reviews\":[{\"reviewId\":\"review_id_1\",\"restaurantId\":\"1\",\"score\":5.0,\"title\":\"title_1\",\"body\":\"body_1\",\"isoDateTime\":\"1970-01-01T00:00:00Z\",\"accountId\":\"test_account_id\"},{\"reviewId\":\"review_id_2\",\"restaurantId\":\"1\",\"score\":7.0,\"title\":\"title_2\",\"body\":\"body_2\",\"isoDateTime\":\"1970-01-01T00:00:00Z\",\"accountId\":\"test_account_id\",\"userMetadata\":{\"accountId\":\"test_account_id\",\"username\":\"testflush\"}}]}";
+
     public static final String TEST_RESTAURANT_ID_2 = "ChIJ1wHcROHNj4ARmNwmP2PcUWw";
     public static final String TEST_ACCOUNT_ID_NO_USER_METADATA = "test_account_id_no_user_metadata";
 

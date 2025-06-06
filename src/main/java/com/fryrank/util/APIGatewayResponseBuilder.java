@@ -1,6 +1,7 @@
 package com.fryrank.util;
 
 import com.amazonaws.services.lambda.runtime.events.APIGatewayV2HTTPResponse;
+import com.google.gson.Gson;
 import lombok.extern.log4j.Log4j2;
 
 @Log4j2
@@ -21,7 +22,9 @@ public class APIGatewayResponseBuilder {
     public static APIGatewayV2HTTPResponse buildSuccessResponse(Object body) {
         APIGatewayV2HTTPResponse response = new APIGatewayV2HTTPResponse();
         response.setStatusCode(200);
-        response.setBody(body != null ? body.toString() : "");
+        Gson gson = new Gson();
+        String jsonString = gson.toJson(body);
+        response.setBody(body != null ? jsonString : "{}");
         return response;
     }
 
