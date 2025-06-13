@@ -2,8 +2,8 @@ version: 0.2
 
 env:
   variables:
-    S3_BUCKET: "fryrank-terraform-state-bucket"
-    S3_KEY: "FryRankLambda.zip"
+    LAMBDA_FUNCTION_BUCKET: "fryrank-lambda-function-bucket"
+    LAMBDA_ZIP_KEY: "FryRankLambda.zip"
     TERRAFORM_STATE_BUCKET: "fryrank-terraform-state-bucket"
 
 phases:

@@ -61,11 +61,11 @@ def update_lambda_functions():
     lambda_client = boto3.client('lambda')
     
     # Get the S3 bucket and key from environment variables
-    s3_bucket = os.environ.get('S3_BUCKET')
-    s3_key = os.environ.get('S3_KEY')
+    s3_bucket = os.environ.get('LAMBDA_FUNCTION_BUCKET')
+    s3_key = os.environ.get('LAMBDA_ZIP_KEY')
     
     if not s3_bucket or not s3_key:
-        print("Error: S3_BUCKET and S3_KEY environment variables must be set")
+        print("Error: LAMBDA_FUNCTION_BUCKET and LAMBDA_ZIP_KEY environment variables must be set")
         sys.exit(1)
     
     # Verify the zip file exists
