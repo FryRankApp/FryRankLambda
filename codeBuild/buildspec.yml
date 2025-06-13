@@ -16,9 +16,8 @@ phases:
   
   build:
     commands:
-      - echo Building Lambda function: $LAMBDA_FUNCTION
       - echo Build started on `date`
-      - ./gradlew build -PfunctionName=$LAMBDA_FUNCTION
+      - ./gradlew build
       
   post_build:
     commands:
