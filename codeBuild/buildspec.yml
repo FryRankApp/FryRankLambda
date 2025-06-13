@@ -2,27 +2,30 @@ version: 0.2
 
 env:
   variables:
-    LAMBDA_FUNCTION: "lambda_function"  # This will be overridden by CodeBuild
+    S3_BUCKET: "fryrank-terraform-state-bucket"
+    S3_KEY: "FryRankLambda.zip"
+    TERRAFORM_STATE_BUCKET: "fryrank-terraform-state-bucket"
 
 phases:
   install:
     runtime-versions:
       java: corretto21
+      python: 3.11
+    commands:
+      - pip install boto3
   
   build:
     commands:
-      - echo Building Lambda function: $LAMBDA_FUNCTION
       - echo Build started on `date`
-      - ./gradlew build -PfunctionName=$LAMBDA_FUNCTION
+      - ./gradlew build
       
   post_build:
     commands:
       - echo Build completed on `date`
-      - pip install boto3 pyyaml python-hcl2
-      - python3 codeBuild/generate_appspec.py
+      - echo "Starting Lambda function updates..."
+      - python codeBuild/update_lambdas.py
 
 artifacts:
   files:
-    - appspec.yml
     - build/distributions/FryRankLambda.zip
   discard-paths: yes
