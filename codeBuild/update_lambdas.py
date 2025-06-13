@@ -83,7 +83,7 @@ def update_lambda_functions():
     success_count = 0
     error_count = 0
     
-    for function_name in lambda_functions.items():
+    for function_name, function_info in lambda_functions.items():
         print(f"Updating Lambda function: {function_name}")
         try:
             lambda_client.update_function_code(
