@@ -7,7 +7,6 @@ import com.amazonaws.services.lambda.runtime.events.APIGatewayV2HTTPResponse;
 import com.fryrank.dal.UserMetadataDAL;
 import com.fryrank.dal.UserMetadataDALImpl;
 import com.fryrank.domain.UserMetadataDomain;
-import com.fryrank.model.GetAllReviewsOutput;
 import com.fryrank.model.PublicUserMetadataOutput;
 import com.fryrank.model.enums.QueryParam;
 import com.fryrank.util.APIGatewayResponseBuilder;
@@ -16,7 +15,7 @@ import lombok.extern.log4j.Log4j2;
 
 import java.util.Map;
 
-import static com.fryrank.Constants.CORS_MAPPING_HEADERS;
+import static com.fryrank.util.HeaderUtils.createCorsHeaders;
 
 @Log4j2
 public class PutPublicUserMetadataHandler implements RequestHandler<APIGatewayV2HTTPEvent, APIGatewayV2HTTPResponse> {
@@ -45,7 +44,7 @@ public class PutPublicUserMetadataHandler implements RequestHandler<APIGatewayV2
                 params.get(QueryParam.USERNAME.getValue()));
 
         log.info("Request processed successfully");
-        return APIGatewayResponseBuilder.buildSuccessResponse(output, CORS_MAPPING_HEADERS);
+        return APIGatewayResponseBuilder.buildSuccessResponse(output, createCorsHeaders(input));
     });
 }
 }
