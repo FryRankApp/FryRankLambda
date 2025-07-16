@@ -3,6 +3,19 @@ import json
 import os
 import sys
 
+# Add function to upload local zip to S3
+def upload_zip_to_s3(local_zip_path, s3_client, bucket, key):
+    if not os.path.exists(local_zip_path):
+        print(f"Error: Local zip file not found at {local_zip_path}")
+        sys.exit(1)
+    try:
+        print(f"Uploading {local_zip_path} to s3://{bucket}/{key} ...")
+        s3_client.upload_file(local_zip_path, bucket, key)
+        print("Upload complete.")
+    except Exception as e:
+        print(f"Error uploading zip to S3: {str(e)}")
+        sys.exit(1)
+
 def load_lambda_functions(s3_client=None, state_bucket=None):
     if s3_client is None:
         s3_client = boto3.client('s3')
@@ -63,10 +76,15 @@ def update_lambda_functions():
     # Get the S3 bucket and key from environment variables
     s3_bucket = os.environ.get('LAMBDA_FUNCTION_BUCKET')
     s3_key = os.environ.get('LAMBDA_ZIP_KEY')
+    local_zip_path = os.environ.get('LAMBDA_LOCAL_ZIP_PATH', 'build/distributions/FryRankLambda.zip')
     
     if not s3_bucket or not s3_key:
         print("Error: LAMBDA_FUNCTION_BUCKET and LAMBDA_ZIP_KEY environment variables must be set")
+        print("Error: LAMBDA_FUNCTION_BUCKET and LAMBDA_ZIP_KEY environment variables must be set")
         sys.exit(1)
+    
+    # Upload the local zip to S3 before proceeding
+    upload_zip_to_s3(local_zip_path, s3_client, s3_bucket, s3_key)
     
     # Verify the zip file exists
     if not verify_zip_exists(s3_client, s3_bucket, s3_key):
