@@ -80,6 +80,7 @@ def update_lambda_functions():
     
     if not s3_bucket or not s3_key:
         print("Error: LAMBDA_FUNCTION_BUCKET and LAMBDA_ZIP_KEY environment variables must be set")
+        print("Error: LAMBDA_FUNCTION_BUCKET and LAMBDA_ZIP_KEY environment variables must be set")
         sys.exit(1)
     
     # Upload the local zip to S3 before proceeding

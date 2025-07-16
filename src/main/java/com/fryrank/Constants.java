@@ -1,6 +1,6 @@
 package com.fryrank;
 
-import java.util.Map;
+import java.util.Set;
 
 /**
  * Constants used throughout the application.
@@ -45,11 +45,13 @@ public class Constants {
     public static final String FRYRANK_BETA_STAGE_ALT_URL = "https://pure-temple-61679-beta-stage-84eefac76015.herokuapp.com";
     public static final String FRYRANK_PROD = "https://fryrank.oxyserver.com";
     public static final String FRYRANK_PROD_ALT_URL = "https://pure-temple-61679-98a4d5c2d04e.herokuapp.com";
-    public static final String ALLOWED_ORIGINS = String.join(",", LOCALHOST, FRYRANK_STAGE, FRYRANK_PROD, FRYRANK_BETA_STAGE_ALT_URL, FRYRANK_PROD_ALT_URL);
+    public static final Set<String> ALLOWED_ORIGINS = Set.of(LOCALHOST, FRYRANK_STAGE, FRYRANK_PROD, FRYRANK_BETA_STAGE_ALT_URL, FRYRANK_PROD_ALT_URL);
 
-    // Default Headers
-    public static final Map<String, String> CORS_MAPPING_HEADERS = Map.ofEntries(
-            Map.entry("Access-Control-Allow-Origin", ALLOWED_ORIGINS),
-            Map.entry("Access-Control-Allow-Methods", "GET, POST, PUT")
-    );
+    // Headers
+    public static final String HEADER_ACCESS_CONTROL_ALLOW_ORIGIN = "Access-Control-Allow-Origin";
+    public static final String HEADER_ACCESS_CONTROL_ALLOW_METHODS = "Access-Control-Allow-Methods";
+    public static final String HEADER_ACCESS_CONTROL_ALLOW_HEADERS = "Access-Control-Allow-Headers";
+    public static final String ALLOWED_METHODS = "GET, POST, PUT, OPTIONS";
+    public static final String ORIGIN = "origin";
+    public static final String CONTENT_TYPE = "Content-Type";
 }

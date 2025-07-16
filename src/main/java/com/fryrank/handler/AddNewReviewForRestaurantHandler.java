@@ -12,7 +12,7 @@ import com.fryrank.validator.APIGatewayRequestValidator;
 import com.google.gson.Gson;
 import lombok.extern.log4j.Log4j2;
 
-import static com.fryrank.Constants.CORS_MAPPING_HEADERS;
+import static com.fryrank.util.HeaderUtils.createCorsHeaders;
 
 @Log4j2
 public class AddNewReviewForRestaurantHandler implements RequestHandler<APIGatewayV2HTTPEvent, APIGatewayV2HTTPResponse> {
@@ -39,7 +39,7 @@ public class AddNewReviewForRestaurantHandler implements RequestHandler<APIGatew
             final Review output = reviewDomain.addNewReviewForRestaurant(review);
 
             log.info("Request processed successfully");
-            return APIGatewayResponseBuilder.buildSuccessResponse(output, CORS_MAPPING_HEADERS);
+            return APIGatewayResponseBuilder.buildSuccessResponse(output, createCorsHeaders(input));
         });
     }
 }

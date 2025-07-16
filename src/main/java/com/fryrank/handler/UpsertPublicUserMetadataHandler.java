@@ -14,7 +14,7 @@ import com.fryrank.validator.APIGatewayRequestValidator;
 import com.google.gson.Gson;
 import lombok.extern.log4j.Log4j2;
 
-import static com.fryrank.Constants.CORS_MAPPING_HEADERS;
+import static com.fryrank.util.HeaderUtils.createCorsHeaders;
 
 @Log4j2
 public class UpsertPublicUserMetadataHandler implements RequestHandler<APIGatewayV2HTTPEvent, APIGatewayV2HTTPResponse> {
@@ -41,7 +41,7 @@ public class UpsertPublicUserMetadataHandler implements RequestHandler<APIGatewa
             final PublicUserMetadataOutput output = userMetadataDomain.upsertPublicUserMetadata(userMetadata);
 
             log.info("Request processed successfully");
-            return APIGatewayResponseBuilder.buildSuccessResponse(output, CORS_MAPPING_HEADERS);
+            return APIGatewayResponseBuilder.buildSuccessResponse(output, createCorsHeaders(input));
         });
     }
 }
