@@ -41,11 +41,12 @@ public class Constants {
 
     // Allowed Origins
     public static final String LOCALHOST = "http://localhost:3000";
-    public static final String FRYRANK_STAGE = "https://fryrank-beta-stage.oxyserver.com";
+    public static final String FRYRANK_STAGE_OXYSERVER = "https://fryrank-beta-stage.oxyserver.com";
+    public static final String FRYRANK_STAGE_CLOUDFRONT = "https://d1jqnaqp1g7d1o.cloudfront.net";
     public static final String FRYRANK_BETA_STAGE_ALT_URL = "https://pure-temple-61679-beta-stage-84eefac76015.herokuapp.com";
     public static final String FRYRANK_PROD = "https://fryrank.oxyserver.com";
     public static final String FRYRANK_PROD_ALT_URL = "https://pure-temple-61679-98a4d5c2d04e.herokuapp.com";
-    public static final Set<String> ALLOWED_ORIGINS = Set.of(LOCALHOST, FRYRANK_STAGE, FRYRANK_PROD, FRYRANK_BETA_STAGE_ALT_URL, FRYRANK_PROD_ALT_URL);
+    public static final Set<String> ALLOWED_ORIGINS = Set.of(LOCALHOST, FRYRANK_STAGE_OXYSERVER, FRYRANK_STAGE_CLOUDFRONT, FRYRANK_PROD, FRYRANK_BETA_STAGE_ALT_URL, FRYRANK_PROD_ALT_URL);
 
     // Headers
     public static final String HEADER_ACCESS_CONTROL_ALLOW_ORIGIN = "Access-Control-Allow-Origin";
