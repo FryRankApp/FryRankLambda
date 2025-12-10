@@ -2,9 +2,7 @@ version: 0.2
 
 env:
   variables:
-    LAMBDA_FUNCTION_BUCKET: "fryrank-lambda-function-bucket"
     LAMBDA_ZIP_KEY: "FryRankLambda.zip"
-    TERRAFORM_STATE_BUCKET: "fryrank-terraform-state-bucket"
 
 phases:
   install:
@@ -13,12 +11,12 @@ phases:
       python: 3.11
     commands:
       - pip install boto3
-  
+
   build:
     commands:
       - echo Build started on `date`
       - ./gradlew build
-      
+
   post_build:
     commands:
       - echo Build completed on `date`
