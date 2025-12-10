@@ -8,7 +8,7 @@ Purpose:
   aws_lambda_function resources and update their code to use the newly uploaded zip.
 - This script will dynamically build the S3 bucket names using the AWS account ID:
     - Lambda function bucket: fryrank-app-lambda-function-bucket-{accountId}
-    - Terraform state bucket:  fryrank-app-terraform-state-bucket-{accountId}
+    - Terraform state bucket:  fryrank-app-terraform-state-{accountId}
 """
 
 import json
@@ -51,7 +51,7 @@ def resolve_bucket_names():
     account_id = get_aws_account_id()
 
     lambda_bucket = f"fryrank-app-lambda-function-bucket-{account_id}"
-    state_bucket = f"fryrank-app-terraform-state-bucket-{account_id}"
+    state_bucket = f"fryrank-app-terraform-state-{account_id}"
 
     return lambda_bucket, state_bucket
 
