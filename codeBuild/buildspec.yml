@@ -1,9 +1,5 @@
 version: 0.2
 
-env:
-  variables:
-    LAMBDA_ZIP_KEY: "FryRankLambda.zip"
-
 phases:
   install:
     runtime-versions:

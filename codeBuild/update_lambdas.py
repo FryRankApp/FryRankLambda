@@ -9,10 +9,6 @@ Purpose:
 - This script will dynamically build the S3 bucket names using the AWS account ID:
     - Lambda function bucket: fryrank-app-lambda-function-bucket-{accountId}
     - Terraform state bucket:  fryrank-app-terraform-state-bucket-{accountId}
-
-Environment variables:
-- LAMBDA_ZIP_KEY         : (optional) S3 key for the uploaded zip (default "FryRankLambda.zip").
-- LAMBDA_LOCAL_ZIP_PATH  : (optional) Local path to zip (default "build/distributions/FryRankLambda.zip").
 """
 
 import json
@@ -154,8 +150,8 @@ def update_lambda_functions():
     # Resolve buckets (may build them dynamically from account id)
     lambda_bucket, state_bucket = resolve_bucket_names()
 
-    s3_key = os.environ.get("LAMBDA_ZIP_KEY", DEFAULT_ZIP_KEY)
-    local_zip_path = os.environ.get("LAMBDA_LOCAL_ZIP_PATH", DEFAULT_LOCAL_ZIP)
+    s3_key = DEFAULT_ZIP_KEY
+    local_zip_path = DEFAULT_LOCAL_ZIP
 
     if not s3_key:
         print("Error: LAMBDA_ZIP_KEY must be set")
