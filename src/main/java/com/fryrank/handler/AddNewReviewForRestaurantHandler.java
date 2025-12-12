@@ -9,9 +9,12 @@ import com.fryrank.domain.ReviewDomain;
 import com.fryrank.model.Review;
 import com.fryrank.util.APIGatewayResponseBuilder;
 import com.fryrank.validator.APIGatewayRequestValidator;
+import com.fryrank.validator.ReviewValidator;
+import com.fryrank.validator.ValidatorUtils;
 import com.google.gson.Gson;
 import lombok.extern.log4j.Log4j2;
 
+import static com.fryrank.Constants.REVIEW_VALIDATOR_ERRORS_OBJECT_NAME;
 import static com.fryrank.util.HeaderUtils.createCorsHeaders;
 
 @Log4j2
@@ -20,11 +23,13 @@ public class AddNewReviewForRestaurantHandler implements RequestHandler<APIGatew
     private final ReviewDALImpl reviewDAL;
     private final ReviewDomain reviewDomain;
     private final APIGatewayRequestValidator requestValidator;
+    private final ReviewValidator reviewValidator;
 
     public AddNewReviewForRestaurantHandler() {
         reviewDAL = new ReviewDALImpl();
         reviewDomain = new ReviewDomain(reviewDAL);
         requestValidator = new APIGatewayRequestValidator();
+        reviewValidator = new ReviewValidator();
     }
 
     @Override
@@ -36,6 +41,8 @@ public class AddNewReviewForRestaurantHandler implements RequestHandler<APIGatew
             requestValidator.validateRequest(handlerName, input);
 
             final Review review = new Gson().fromJson(input.getBody(), Review.class);
+            ValidatorUtils.validateAndThrow(review, REVIEW_VALIDATOR_ERRORS_OBJECT_NAME, reviewValidator);
+            
             final Review output = reviewDomain.addNewReviewForRestaurant(review);
 
             log.info("Request processed successfully");
