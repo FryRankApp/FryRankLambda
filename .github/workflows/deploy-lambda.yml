@@ -3,7 +3,7 @@ name: "Deploy Lambda Functions (Beta and Prod)"
 on:
   push:
     branches:
-      - main
+      - master
 
 env:
   WORKING_DIR: "."
