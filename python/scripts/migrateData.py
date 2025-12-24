@@ -203,14 +203,14 @@ def transform_reviews_for_dynamodb(mongo_items):
                 "isReview": "true",
                 "score": Decimal(str(item["score"])),
                 "title": item["title"],
-                "body": item["body"],
-                "classType": item.get("_class")
+                "body": item["body"]
             }
 
+            # This is the old mongoDB review format when we used to have it autogenerate an ID for the _id field.
             if isinstance(item.get("_id"), dict) and "$oid" in item["_id"]:
-                identifier = f"{item['restaurantId']}:{item['_id']['$oid']}"
+                identifier = str("REVIEW:" + item.get("_id"))
             else:
-                identifier = str(item.get("_id", f"{item['restaurantId']}:legacy"))
+                identifier = f"REVIEW:{item['accountId']}"
             dynamodb_item["identifier"] = identifier
 
             dynamodb_item["accountId"] = str(item.get("accountId") or item.get("authorId"))
@@ -219,9 +219,6 @@ def transform_reviews_for_dynamodb(mongo_items):
                 dynamodb_item["isoDateTime"] = item["isoDateTime"]
             else:
                 dynamodb_item["isoDateTime"] = datetime.utcnow().isoformat() + "Z"
-
-            if "userMetadata" in item:
-                dynamodb_item["userMetadata"] = item["userMetadata"]
 
             dynamodb_items.append(dynamodb_item)
             stats.add_success(item, dynamodb_item)
@@ -246,19 +243,12 @@ def transform_metadata_for_dynamodb(mongo_items):
             if 'username' not in item:
                 raise ValueError("Missing username field")
 
-            if '_class' not in item:
-                raise ValueError("Missing _class field")
-
             if not isinstance(item['username'], str):
                 raise ValueError("Username must be a string")
 
-            if not isinstance(item['_class'], str):
-                raise ValueError("_class must be a string")
-
             dynamodb_item = {
                 "accountId": str(item['_id']),
-                "username": item["username"],
-                "classType": item["_class"]
+                "username": item["username"]
             }
 
             dynamodb_compatible_item = json.loads(
