@@ -14,3 +14,6 @@ To build and deploy it to your sandbox account in one step, run the following co
 ```
 
 Note: If you are on Windows, use the deploy.bat file instead. The command is `.\deploy.bat`.
+
+Troubleshooting: If you come across a "NoRegionError", you may want to run "aws configure" via aws cli 
+to set the region manually from there
