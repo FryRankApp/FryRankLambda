@@ -46,6 +46,7 @@ public class Constants {
     public static final String FRYRANK_BETA_STAGE_ALT_URL = "https://pure-temple-61679-beta-stage-84eefac76015.herokuapp.com";
     public static final String FRYRANK_PROD = "https://fryrank.oxyserver.com";
     public static final String FRYRANK_PROD_ALT_URL = "https://pure-temple-61679-98a4d5c2d04e.herokuapp.com";
+    public static final String FRYRANK_PROD_CLOUDFRONT = "https://d3h6a05rzfj3y8.cloudfront.net";
     public static final Set<String> ALLOWED_ORIGINS = Set.of(LOCALHOST, FRYRANK_STAGE_OXYSERVER, FRYRANK_STAGE_CLOUDFRONT, FRYRANK_PROD, FRYRANK_BETA_STAGE_ALT_URL, FRYRANK_PROD_ALT_URL);
 
     // Headers
