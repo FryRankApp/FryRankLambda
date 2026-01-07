@@ -273,7 +273,7 @@ def main():
     # Script variable config
     CONNECTION_STRING = os.getenv('CONNECTION_STRING')
     DATABASE_NAME = os.getenv('DATABASE_NAME')
-    REGION_NAME = os.getenv('REGION_NAME')
+    AWS_REGION_NAME = os.getenv('AWS_REGION_NAME')
     AWS_ACCESS_KEY = os.getenv('AWS_ACCESS_KEY_ID')
     AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')
     AWS_SESSION_TOKEN = os.getenv('AWS_SESSION_TOKEN')
@@ -316,7 +316,7 @@ def main():
 
     if confirmation.lower() == 'yes':
         print("\nProceeding with upload...")
-        dynamo_db_client = DynamoDBClient(REGION_NAME, AWS_ACCESS_KEY, AWS_SECRET_ACCESS_KEY, AWS_SESSION_TOKEN)
+        dynamo_db_client = DynamoDBClient(AWS_REGION_NAME, AWS_ACCESS_KEY, AWS_SECRET_ACCESS_KEY, AWS_SESSION_TOKEN)
 
         for table_name, items in transformed_dynamodb_data.items():
             print(f"\nUploading to {table_name}...")
