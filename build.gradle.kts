@@ -52,6 +52,11 @@ dependencies {
     implementation("com.google.api-client:google-api-client:1.32.1")
     implementation("com.google.http-client:google-http-client:2.1.0")
     implementation("com.google.oauth-client:google-oauth-client:1.30.4")
+
+    // AWS DynamoDB
+    implementation(platform("software.amazon.awssdk:bom:2.25.62"))
+    implementation("software.amazon.awssdk:dynamodb")
+    implementation("software.amazon.awssdk:regions")
 }
 
 // Apply a specific Java toolchain to ease working on different environments.
@@ -69,6 +74,8 @@ application {
 tasks {
     test {
         useJUnitPlatform()  // Use JUnit 5
+
+        environment("PUBLIC_USER_METADATA_TABLE_NAME", "test-user-metadata")
         
         // Enable test output in console
         testLogging {
