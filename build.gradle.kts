@@ -32,9 +32,9 @@ dependencies {
     implementation("com.amazonaws:aws-lambda-java-events:3.11.1")
 
     // Logging
-    implementation("org.apache.logging.log4j:log4j-api:2.17.1")
-    implementation("org.apache.logging.log4j:log4j-core:2.17.1")
-    implementation("org.apache.logging.log4j:log4j-slf4j-impl:2.17.1")
+    implementation("org.apache.logging.log4j:log4j-api:2.25.3")
+    implementation("org.apache.logging.log4j:log4j-core:2.25.3")
+    implementation("org.apache.logging.log4j:log4j-slf4j-impl:2.25.3")
     runtimeOnly("com.amazonaws:aws-lambda-java-log4j2:1.5.1")
 
     // MongoDB
