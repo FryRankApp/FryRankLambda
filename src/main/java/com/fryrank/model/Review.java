@@ -27,5 +27,6 @@ public class Review {
 
     private final String accountId;
 
+    @Deprecated
     private final PublicUserMetadata userMetadata;
 }

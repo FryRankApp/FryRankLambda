@@ -71,6 +71,7 @@ tasks {
         useJUnitPlatform()  // Use JUnit 5
 
         environment("PUBLIC_USER_METADATA_TABLE_NAME", "test-user-metadata")
+        environment("REVIEW_TABLE_NAME", "test-review-table")
         
         // Enable test output in console
         testLogging {
