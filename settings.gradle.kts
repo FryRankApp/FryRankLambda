@@ -11,4 +11,3 @@ plugins {
 }
 
 rootProject.name = "FryRankLambda"
-include("app")
