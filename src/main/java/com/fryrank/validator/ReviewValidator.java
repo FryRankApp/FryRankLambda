@@ -19,6 +19,13 @@ public class ReviewValidator implements Validator {
     public static final String TITLE = "title";
     public static final String BODY = "body";
     public static final String ISO_DATE_TIME_REJECTION_FORMAT_REASON = "The provided isoDateTime is not in ISO format.";
+    public static final String ACCOUNT_ID_REJECTION_REQUIRED_REASON = "The account ID is required.";
+    public static final String RESTAURANT_ID_REJECTION_REQUIRED_REASON = "The restaurant ID is required.";
+    public static final String SCORE_REJECTION_REQUIRED_REASON = "The review score is required.";
+    public static final String TITLE_REJECTION_REQUIRED_REASON = "The review title is required.";
+    public static final String BODY_REJECTION_REQUIRED_REASON = "The review body is required.";
+
+
     
     @Override
     public boolean supports(@NonNull Class clazz) {
@@ -32,22 +39,22 @@ public class ReviewValidator implements Validator {
 
         // Validate restaurant ID:
         if (review.getRestaurantId() == null) {
-            errors.rejectValue(RESTAURANT_ID, REJECTION_REQUIRED_CODE);
+            errors.rejectValue(RESTAURANT_ID, REJECTION_REQUIRED_CODE, RESTAURANT_ID_REJECTION_REQUIRED_REASON);
         }
 
         // Validate user score:
         if (review.getScore() == null) {
-            errors.rejectValue(SCORE, REJECTION_REQUIRED_CODE);
+            errors.rejectValue(SCORE, REJECTION_REQUIRED_CODE, SCORE_REJECTION_REQUIRED_REASON);
         }
 
         // Validate review title:
-        if (review.getTitle() == null) {
-            errors.rejectValue(TITLE, REJECTION_REQUIRED_CODE);
+        if (review.getTitle() == null || review.getTitle().isEmpty()) {
+            errors.rejectValue(TITLE, REJECTION_REQUIRED_CODE, TITLE_REJECTION_REQUIRED_REASON);
         }
 
         // Validate review body:
-        if (review.getBody() == null) {
-            errors.rejectValue(BODY, REJECTION_REQUIRED_CODE);
+        if (review.getBody() == null || review.getBody().isEmpty()) {
+            errors.rejectValue(BODY, REJECTION_REQUIRED_CODE, BODY_REJECTION_REQUIRED_REASON);
         }
 
         // Validate ISO date time
@@ -67,7 +74,7 @@ public class ReviewValidator implements Validator {
         // Validate account ID
         final String accountId = review.getAccountId();
         if (accountId == null) {
-            errors.rejectValue(ACCOUNT_ID, REJECTION_REQUIRED_CODE);
+            errors.rejectValue(ACCOUNT_ID, REJECTION_REQUIRED_CODE, ACCOUNT_ID_REJECTION_REQUIRED_REASON);
         }
     }
 

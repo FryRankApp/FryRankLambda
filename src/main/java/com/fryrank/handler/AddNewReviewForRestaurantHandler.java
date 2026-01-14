@@ -37,7 +37,7 @@ public class AddNewReviewForRestaurantHandler implements RequestHandler<APIGatew
         log.info("Handling request: {}", input);
         
         final String handlerName = getClass().getSimpleName();
-        return APIGatewayResponseBuilder.handleRequest(handlerName, () -> {
+        return APIGatewayResponseBuilder.handleRequest(handlerName, input, () -> {
             requestValidator.validateRequest(handlerName, input);
 
             final Review review = new Gson().fromJson(input.getBody(), Review.class);

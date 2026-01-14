@@ -34,7 +34,7 @@ public class GetAllReviewsHandler implements RequestHandler<APIGatewayV2HTTPEven
         log.info("Handling request: {}", input);
 
         final String handlerName = getClass().getSimpleName();
-        return APIGatewayResponseBuilder.handleRequest(handlerName, () -> {
+        return APIGatewayResponseBuilder.handleRequest(handlerName, input, () -> {
             requestValidator.validateRequest(handlerName, input);
 
             Map<String, String> params = input.getQueryStringParameters();

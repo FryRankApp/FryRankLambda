@@ -1,11 +1,15 @@
 package com.fryrank.util;
 
+import com.amazonaws.services.lambda.runtime.events.APIGatewayV2HTTPEvent;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayV2HTTPResponse;
+import com.fryrank.validator.ValidatorException;
 import com.google.gson.Gson;
 import lombok.extern.log4j.Log4j2;
 
 import java.util.HashMap;
 import java.util.Map;
+
+import static com.fryrank.util.HeaderUtils.createCorsHeaders;
 
 @Log4j2
 public class APIGatewayResponseBuilder {
@@ -62,15 +66,21 @@ public class APIGatewayResponseBuilder {
     }
 
     // Utility methods to maintain backward compatibility
-    public static APIGatewayV2HTTPResponse handleRequest(String handlerName, RequestHandler handler) {
+    public static APIGatewayV2HTTPResponse handleRequest(String handlerName, APIGatewayV2HTTPEvent input, RequestHandler handler) {
         try {
             return handler.execute();
+        } catch (ValidatorException e) {
+            log.error("ValidatorException caught in handler: {}", handlerName, e);
+            Map<String, String> corsHeaders = input != null ? createCorsHeaders(input) : new HashMap<>();
+            return buildErrorResponse(400, "Bad Request: " + e.getErrorsString(), corsHeaders);
         } catch (IllegalArgumentException e) {
             log.error("IllegalArgumentException caught in handler: {}", handlerName, e);
-            return buildErrorResponse(400, "Bad Request: " + e.getMessage());
+            Map<String, String> corsHeaders = input != null ? createCorsHeaders(input) : new HashMap<>();
+            return buildErrorResponse(400, "Bad Request: " + e.getMessage(), corsHeaders);
         } catch (Exception e) {
             log.error("Exception caught in handler: {}", handlerName, e);
-            return buildErrorResponse(500, "Internal Server Error: " + e.getMessage());
+            Map<String, String> corsHeaders = input != null ? createCorsHeaders(input) : new HashMap<>();
+            return buildErrorResponse(500, "Internal Server Error: " + e.getMessage(), corsHeaders);
         }
     }
 
@@ -87,9 +97,14 @@ public class APIGatewayResponseBuilder {
     }
 
     public static APIGatewayV2HTTPResponse buildErrorResponse(int statusCode, String message) {
+        return buildErrorResponse(statusCode, message, new HashMap<>());
+    }
+
+    public static APIGatewayV2HTTPResponse buildErrorResponse(int statusCode, String message, Map<String, String> headers) {
         return builder()
                 .statusCode(statusCode)
                 .rawBody(message)
+                .headers(headers)
                 .build();
     }
 

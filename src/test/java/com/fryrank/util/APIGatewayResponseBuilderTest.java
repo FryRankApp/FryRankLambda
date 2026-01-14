@@ -32,7 +32,7 @@ class APIGatewayResponseBuilderTest {
         final GetAllReviewsOutput testData = new GetAllReviewsOutput(TEST_REVIEWS);
 
         // Act
-        APIGatewayV2HTTPResponse response = APIGatewayResponseBuilder.handleRequest(handlerName, () -> {
+        APIGatewayV2HTTPResponse response = APIGatewayResponseBuilder.handleRequest(handlerName, null,() -> {
             return APIGatewayResponseBuilder.buildSuccessResponse(testData);
         });
 
@@ -49,7 +49,7 @@ class APIGatewayResponseBuilderTest {
         String errorMessage = TEST_ERROR_MESSAGE;
 
         // Act
-        APIGatewayV2HTTPResponse response = APIGatewayResponseBuilder.handleRequest(handlerName, () -> {
+        APIGatewayV2HTTPResponse response = APIGatewayResponseBuilder.handleRequest(handlerName, null, () -> {
             throw new IllegalArgumentException(errorMessage);
         });
 
@@ -66,7 +66,7 @@ class APIGatewayResponseBuilderTest {
         String errorMessage = INTERNAL_ERROR_MESSAGE;
 
         // Act
-        APIGatewayV2HTTPResponse response = APIGatewayResponseBuilder.handleRequest(handlerName, () -> {
+        APIGatewayV2HTTPResponse response = APIGatewayResponseBuilder.handleRequest(handlerName, null, () -> {
             throw new RuntimeException(errorMessage);
         });
 
