@@ -8,6 +8,7 @@ import lombok.extern.log4j.Log4j2;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 import static com.fryrank.util.HeaderUtils.createCorsHeaders;
 
@@ -71,15 +72,21 @@ public class APIGatewayResponseBuilder {
             return handler.execute();
         } catch (ValidatorException e) {
             log.error("ValidatorException caught in handler: {}", handlerName, e);
-            Map<String, String> corsHeaders = input != null ? createCorsHeaders(input) : new HashMap<>();
+            Map<String, String> corsHeaders = Optional.ofNullable(input)
+                    .map(event -> createCorsHeaders(event))
+                    .orElse(new HashMap<>());
             return buildErrorResponse(400, "Bad Request: " + e.getErrorsString(), corsHeaders);
         } catch (IllegalArgumentException e) {
             log.error("IllegalArgumentException caught in handler: {}", handlerName, e);
-            Map<String, String> corsHeaders = input != null ? createCorsHeaders(input) : new HashMap<>();
+            Map<String, String> corsHeaders = Optional.ofNullable(input)
+                    .map(event -> createCorsHeaders(event))
+                    .orElse(new HashMap<>());
             return buildErrorResponse(400, "Bad Request: " + e.getMessage(), corsHeaders);
         } catch (Exception e) {
             log.error("Exception caught in handler: {}", handlerName, e);
-            Map<String, String> corsHeaders = input != null ? createCorsHeaders(input) : new HashMap<>();
+            Map<String, String> corsHeaders = Optional.ofNullable(input)
+                    .map(event -> createCorsHeaders(event))
+                    .orElse(new HashMap<>());
             return buildErrorResponse(500, "Internal Server Error: " + e.getMessage(), corsHeaders);
         }
     }
