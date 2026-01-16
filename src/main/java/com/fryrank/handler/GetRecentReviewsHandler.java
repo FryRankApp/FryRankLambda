@@ -32,7 +32,7 @@ public class GetRecentReviewsHandler implements RequestHandler<APIGatewayV2HTTPE
         log.info("Handling request: {}", input);
 
         final String handlerName = getClass().getSimpleName();
-        return APIGatewayResponseBuilder.handleRequest(handlerName, () -> {
+        return APIGatewayResponseBuilder.handleRequest(handlerName, input, () -> {
             requestValidator.validateRequest(handlerName, input);
 
             final GetAllReviewsOutput output = reviewDomain.getRecentReviews(

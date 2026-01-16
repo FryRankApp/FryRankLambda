@@ -34,7 +34,7 @@ public class UpsertPublicUserMetadataHandler implements RequestHandler<APIGatewa
         log.info("Handling request: {}", input);
 
         final String handlerName = getClass().getSimpleName();
-        return APIGatewayResponseBuilder.handleRequest(handlerName, () -> {
+        return APIGatewayResponseBuilder.handleRequest(handlerName, input, () -> {
             requestValidator.validateRequest(handlerName, input);
 
             final PublicUserMetadata userMetadata = new Gson().fromJson(input.getBody(), PublicUserMetadata.class);
