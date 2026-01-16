@@ -43,18 +43,24 @@ public class Constants {
     public static final String LOCALHOST = "http://localhost:3000";
     public static final String FRYRANK_STAGE_OXYSERVER = "https://fryrank-beta-stage.oxyserver.com";
     public static final String FRYRANK_STAGE_CLOUDFRONT = "https://d1jqnaqp1g7d1o.cloudfront.net";
+    public static final String FRYRANK_BETA = "https://beta.fryrank.app";
     public static final String FRYRANK_BETA_STAGE_ALT_URL = "https://pure-temple-61679-beta-stage-84eefac76015.herokuapp.com";
-    public static final String FRYRANK_PROD = "https://fryrank.oxyserver.com";
+    public static final String FRYRANK_PROD_OXYSERVER = "https://fryrank.oxyserver.com";
+    public static final String FRYRANK_PROD = "https://fryrank.app";
+    public static final String FRYRANK_PROD_WWW = "https://www.fryrank.app";
     public static final String FRYRANK_PROD_ALT_URL = "https://pure-temple-61679-98a4d5c2d04e.herokuapp.com";
     public static final String FRYRANK_PROD_CLOUDFRONT = "https://d3h6a05rzfj3y8.cloudfront.net";
     public static final Set<String> ALLOWED_ORIGINS = Set.of(
         LOCALHOST, 
         FRYRANK_STAGE_OXYSERVER,
         FRYRANK_BETA_STAGE_ALT_URL,
+        FRYRANK_BETA,
         FRYRANK_STAGE_CLOUDFRONT,
         FRYRANK_PROD,
         FRYRANK_PROD_ALT_URL,
-        FRYRANK_PROD_CLOUDFRONT
+        FRYRANK_PROD_CLOUDFRONT,
+        FRYRANK_PROD_OXYSERVER,
+        FRYRANK_PROD_WWW
     );
 
     // Headers
