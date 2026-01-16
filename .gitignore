@@ -5,7 +5,7 @@ out/
 !**/src/main/**/target/
 !**/src/test/**/target/
 /bin/
-Constants.java
+
 
 ### STS ###
 .apt_generated
