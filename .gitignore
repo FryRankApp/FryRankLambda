@@ -6,7 +6,6 @@ out/
 !**/src/test/**/target/
 /bin/
 
-
 ### STS ###
 .apt_generated
 .classpath
