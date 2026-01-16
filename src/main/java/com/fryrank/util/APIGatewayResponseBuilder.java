@@ -68,25 +68,19 @@ public class APIGatewayResponseBuilder {
 
     // Utility methods to maintain backward compatibility
     public static APIGatewayV2HTTPResponse handleRequest(String handlerName, APIGatewayV2HTTPEvent input, RequestHandler handler) {
+        Map<String, String> corsHeaders = Optional.ofNullable(input)
+            .map(event -> createCorsHeaders(event))
+            .orElse(new HashMap<>());
         try {
             return handler.execute();
         } catch (ValidatorException e) {
             log.error("ValidatorException caught in handler: {}", handlerName, e);
-            Map<String, String> corsHeaders = Optional.ofNullable(input)
-                    .map(event -> createCorsHeaders(event))
-                    .orElse(new HashMap<>());
             return buildErrorResponse(400, "Bad Request: " + e.getErrorsString(), corsHeaders);
         } catch (IllegalArgumentException e) {
             log.error("IllegalArgumentException caught in handler: {}", handlerName, e);
-            Map<String, String> corsHeaders = Optional.ofNullable(input)
-                    .map(event -> createCorsHeaders(event))
-                    .orElse(new HashMap<>());
             return buildErrorResponse(400, "Bad Request: " + e.getMessage(), corsHeaders);
         } catch (Exception e) {
             log.error("Exception caught in handler: {}", handlerName, e);
-            Map<String, String> corsHeaders = Optional.ofNullable(input)
-                    .map(event -> createCorsHeaders(event))
-                    .orElse(new HashMap<>());
             return buildErrorResponse(500, "Internal Server Error: " + e.getMessage(), corsHeaders);
         }
     }
