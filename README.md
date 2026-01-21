@@ -2,6 +2,10 @@
 
 A Lambda package hosting all the backend logic for the Fry Rank project.
 
+### Prerequisites
+1) Install: `python3 -m pip install boto3`  
+2) Set AWS region (FryRank sandbox): `aws configure set region us-west-2`
+
 ### Testing ###
 To build the package, run the following command, either in the terminal or with the IntelliJ Gradle plugin:
 ```bash
