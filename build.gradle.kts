@@ -47,6 +47,9 @@ dependencies {
 
     // AWS SSM
     implementation("software.amazon.awssdk:ssm:2.24.0")
+
+    //STRIPE
+    implementation("com.stripe:stripe-java:31.2.0")
 }
 
 // Apply a specific Java toolchain to ease working on different environments.
