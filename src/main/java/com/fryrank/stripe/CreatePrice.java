@@ -9,7 +9,7 @@ import com.stripe.model.Price;
 
 public class CreatePrice {
     public static void main(String[] args) throws StripeException {
-        // Get API key from environment variable
+        // Get API key from sandbox
         // Set it before running: export STRIPE_API_KEY="sk_test_..."
         String apiKey = System.getenv("STRIPE_API_KEY");
         if (apiKey == null || apiKey.trim().isEmpty()) {
