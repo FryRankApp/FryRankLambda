@@ -129,4 +129,6 @@ public class ReviewDALImpl implements ReviewDAL {
 
         return mongoTemplate.findAndReplace(query, review, options);
     }
+
+    //Add a new method to handle deleting the review.
 }

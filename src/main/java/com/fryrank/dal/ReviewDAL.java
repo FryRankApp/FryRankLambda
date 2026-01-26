@@ -18,4 +18,6 @@ public interface ReviewDAL {
     GetAggregateReviewInformationOutput getAggregateReviewInformationForRestaurants(final List<String> restaurantIds, final AggregateReviewFilter aggregateReviewFilter);
 
     Review addNewReview(final Review review);
+
+    void deleteUserReview(final String reviewId);
 }

@@ -57,4 +57,8 @@ public class ReviewDomain {
         ValidatorUtils.validateAndThrow(review, REVIEW_VALIDATOR_ERRORS_OBJECT_NAME, new ReviewValidator());
         return reviewDAL.addNewReview(review);
     }
+
+    public Review deleteExistingReviewForRestaurant(@NonNull final String reviewIDString){
+        return reviewDAL.deleteUserReview(reviewIDString);
+    }
 }
