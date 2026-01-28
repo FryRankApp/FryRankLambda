@@ -58,7 +58,7 @@ public class ReviewDomain {
         return reviewDAL.addNewReview(review);
     }
 
-    public Review deleteExistingReviewForRestaurant(@NonNull final String reviewIDString){
+    public boolean deleteExistingReviewForRestaurant(@NonNull final String reviewIDString){
         return reviewDAL.deleteUserReview(reviewIDString);
     }
 }

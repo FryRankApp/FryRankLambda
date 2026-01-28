@@ -31,10 +31,18 @@ public class DeleteExistingReviewForRestaurantHandler implements RequestHandler<
         final String handlerName = getClass().getSimpleName();
             return APIGatewayResponseBuilder.handleRequest(handlerName, input, () -> {
 
-            final String output = reviewDomain.deleteExistingReviewForRestaurant(reviewId); //Figure out how to get reviewId from input.
-
-            log.info("Request processed successfully");
-            return APIGatewayResponseBuilder.buildSuccessResponse(output, createCorsHeaders(input));
+            final String reviewId = input.getBody();
+            //In the future maybe add a way to extract account Id so that accidental deletions can't happen?
+            
+            final boolean deleted = reviewDomain.deleteExistingReviewForRestaurant(reviewId); //Figure out how to get reviewId from input.
+            
+            if (deleted){
+                log.info("Request processed successfully");
+                return APIGatewayResponseBuilder.buildSuccessNoContentResponse(createCorsHeaders(input));
+            } else {
+                return APIGatewayResponseBuilder.buildErrorResponse(404, "Review not found");
+            }
+            
         });
     }
 }

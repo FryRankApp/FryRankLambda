@@ -97,6 +97,13 @@ public class APIGatewayResponseBuilder {
                 .build();
     }
 
+    public static APIGatewayV2HTTPResponse buildSuccessNoContentResponse(Map<String, String> headers) {
+        return builder()
+                .statusCode(204)
+                .headers(headers)
+                .build();
+    }
+
     public static APIGatewayV2HTTPResponse buildErrorResponse(int statusCode, String message) {
         return buildErrorResponse(statusCode, message, new HashMap<>());
     }

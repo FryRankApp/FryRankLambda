@@ -19,5 +19,5 @@ public interface ReviewDAL {
 
     Review addNewReview(final Review review);
 
-    void deleteUserReview(final String reviewId);
+    boolean deleteUserReview(final String reviewId);
 }

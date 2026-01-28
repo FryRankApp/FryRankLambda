@@ -1,6 +1,9 @@
 package com.fryrank.dal;
 
 import com.fryrank.model.*;
+import com.mongodb.client.result.DeleteResult;
+import com.mongodb.internal.operation.FindAndDeleteOperation;
+
 import lombok.AllArgsConstructor;
 import lombok.NonNull;
 import lombok.extern.log4j.Log4j2;
@@ -130,5 +133,11 @@ public class ReviewDALImpl implements ReviewDAL {
         return mongoTemplate.findAndReplace(query, review, options);
     }
 
-    //Add a new method to handle deleting the review.
+    @Override
+    public boolean deleteUserReview(@NonNull final String reviewId) {
+        final Query query = new Query().addCriteria(Criteria.where("_id").is("_id"));
+        Review deletedReview = mongoTemplate.findAndRemove(query, Review.class);
+        
+        return deletedReview != null;
+    }
 }
