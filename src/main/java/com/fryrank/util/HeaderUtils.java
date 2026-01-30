@@ -62,11 +62,10 @@ public class HeaderUtils {
     }
 
     /**
-     * Converts all keys in a Map<String, String> to lowercase.
-     * Values are kept as-is to preserve case-sensitive data like JWT tokens.
+     * Converts all keys and values in a Map<String, String> to lowercase.
      *
      * @param originalMap The original map to convert
-     * @return A new map with all keys converted to lowercase
+     * @return A new map with all keys and values converted to lowercase
      */
     public static Map<String, String> toLowerCaseMap(Map<String, String> originalMap) {
         if (originalMap == null) {
@@ -79,11 +78,13 @@ public class HeaderUtils {
             String key = entry.getKey();
             String value = entry.getValue();
 
-            // Convert key to lowercase only
+            // Convert key to lowercase
             String lowerCaseKey = (key != null) ? key.toLowerCase() : null;
 
-            // Keep value as-is to preserve case-sensitive data
-            lowerCaseMap.put(lowerCaseKey, value);
+            // Convert value to lowercase
+            String lowerCaseValue = (value != null) ? value.toLowerCase() : null;
+
+            lowerCaseMap.put(lowerCaseKey, lowerCaseValue);
         }
 
         return lowerCaseMap;
@@ -103,7 +104,7 @@ public class HeaderUtils {
             return null;
         }
 
-        String authHeader = event.getHeaders().get("Authorization");
+        final String authHeader = event.getHeaders().get("Authorization");
         
         if (authHeader == null) {
             log.info("No authorization header found");
@@ -115,7 +116,7 @@ public class HeaderUtils {
             return null;
         }
         
-        String token = authHeader.substring(7); // Remove "Bearer " prefix
+        final String token = authHeader.substring(7); // Remove "Bearer " prefix
         log.info("Successfully extracted bearer token");
         return token;
     }

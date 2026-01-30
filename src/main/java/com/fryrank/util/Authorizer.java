@@ -29,7 +29,6 @@ public class Authorizer {
             .build();
     }
 
-    // Constructor for testing with mock verifier
     public Authorizer(GoogleIdTokenVerifier verifier) {
         this.transport = new NetHttpTransport();
         this.jsonFactory = GsonFactory.getDefaultInstance();

@@ -37,15 +37,6 @@ public class AddNewReviewForRestaurantHandler implements RequestHandler<APIGatew
         authorizer = new Authorizer();
     }
 
-    public AddNewReviewForRestaurantHandler(Authorizer authorizer) {
-        this.reviewDAL = new ReviewDALImpl();
-        this.reviewDomain = new ReviewDomain(reviewDAL);
-        this.requestValidator = new APIGatewayRequestValidator();
-        this.reviewValidator = new ReviewValidator();
-        this.authorizer = authorizer;
-    }
-
-    // Constructor for testing with all dependencies injected
     public AddNewReviewForRestaurantHandler(ReviewDALImpl reviewDAL, ReviewDomain reviewDomain, APIGatewayRequestValidator requestValidator, ReviewValidator reviewValidator, Authorizer authorizer) {
         this.reviewDAL = reviewDAL;
         this.reviewDomain = reviewDomain;

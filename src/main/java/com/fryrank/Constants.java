@@ -61,8 +61,7 @@ public class Constants {
         FRYRANK_PROD_ALT_URL,
         FRYRANK_PROD_CLOUDFRONT,
         FRYRANK_PROD_OXYSERVER,
-        FRYRANK_PROD_WWW,
-        "https://d959r0c83rbxj.cloudfront.net"
+        FRYRANK_PROD_WWW
     );
 
     // Headers
