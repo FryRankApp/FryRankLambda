@@ -64,6 +64,11 @@ public class Constants {
         FRYRANK_PROD_WWW
     );
 
+    // Authorization Error Messages
+    public static final String AUTH_ERROR_MISSING_OR_INVALID_HEADER = "Unauthorized: Missing or invalid authorization header";
+    public static final String AUTH_ERROR_INVALID_TOKEN = "Unauthorized: Invalid token";
+    public static final String AUTH_ERROR_VERIFICATION_FAILED = "Unauthorized: Token verification failed";
+
     // Headers
     public static final String HEADER_ACCESS_CONTROL_ALLOW_ORIGIN = "Access-Control-Allow-Origin";
     public static final String HEADER_ACCESS_CONTROL_ALLOW_METHODS = "Access-Control-Allow-Methods";

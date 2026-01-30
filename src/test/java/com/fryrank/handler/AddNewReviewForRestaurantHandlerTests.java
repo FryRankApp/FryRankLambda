@@ -21,6 +21,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayV2HTTPEvent;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayV2HTTPResponse;
+import com.fryrank.Constants;
 import com.fryrank.TestConstants;
 import com.fryrank.dal.ReviewDALImpl;
 import com.fryrank.domain.ReviewDomain;
@@ -119,14 +120,14 @@ public class AddNewReviewForRestaurantHandlerTests {
         
         // Setup mocks - mock Authorizer to throw exception for invalid token
         doNothing().when(requestValidator).validateRequest(any(), any());
-        doThrow(new NotAuthorizedException("Unauthorized: Invalid token")).when(authorizer).authorizeToken(TestConstants.TEST_INVALID_TOKEN);
+        doThrow(new NotAuthorizedException(Constants.AUTH_ERROR_INVALID_TOKEN)).when(authorizer).authorizeToken(TestConstants.TEST_INVALID_TOKEN);
         
         // Act
         final APIGatewayV2HTTPResponse response = handler.handleRequest(event, context);
         
         // Assert
         assertEquals(401, response.getStatusCode());
-        assertEquals("Unauthorized: Invalid token", response.getBody());
+        assertEquals(Constants.AUTH_ERROR_INVALID_TOKEN, response.getBody());
         
         verify(authorizer).authorizeToken(TestConstants.TEST_INVALID_TOKEN);
     }
@@ -145,14 +146,14 @@ public class AddNewReviewForRestaurantHandlerTests {
         
         // Setup mocks - mock Authorizer to throw exception for null token (missing header)
         doNothing().when(requestValidator).validateRequest(any(), any());
-        doThrow(new NotAuthorizedException("Unauthorized: Missing or invalid authorization header")).when(authorizer).authorizeToken(null);
+        doThrow(new NotAuthorizedException(Constants.AUTH_ERROR_MISSING_OR_INVALID_HEADER)).when(authorizer).authorizeToken(null);
         
         // Act
         final APIGatewayV2HTTPResponse response = handler.handleRequest(event, context);
         
         // Assert
         assertEquals(401, response.getStatusCode());
-        assertEquals("Unauthorized: Missing or invalid authorization header", response.getBody());
+        assertEquals(Constants.AUTH_ERROR_MISSING_OR_INVALID_HEADER, response.getBody());
     }
 
     @Test
@@ -169,14 +170,14 @@ public class AddNewReviewForRestaurantHandlerTests {
         
         // Setup mocks - mock Authorizer to throw exception for malformed token
         doNothing().when(requestValidator).validateRequest(any(), any());
-        doThrow(new NotAuthorizedException("Unauthorized: Missing or invalid authorization header")).when(authorizer).authorizeToken(null);
+        doThrow(new NotAuthorizedException(Constants.AUTH_ERROR_MISSING_OR_INVALID_HEADER)).when(authorizer).authorizeToken(null);
         
         // Act
         final APIGatewayV2HTTPResponse response = handler.handleRequest(event, context);
         
         // Assert
         assertEquals(401, response.getStatusCode());
-        assertEquals("Unauthorized: Missing or invalid authorization header", response.getBody());
+        assertEquals(Constants.AUTH_ERROR_MISSING_OR_INVALID_HEADER, response.getBody());
     }
 
     private APIGatewayV2HTTPEvent createTestEvent(String authHeader, String body) {

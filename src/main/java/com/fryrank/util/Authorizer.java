@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.util.Collections;
 
+import com.fryrank.Constants;
 import com.fryrank.model.exceptions.NotAuthorizedException;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
@@ -42,18 +43,18 @@ public class Authorizer {
      */
     public void authorizeToken(String token) throws NotAuthorizedException {
         if (token == null || token.isEmpty()) {
-            throw new NotAuthorizedException("Unauthorized: Missing or invalid authorization header");
+            throw new NotAuthorizedException(Constants.AUTH_ERROR_MISSING_OR_INVALID_HEADER);
         }
 
         try {
             final GoogleIdToken idToken = verifier.verify(token);
             if (idToken == null) {
-                throw new NotAuthorizedException("Unauthorized: Invalid token");
+                throw new NotAuthorizedException(Constants.AUTH_ERROR_INVALID_TOKEN);
             }
             // Success - method completes without exception
         } catch (GeneralSecurityException | IOException e) {
             log.error("Authorization failed", e);
-            throw new NotAuthorizedException("Unauthorized: Authorization failed");
+            throw new NotAuthorizedException(Constants.AUTH_ERROR_VERIFICATION_FAILED);
         }
     }
 }
