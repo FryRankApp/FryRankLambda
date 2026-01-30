@@ -22,7 +22,13 @@ import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayV2HTTPEvent;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayV2HTTPResponse;
 import com.fryrank.Constants;
-import com.fryrank.TestConstants;
+import static com.fryrank.TestConstants.TEST_BODY_1;
+import static com.fryrank.TestConstants.TEST_INVALID_TOKEN;
+import static com.fryrank.TestConstants.TEST_MALFORMED_TOKEN;
+import static com.fryrank.TestConstants.TEST_REVIEW_ID_1;
+import static com.fryrank.TestConstants.TEST_RESTAURANT_ID;
+import static com.fryrank.TestConstants.TEST_TITLE_1;
+import static com.fryrank.TestConstants.TEST_VALID_TOKEN;
 import com.fryrank.dal.ReviewDALImpl;
 import com.fryrank.domain.ReviewDomain;
 import com.fryrank.model.Review;
@@ -68,25 +74,25 @@ public class AddNewReviewForRestaurantHandlerTests {
     public void testHandleRequest_WithValidTokenAndReview_ReturnsSuccess() throws Exception {
         // Arrange
         final Review inputReview = Review.builder()
-            .restaurantId(TestConstants.TEST_RESTAURANT_ID)
+            .restaurantId(TEST_RESTAURANT_ID)
             .score(5.0)
-            .title(TestConstants.TEST_TITLE_1)
-            .body(TestConstants.TEST_BODY_1)
+            .title(TEST_TITLE_1)
+            .body(TEST_BODY_1)
             .build();
         
         final Review outputReview = Review.builder()
-            .reviewId(TestConstants.TEST_REVIEW_ID_1)
-            .restaurantId(TestConstants.TEST_RESTAURANT_ID)
+            .reviewId(TEST_REVIEW_ID_1)
+            .restaurantId(TEST_RESTAURANT_ID)
             .score(5.0)
-            .title(TestConstants.TEST_TITLE_1)
-            .body(TestConstants.TEST_BODY_1)
+            .title(TEST_TITLE_1)
+            .body(TEST_BODY_1)
             .build();
         
-        final APIGatewayV2HTTPEvent event = createTestEvent("Bearer " + TestConstants.TEST_VALID_TOKEN, gson.toJson(inputReview));
+        final APIGatewayV2HTTPEvent event = createTestEvent(createBearerToken(TEST_VALID_TOKEN), gson.toJson(inputReview));
         
         // Setup mocks - mock Authorizer and domain layer
         doNothing().when(requestValidator).validateRequest(any(), any());
-        doNothing().when(authorizer).authorizeToken(TestConstants.TEST_VALID_TOKEN); // No exception for valid token
+        doNothing().when(authorizer).authorizeToken(TEST_VALID_TOKEN); // No exception for valid token
         when(reviewDomain.addNewReviewForRestaurant(any(Review.class))).thenReturn(outputReview);
         
         // Act
@@ -97,12 +103,12 @@ public class AddNewReviewForRestaurantHandlerTests {
         assertNotNull(response.getBody());
         
         Review responseReview = gson.fromJson(response.getBody(), Review.class);
-        assertEquals(TestConstants.TEST_REVIEW_ID_1, responseReview.getReviewId());
-        assertEquals(TestConstants.TEST_RESTAURANT_ID, responseReview.getRestaurantId());
+        assertEquals(TEST_REVIEW_ID_1, responseReview.getReviewId());
+        assertEquals(TEST_RESTAURANT_ID, responseReview.getRestaurantId());
         assertEquals(5.0, responseReview.getScore());
-        assertEquals(TestConstants.TEST_BODY_1, responseReview.getBody());
+        assertEquals(TEST_BODY_1, responseReview.getBody());
         
-        verify(authorizer).authorizeToken(TestConstants.TEST_VALID_TOKEN);
+        verify(authorizer).authorizeToken(TEST_VALID_TOKEN);
         verify(reviewDomain).addNewReviewForRestaurant(inputReview);
     }
 
@@ -110,17 +116,17 @@ public class AddNewReviewForRestaurantHandlerTests {
     public void testHandleRequest_WithInvalidToken_ReturnsUnauthorized() throws Exception {
         // Arrange
         final Review inputReview = Review.builder()
-            .restaurantId(TestConstants.TEST_RESTAURANT_ID)
+            .restaurantId(TEST_RESTAURANT_ID)
             .score(5.0)
-            .title(TestConstants.TEST_TITLE_1)
-            .body(TestConstants.TEST_BODY_1)
+            .title(TEST_TITLE_1)
+            .body(TEST_BODY_1)
             .build();
         
-        final APIGatewayV2HTTPEvent event = createTestEvent("Bearer " + TestConstants.TEST_INVALID_TOKEN, gson.toJson(inputReview));
+        final APIGatewayV2HTTPEvent event = createTestEvent(createBearerToken(TEST_INVALID_TOKEN), gson.toJson(inputReview));
         
         // Setup mocks - mock Authorizer to throw exception for invalid token
         doNothing().when(requestValidator).validateRequest(any(), any());
-        doThrow(new NotAuthorizedException(Constants.AUTH_ERROR_INVALID_TOKEN)).when(authorizer).authorizeToken(TestConstants.TEST_INVALID_TOKEN);
+        doThrow(new NotAuthorizedException(Constants.AUTH_ERROR_INVALID_TOKEN)).when(authorizer).authorizeToken(TEST_INVALID_TOKEN);
         
         // Act
         final APIGatewayV2HTTPResponse response = handler.handleRequest(event, context);
@@ -129,17 +135,17 @@ public class AddNewReviewForRestaurantHandlerTests {
         assertEquals(401, response.getStatusCode());
         assertEquals(Constants.AUTH_ERROR_INVALID_TOKEN, response.getBody());
         
-        verify(authorizer).authorizeToken(TestConstants.TEST_INVALID_TOKEN);
+        verify(authorizer).authorizeToken(TEST_INVALID_TOKEN);
     }
 
     @Test
     public void testHandleRequest_WithMissingToken_ReturnsUnauthorized() throws Exception {
         // Arrange
         final Review inputReview = Review.builder()
-            .restaurantId(TestConstants.TEST_RESTAURANT_ID)
+            .restaurantId(TEST_RESTAURANT_ID)
             .score(5.0)
-            .title(TestConstants.TEST_TITLE_1)
-            .body(TestConstants.TEST_BODY_1)
+            .title(TEST_TITLE_1)
+            .body(TEST_BODY_1)
             .build();
         
         final APIGatewayV2HTTPEvent event = createTestEvent(null, gson.toJson(inputReview));
@@ -160,13 +166,13 @@ public class AddNewReviewForRestaurantHandlerTests {
     public void testHandleRequest_WithMalformedToken_ReturnsUnauthorized() throws Exception {
         // Arrange
         final Review inputReview = Review.builder()
-            .restaurantId(TestConstants.TEST_RESTAURANT_ID)
+            .restaurantId(TEST_RESTAURANT_ID)
             .score(5.0)
-            .title(TestConstants.TEST_TITLE_1)
-            .body(TestConstants.TEST_BODY_1)
+            .title(TEST_TITLE_1)
+            .body(TEST_BODY_1)
             .build();
         
-        final APIGatewayV2HTTPEvent event = createTestEvent(TestConstants.TEST_MALFORMED_TOKEN, gson.toJson(inputReview));
+        final APIGatewayV2HTTPEvent event = createTestEvent(TEST_MALFORMED_TOKEN, gson.toJson(inputReview));
         
         // Setup mocks - mock Authorizer to throw exception for malformed token
         doNothing().when(requestValidator).validateRequest(any(), any());
@@ -191,5 +197,9 @@ public class AddNewReviewForRestaurantHandlerTests {
         event.setHeaders(headers);
         
         return event;
+    }
+
+    private String createBearerToken(String token) {
+        return "Bearer " + token;
     }
 }

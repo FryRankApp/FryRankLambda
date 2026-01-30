@@ -1,6 +1,7 @@
 package com.fryrank.util;
 
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static com.fryrank.TestConstants.TEST_INVALID_TOKEN;
+import static com.fryrank.TestConstants.TEST_VALID_TOKEN;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.io.IOException;
@@ -51,7 +52,7 @@ public class AuthorizerTests {
     @Test
     public void testIsValidToken_WithValidToken_ReturnsTrue() throws NotAuthorizedException, GeneralSecurityException, IOException {
         // Arrange
-        final String validToken = "valid-token";
+        final String validToken = TEST_VALID_TOKEN;
         doReturn(idToken).when(verifier).verify(validToken);
 
         // Act
@@ -64,11 +65,11 @@ public class AuthorizerTests {
     @Test
     public void testIsValidToken_WithInvalidToken_ReturnsFalse() throws GeneralSecurityException, IOException {
         // Arrange
-        final String invalidToken = "invalid-token";
+        final String invalidToken = TEST_INVALID_TOKEN;
         doReturn(null).when(verifier).verify(invalidToken);
 
         // Act & Assert
-        NotAuthorizedException exception = org.junit.jupiter.api.Assertions.assertThrows(
+        final NotAuthorizedException exception = org.junit.jupiter.api.Assertions.assertThrows(
             NotAuthorizedException.class,
             () -> authorizer.authorizeToken(invalidToken)
         );
