@@ -11,6 +11,7 @@ public class Constants {
 
     // SSM Parameter Store
     public static final String DATABASE_URI_PARAMETER_NAME_ENV_VAR = "SSM_DATABASE_URI_PARAMETER_KEY";
+    public static final String GOOGLE_CLIENT_ID_PARAMETER_NAME_ENV_VAR = "SSM_GOOGLE_CLIENT_ID_PARAMETER_KEY";
 
     // Input Validator
     public static final String GENERIC_VALIDATOR_ERROR_MESSAGE = "Encountered error while validating API input.";
@@ -60,7 +61,8 @@ public class Constants {
         FRYRANK_PROD_ALT_URL,
         FRYRANK_PROD_CLOUDFRONT,
         FRYRANK_PROD_OXYSERVER,
-        FRYRANK_PROD_WWW
+        FRYRANK_PROD_WWW,
+        "https://d959r0c83rbxj.cloudfront.net"
     );
 
     // Headers

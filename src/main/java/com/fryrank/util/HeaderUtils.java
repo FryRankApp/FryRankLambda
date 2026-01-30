@@ -62,10 +62,11 @@ public class HeaderUtils {
     }
 
     /**
-     * Converts all keys and values in a Map<String, String> to lowercase.
+     * Converts all keys in a Map<String, String> to lowercase.
+     * Values are kept as-is to preserve case-sensitive data like JWT tokens.
      *
      * @param originalMap The original map to convert
-     * @return A new map with all keys and values converted to lowercase
+     * @return A new map with all keys converted to lowercase
      */
     public static Map<String, String> toLowerCaseMap(Map<String, String> originalMap) {
         if (originalMap == null) {
@@ -78,15 +79,44 @@ public class HeaderUtils {
             String key = entry.getKey();
             String value = entry.getValue();
 
-            // Convert key to lowercase
+            // Convert key to lowercase only
             String lowerCaseKey = (key != null) ? key.toLowerCase() : null;
 
-            // Convert value to lowercase
-            String lowerCaseValue = (value != null) ? value.toLowerCase() : null;
-
-            lowerCaseMap.put(lowerCaseKey, lowerCaseValue);
+            // Keep value as-is to preserve case-sensitive data
+            lowerCaseMap.put(lowerCaseKey, value);
         }
 
         return lowerCaseMap;
+    }
+
+    /**
+     * Extracts the bearer token from the Authorization header.
+     * 
+     * @param event The API Gateway HTTP event
+     * @return The token if found and properly formatted, otherwise null
+     */
+    public static String extractBearerToken(APIGatewayV2HTTPEvent event) {
+        log.info("Extracting bearer token from incoming HTTP request");
+        
+        if (event.getHeaders() == null) {
+            log.info("No headers found");
+            return null;
+        }
+
+        String authHeader = event.getHeaders().get("Authorization");
+        
+        if (authHeader == null) {
+            log.info("No authorization header found");
+            return null;
+        }
+        
+        if (!authHeader.startsWith("Bearer ")) {
+            log.info("Authorization header does not start with 'Bearer '");
+            return null;
+        }
+        
+        String token = authHeader.substring(7); // Remove "Bearer " prefix
+        log.info("Successfully extracted bearer token");
+        return token;
     }
 }

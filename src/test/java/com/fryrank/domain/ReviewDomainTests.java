@@ -174,7 +174,15 @@ public class ReviewDomainTests {
 
     @Test
     public void testAddNewReviewNullReviewID() throws Exception {
-        Review expectedReview = new Review(null, TEST_RESTAURANT_ID_1, 5.0, TEST_TITLE_1, TEST_BODY_1, TEST_ISO_DATE_TIME_1, TEST_ACCOUNT_ID, null);
+        Review expectedReview = Review.builder()
+            .reviewId(null)
+            .restaurantId(TEST_RESTAURANT_ID_1)
+            .score(5.0)
+            .title(TEST_TITLE_1)
+            .body(TEST_BODY_1)
+            .isoDateTime(TEST_ISO_DATE_TIME_1)
+            .accountId(TEST_ACCOUNT_ID)
+            .build();
 
         when(reviewDAL.addNewReview(expectedReview)).thenReturn(expectedReview);
 
@@ -186,28 +194,60 @@ public class ReviewDomainTests {
     @Test
     public void testAddNewReviewNullRestaurantID() throws Exception {
         assertThrows(NullPointerException.class, () -> 
-            new Review(TEST_REVIEW_ID_1, null, 5.0, TEST_TITLE_1, TEST_BODY_1, TEST_ISO_DATE_TIME_1, TEST_ACCOUNT_ID, null)
+            Review.builder()
+                .reviewId(TEST_REVIEW_ID_1)
+                .restaurantId(null)
+                .score(5.0)
+                .title(TEST_TITLE_1)
+                .body(TEST_BODY_1)
+                .isoDateTime(TEST_ISO_DATE_TIME_1)
+                .accountId(TEST_ACCOUNT_ID)
+                .build()
         );
     }
 
     @Test
     public void testAddNewReviewNullScore() throws Exception {
         assertThrows(NullPointerException.class, () -> 
-            new Review(TEST_REVIEW_ID_1, TEST_RESTAURANT_ID_1, null, TEST_TITLE_1, TEST_BODY_1, TEST_ISO_DATE_TIME_1, TEST_ACCOUNT_ID, null)
+            Review.builder()
+                .reviewId(TEST_REVIEW_ID_1)
+                .restaurantId(TEST_RESTAURANT_ID_1)
+                .score(null)
+                .title(TEST_TITLE_1)
+                .body(TEST_BODY_1)
+                .isoDateTime(TEST_ISO_DATE_TIME_1)
+                .accountId(TEST_ACCOUNT_ID)
+                .build()
         );
     }
 
     @Test
     public void testAddNewReviewNullTitle() throws Exception {
         assertThrows(NullPointerException.class, () -> 
-            new Review(TEST_REVIEW_ID_1, TEST_RESTAURANT_ID_1, 5.0, null, TEST_BODY_1, TEST_ISO_DATE_TIME_1, TEST_ACCOUNT_ID, null)
+            Review.builder()
+                .reviewId(TEST_REVIEW_ID_1)
+                .restaurantId(TEST_RESTAURANT_ID_1)
+                .score(5.0)
+                .title(null)
+                .body(TEST_BODY_1)
+                .isoDateTime(TEST_ISO_DATE_TIME_1)
+                .accountId(TEST_ACCOUNT_ID)
+                .build()
         );
     }
 
     @Test
     public void testAddNewReviewNullBody() throws Exception {
         assertThrows(NullPointerException.class, () -> 
-            new Review(TEST_REVIEW_ID_1, TEST_RESTAURANT_ID_1, 5.0, TEST_TITLE_1, null, TEST_ISO_DATE_TIME_1, TEST_ACCOUNT_ID, null)
+            Review.builder()
+                .reviewId(TEST_REVIEW_ID_1)
+                .restaurantId(TEST_RESTAURANT_ID_1)
+                .score(5.0)
+                .title(TEST_TITLE_1)
+                .body(null)
+                .isoDateTime(TEST_ISO_DATE_TIME_1)
+                .accountId(TEST_ACCOUNT_ID)
+                .build()
         );
     }
 

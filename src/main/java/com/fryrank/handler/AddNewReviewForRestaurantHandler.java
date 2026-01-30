@@ -7,7 +7,10 @@ import com.amazonaws.services.lambda.runtime.events.APIGatewayV2HTTPResponse;
 import com.fryrank.dal.ReviewDALImpl;
 import com.fryrank.domain.ReviewDomain;
 import com.fryrank.model.Review;
+import com.fryrank.model.exceptions.NotAuthorizedException;
 import com.fryrank.util.APIGatewayResponseBuilder;
+import com.fryrank.util.Authorizer;
+import com.fryrank.util.HeaderUtils;
 import com.fryrank.validator.APIGatewayRequestValidator;
 import com.fryrank.validator.ReviewValidator;
 import com.fryrank.validator.ValidatorUtils;
@@ -24,12 +27,31 @@ public class AddNewReviewForRestaurantHandler implements RequestHandler<APIGatew
     private final ReviewDomain reviewDomain;
     private final APIGatewayRequestValidator requestValidator;
     private final ReviewValidator reviewValidator;
+    private final Authorizer authorizer;
 
     public AddNewReviewForRestaurantHandler() {
         reviewDAL = new ReviewDALImpl();
         reviewDomain = new ReviewDomain(reviewDAL);
         requestValidator = new APIGatewayRequestValidator();
         reviewValidator = new ReviewValidator();
+        authorizer = new Authorizer();
+    }
+
+    public AddNewReviewForRestaurantHandler(Authorizer authorizer) {
+        this.reviewDAL = new ReviewDALImpl();
+        this.reviewDomain = new ReviewDomain(reviewDAL);
+        this.requestValidator = new APIGatewayRequestValidator();
+        this.reviewValidator = new ReviewValidator();
+        this.authorizer = authorizer;
+    }
+
+    // Constructor for testing with all dependencies injected
+    public AddNewReviewForRestaurantHandler(ReviewDALImpl reviewDAL, ReviewDomain reviewDomain, APIGatewayRequestValidator requestValidator, ReviewValidator reviewValidator, Authorizer authorizer) {
+        this.reviewDAL = reviewDAL;
+        this.reviewDomain = reviewDomain;
+        this.requestValidator = requestValidator;
+        this.reviewValidator = reviewValidator;
+        this.authorizer = authorizer;
     }
 
     @Override
@@ -39,6 +61,14 @@ public class AddNewReviewForRestaurantHandler implements RequestHandler<APIGatew
         final String handlerName = getClass().getSimpleName();
         return APIGatewayResponseBuilder.handleRequest(handlerName, input, () -> {
             requestValidator.validateRequest(handlerName, input);
+
+            // Extract bearer token from authorization header and authorize
+            try {
+                final String token = HeaderUtils.extractBearerToken(input);
+                authorizer.authorizeToken(token);
+            } catch (NotAuthorizedException e) {
+                return APIGatewayResponseBuilder.buildErrorResponse(401, e.getMessage());
+            }
 
             final Review review = new Gson().fromJson(input.getBody(), Review.class);
             ValidatorUtils.validateAndThrow(review, REVIEW_VALIDATOR_ERRORS_OBJECT_NAME, reviewValidator);
