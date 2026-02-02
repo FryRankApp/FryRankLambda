@@ -16,45 +16,47 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 import static com.fryrank.Constants.ACCOUNT_ID_KEY;
+import static com.fryrank.Constants.ACCOUNT_ID_TIME_INDEX;
+import static com.fryrank.Constants.AVERAGE_SCORE_KEY;
+import static com.fryrank.Constants.BODY_KEY;
+import static com.fryrank.Constants.IDENTIFIER_KEY;
 import static com.fryrank.Constants.ISO_DATE_TIME;
+import static com.fryrank.Constants.IS_REVIEW_KEY;
+import static com.fryrank.Constants.IS_REVIEW_VALUE;
+import static com.fryrank.Constants.RECENT_REVIEWS_INDEX;
+import static com.fryrank.Constants.RESTAURANT_ID_KEY;
+import static com.fryrank.Constants.RESTAURANT_ID_TIME_INDEX;
+import static com.fryrank.Constants.SCORE_KEY;
+import static com.fryrank.Constants.TITLE_KEY;
+import static com.fryrank.Constants.USERNAME_KEY;
 import static com.fryrank.util.EnvironmentUtils.getRequiredEnv;
 
 @Repository
 @Log4j2
 @AllArgsConstructor
 public class ReviewDALImpl implements ReviewDAL {
+    /**
+     * The Rankings table combines Rankings with Aggregate data about rankings for a restaurant. This is all included
+     * in the same table to simplify queries and streamline amount of DB calls.
+     *
+     * **Rankings Table**
+     * restaurantId (PK) | identifier (SK) | timestamp | isReview | accountId | username | totalScore | reviewCount | averageScore | etc attributes
+     * -- | -- | -- | -- | -- | -- | -- | -- | -- | --
+     * res1 | REVIEW:acc1 | 2024-07-15 | true | acc1 | user1 | | | |
+     * res3 | REVIEW:acc1 | 2024-08-10 | true | acc1 | user1 | | | |
+     * res2 | REVIEW:acc2 | 2024-07-18 | true | acc2 | user2 | | | |
+     * res3 | REVIEW:acc3 | 2024-07-03 | true | acc3 | user3 | | | |
+     * res1 | AGGREGATE | AGGREGATE | | | | 100 | 10 | 10
+     * res2 | AGGREGATE | AGGREGATE | | | | 6 | 10 | 0.6
+     *
+     */
 
     private static final String TABLE_NAME = getRequiredEnv("REVIEW_TABLE_NAME");
     private static final String USER_METADATA_TABLE_NAME = getRequiredEnv("PUBLIC_USER_METADATA_TABLE_NAME");
 
-    // Primary key attributes
-    private static final String RESTAURANT_ID_KEY = "restaurantId";  // Partition key
-    private static final String IDENTIFIER_KEY = "identifier";        // Sort key
-
-    // Other attribute names
-    private static final String SCORE_KEY = "score";
-    private static final String TITLE_KEY = "title";
-    private static final String BODY_KEY = "body";
-    private static final String USERNAME_KEY = "username";
-    private static final String IS_REVIEW_KEY = "isReview";
-    private static final String IS_REVIEW_VALUE = "true";  // Constant value for GSI partition key
-
-    // Identifier prefix for reviews
-    private static final String REVIEW_IDENTIFIER_PREFIX = "REVIEW:";
-
-    // Aggregate row constants
-    private static final String AGGREGATE_IDENTIFIER = "AGGREGATE";
-    private static final String AGGREGATE_TIMESTAMP = "AGGREGATE";
-
-    // Aggregate attribute names
-    private static final String TOTAL_SCORE_KEY = "totalScore";
-    private static final String REVIEW_COUNT_KEY = "reviewCount";
-    private static final String AVERAGE_SCORE_KEY = "averageScore";
-
-    // GSI names
-    private static final String RESTAURANT_ID_TIME_INDEX = "restaurantId-time-index";
-    private static final String ACCOUNT_ID_TIME_INDEX = "accountId-time-index";
-    private static final String RECENT_REVIEWS_INDEX = "recent-reviews-index";
+    // Ranking identifiers
+    public static final String REVIEW_IDENTIFIER_PREFIX = "REVIEW:";
+    public static final String AGGREGATE_IDENTIFIER = "AGGREGATE";
 
     private final DynamoDbClient dynamoDb;
 
@@ -70,6 +72,9 @@ public class ReviewDALImpl implements ReviewDAL {
                 .tableName(TABLE_NAME)
                 .indexName(RESTAURANT_ID_TIME_INDEX)
                 .keyConditionExpression("#rid = :restaurantId")
+                // TODO(FRY-114): Temporary filter expression because we have not yet converted over outputs to use the
+                //  new Ranking model objects. Once we convert outputs to use Ranking objects, we can remove this
+                .filterExpression("attribute_exists(isReview)")
                 .expressionAttributeNames(Map.of("#rid", RESTAURANT_ID_KEY))
                 .expressionAttributeValues(Map.of(
                         ":restaurantId", AttributeValue.builder().s(restaurantId).build()
@@ -93,6 +98,9 @@ public class ReviewDALImpl implements ReviewDAL {
                 .tableName(TABLE_NAME)
                 .indexName(ACCOUNT_ID_TIME_INDEX)
                 .keyConditionExpression("#aid = :accountId")
+                // TODO(FRY-114): Temporary filter expression because we have not yet converted over outputs to use the
+                //  new Ranking model objects. Once we convert outputs to use Ranking objects, we can remove this
+                .filterExpression("attribute_exists(isReview)")
                 .expressionAttributeNames(Map.of("#aid", ACCOUNT_ID_KEY))
                 .expressionAttributeValues(Map.of(
                         ":accountId", AttributeValue.builder().s(accountId).build()
@@ -141,39 +149,44 @@ public class ReviewDALImpl implements ReviewDAL {
 
         Map<String, AggregateReviewInformation> restaurantIdToAggregateReviewInformation = new HashMap<>();
 
-        for (String restaurantId : restaurantIds) {
-            final QueryRequest request = QueryRequest.builder()
-                    .tableName(TABLE_NAME)
-                    .keyConditionExpression("#rid = :restaurantId")
-                    .filterExpression("attribute_exists(#aid)")
-                    .expressionAttributeNames(Map.of(
-                            "#rid", RESTAURANT_ID_KEY,
-                            "#aid", ACCOUNT_ID_KEY
-                    ))
-                    .expressionAttributeValues(Map.of(
-                            ":restaurantId", AttributeValue.builder().s(restaurantId).build()
-                    ))
+        // Build keys for batch get - each key is (restaurantId, "AGGREGATE")
+        List<Map<String, AttributeValue>> keys = restaurantIds.stream()
+                .map(restaurantId -> Map.of(
+                        RESTAURANT_ID_KEY, AttributeValue.builder().s(restaurantId).build(),
+                        IDENTIFIER_KEY, AttributeValue.builder().s(AGGREGATE_IDENTIFIER).build()
+                ))
+                .collect(Collectors.toList());
+
+        // BatchGetItem has a limit of 100 items per request. The likely use case for this is only for 1-10 restaurants,
+        // but batching causes 1 call per 100 restaurants instead of N calls per N restaurants from using GetItem in a loop.
+        int batchSize = 100;
+        for (int i = 0; i < keys.size(); i += batchSize) {
+            List<Map<String, AttributeValue>> batchKeys = keys.subList(i, Math.min(i + batchSize, keys.size()));
+
+            KeysAndAttributes keysAndAttributes = KeysAndAttributes.builder()
+                    .keys(batchKeys)
                     .build();
 
-            final QueryResponse response = dynamoDb.query(request);
-            final List<Map<String, AttributeValue>> items = response.items();
+            BatchGetItemRequest batchRequest = BatchGetItemRequest.builder()
+                    .requestItems(Map.of(TABLE_NAME, keysAndAttributes))
+                    .build();
 
-            if (!items.isEmpty()) {
-                double sum = 0.0;
-                int validCount = 0;
+            BatchGetItemResponse batchResponse = dynamoDb.batchGetItem(batchRequest);
+            List<Map<String, AttributeValue>> items = batchResponse.responses().get(TABLE_NAME);
+
+            if (items != null) {
                 for (Map<String, AttributeValue> item : items) {
-                    AttributeValue scoreAttr = item.get(SCORE_KEY);
-                    if (scoreAttr != null && scoreAttr.n() != null) {
-                        sum += Double.parseDouble(scoreAttr.n());
-                        validCount++;
-                    }
-                }
+                    String restaurantId = item.get(RESTAURANT_ID_KEY).s();
 
-                if (validCount > 0) {
-                    double avgScore = sum / validCount;
-                    final Float averageScore = aggregateReviewFilter.getIncludeRating()
-                            ? BigDecimal.valueOf(avgScore).setScale(1, RoundingMode.DOWN).floatValue()
-                            : null;
+                    final Float averageScore;
+                    if (aggregateReviewFilter.getIncludeRating()) {
+                        double avgScore = Double.parseDouble(item.get(AVERAGE_SCORE_KEY).n());
+                        averageScore = BigDecimal.valueOf(avgScore)
+                                .setScale(1, RoundingMode.DOWN)
+                                .floatValue();
+                    } else {
+                        averageScore = null;
+                    }
 
                     restaurantIdToAggregateReviewInformation.put(
                             restaurantId,
@@ -195,13 +208,15 @@ public class ReviewDALImpl implements ReviewDAL {
      */
     @Override
     public Review addNewReview(@NonNull final Review review) {
+        final String restaurantId = review.getRestaurantId();
+
         log.info("Adding new review for restaurantId: {} and accountId: {}",
-                review.getRestaurantId(), review.getAccountId());
+                restaurantId, review.getAccountId());
 
         final String identifier = REVIEW_IDENTIFIER_PREFIX + review.getAccountId();
 
         final Map<String, AttributeValue> reviewItem = new HashMap<>();
-        reviewItem.put(RESTAURANT_ID_KEY, AttributeValue.builder().s(review.getRestaurantId()).build());
+        reviewItem.put(RESTAURANT_ID_KEY, AttributeValue.builder().s(restaurantId).build());
         reviewItem.put(IDENTIFIER_KEY, AttributeValue.builder().s(identifier).build());
         reviewItem.put(SCORE_KEY, AttributeValue.builder().n(review.getScore().toString()).build());
         reviewItem.put(TITLE_KEY, AttributeValue.builder().s(review.getTitle()).build());
@@ -216,7 +231,7 @@ public class ReviewDALImpl implements ReviewDAL {
         }
 
         final Map<String, AttributeValue> aggregateKey = Map.of(
-                RESTAURANT_ID_KEY, AttributeValue.builder().s(review.getRestaurantId()).build(),
+                RESTAURANT_ID_KEY, AttributeValue.builder().s(restaurantId).build(),
                 IDENTIFIER_KEY, AttributeValue.builder().s(AGGREGATE_IDENTIFIER).build()
         );
 
@@ -228,35 +243,17 @@ public class ReviewDALImpl implements ReviewDAL {
         final GetItemResponse aggregateResponse = dynamoDb.getItem(getAggregateRequest);
         final Map<String, AttributeValue> existingAggregate = aggregateResponse.item();
 
-        // Build the aggregate item
-        final Map<String, AttributeValue> aggregateItem = new HashMap<>();
-        aggregateItem.put(RESTAURANT_ID_KEY, AttributeValue.builder().s(review.getRestaurantId()).build());
-        aggregateItem.put(IDENTIFIER_KEY, AttributeValue.builder().s(AGGREGATE_IDENTIFIER).build());
-        aggregateItem.put(ISO_DATE_TIME, AttributeValue.builder().s(AGGREGATE_TIMESTAMP).build());
-
-        double newTotalScore;
-        int newReviewCount;
-        double newAverageScore;
+        final AggregateRanking aggregateRanking;
 
         if (existingAggregate == null || existingAggregate.isEmpty()) {
-            newTotalScore = review.getScore();
-            newReviewCount = 1;
-            newAverageScore = review.getScore();
+            aggregateRanking = AggregateRanking.forFirstReview(restaurantId, review.getScore());
             log.info("Creating new aggregate for restaurantId: {}", review.getRestaurantId());
         } else {
-            double existingTotalScore = Double.parseDouble(existingAggregate.get(TOTAL_SCORE_KEY).n());
-            int existingReviewCount = Integer.parseInt(existingAggregate.get(REVIEW_COUNT_KEY).n());
-
-            newTotalScore = existingTotalScore + review.getScore();
-            newReviewCount = existingReviewCount + 1;
-            newAverageScore = newTotalScore / newReviewCount;
+            AggregateRanking existingAggregateRanking = AggregateRanking.fromMap(existingAggregate);
+            aggregateRanking = existingAggregateRanking.withNewReview(review.getScore());
             log.info("Updating aggregate for restaurantId: {} (reviewCount: {} -> {})",
-                    review.getRestaurantId(), existingReviewCount, newReviewCount);
+                    review.getRestaurantId(), existingAggregateRanking.getReviewCount(), aggregateRanking.getReviewCount());
         }
-
-        aggregateItem.put(TOTAL_SCORE_KEY, AttributeValue.builder().n(String.valueOf(newTotalScore)).build());
-        aggregateItem.put(REVIEW_COUNT_KEY, AttributeValue.builder().n(String.valueOf(newReviewCount)).build());
-        aggregateItem.put(AVERAGE_SCORE_KEY, AttributeValue.builder().n(String.valueOf(newAverageScore)).build());
 
         // Use TransactWriteItems to write both the review and aggregate atomically
         final TransactWriteItemsRequest transactRequest = TransactWriteItemsRequest.builder()
@@ -270,7 +267,7 @@ public class ReviewDALImpl implements ReviewDAL {
                         TransactWriteItem.builder()
                                 .put(Put.builder()
                                         .tableName(TABLE_NAME)
-                                        .item(aggregateItem)
+                                        .item(aggregateRanking.toMap())
                                         .build())
                                 .build()
                 )
