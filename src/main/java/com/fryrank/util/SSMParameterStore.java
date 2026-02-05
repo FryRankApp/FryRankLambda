@@ -7,23 +7,32 @@ import software.amazon.awssdk.services.ssm.model.GetParameterResponse;
 import software.amazon.awssdk.services.ssm.model.SsmException;
 
 import static com.fryrank.Constants.DATABASE_URI_PARAMETER_NAME_ENV_VAR;
+import static com.fryrank.Constants.GOOGLE_CLIENT_ID_PARAMETER_NAME_ENV_VAR;
 
 @Log4j2
 public class SSMParameterStore {
-    
+
     public static String getDatabaseUriFromSSM() {
+        return getParameterFromSSM(DATABASE_URI_PARAMETER_NAME_ENV_VAR);
+    }
+
+    public static String getGoogleClientIdFromSSM() {
+        return getParameterFromSSM(GOOGLE_CLIENT_ID_PARAMETER_NAME_ENV_VAR);
+    }
+
+    private static String getParameterFromSSM(String parameterName) {
         try (SsmClient ssmClient = SsmClient.create()) {
-            GetParameterRequest parameterRequest = GetParameterRequest.builder()
-                .name(System.getenv(DATABASE_URI_PARAMETER_NAME_ENV_VAR))
+            final GetParameterRequest parameterRequest = GetParameterRequest.builder()
+                .name(System.getenv(parameterName))
                 .withDecryption(true)
                 .build();
 
-            GetParameterResponse parameterResponse = ssmClient.getParameter(parameterRequest);
-            log.info("Database URI retrieved from SSM Parameter successfully");
+            final GetParameterResponse parameterResponse = ssmClient.getParameter(parameterRequest);
+            log.info("Parameter {} retrieved from SSM Parameter Store successfully", parameterName);
             return parameterResponse.parameter().value();
         } catch (SsmException e) {
-            log.error("Error retrieving database URI from SSM Parameter Store", e);
-            throw new IllegalStateException("Failed to retrieve database URI from SSM Parameter Store", e);
+            log.error("Error retrieving parameter {} from SSM Parameter Store", parameterName, e);
+            throw new IllegalStateException("Failed to retrieve parameter " + parameterName + " from SSM Parameter Store", e);
         }
     }
 } 

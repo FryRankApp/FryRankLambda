@@ -11,6 +11,7 @@ public class Constants {
 
     // SSM Parameter Store
     public static final String DATABASE_URI_PARAMETER_NAME_ENV_VAR = "SSM_DATABASE_URI_PARAMETER_KEY";
+    public static final String GOOGLE_CLIENT_ID_PARAMETER_NAME_ENV_VAR = "SSM_GOOGLE_CLIENT_ID_PARAMETER_KEY";
 
     // Input Validator
     public static final String GENERIC_VALIDATOR_ERROR_MESSAGE = "Encountered error while validating API input.";
@@ -62,6 +63,11 @@ public class Constants {
         FRYRANK_PROD_OXYSERVER,
         FRYRANK_PROD_WWW
     );
+
+    // Authorization Error Messages
+    public static final String AUTH_ERROR_MISSING_OR_INVALID_HEADER = "Unauthorized: Missing or invalid authorization header";
+    public static final String AUTH_ERROR_INVALID_TOKEN = "Unauthorized: Invalid token";
+    public static final String AUTH_ERROR_VERIFICATION_FAILED = "Unauthorized: Token verification failed";
 
     // Headers
     public static final String HEADER_ACCESS_CONTROL_ALLOW_ORIGIN = "Access-Control-Allow-Origin";
