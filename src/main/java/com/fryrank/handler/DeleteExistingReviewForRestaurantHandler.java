@@ -6,6 +6,7 @@ import com.amazonaws.services.lambda.runtime.events.APIGatewayV2HTTPEvent;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayV2HTTPResponse;
 import com.fryrank.dal.ReviewDALImpl;
 import com.fryrank.domain.ReviewDomain;
+import com.fryrank.model.DeleteReviewInfo;
 import com.fryrank.util.APIGatewayResponseBuilder;
 import com.fryrank.validator.APIGatewayRequestValidator;
 import com.google.gson.Gson;
@@ -31,16 +32,15 @@ public class DeleteExistingReviewForRestaurantHandler implements RequestHandler<
         final String handlerName = getClass().getSimpleName();
             return APIGatewayResponseBuilder.handleRequest(handlerName, input, () -> {
 
-            final String reviewId = input.getBody();
-            //In the future maybe add a way to extract account Id so that accidental deletions can't happen?
+            final DeleteReviewInfo reviewId = new Gson().fromJson(input.getBody(), DeleteReviewInfo.class);
             
-            final boolean deleted = reviewDomain.deleteExistingReviewForRestaurant(reviewId); //Figure out how to get reviewId from input.
+            final boolean deleted = reviewDomain.deleteExistingReviewForRestaurant(reviewId);
             
             if (deleted){
                 log.info("Request processed successfully");
                 return APIGatewayResponseBuilder.buildSuccessNoContentResponse(createCorsHeaders(input));
             } else {
-                return APIGatewayResponseBuilder.buildErrorResponse(404, "Review not found");
+                return APIGatewayResponseBuilder.buildErrorResponse(404, "Review not found in database.");
             }
             
         });

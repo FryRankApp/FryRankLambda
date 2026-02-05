@@ -8,6 +8,7 @@ import java.util.stream.Collectors;
 
 import com.fryrank.dal.ReviewDAL;
 import com.fryrank.model.AggregateReviewFilter;
+import com.fryrank.model.DeleteReviewInfo;
 import com.fryrank.model.GetAggregateReviewInformationOutput;
 import com.fryrank.model.GetAllReviewsOutput;
 import com.fryrank.model.Review;
@@ -58,7 +59,7 @@ public class ReviewDomain {
         return reviewDAL.addNewReview(review);
     }
 
-    public boolean deleteExistingReviewForRestaurant(@NonNull final String reviewIDString){
+    public boolean deleteExistingReviewForRestaurant(@NonNull final DeleteReviewInfo reviewIDString){
         return reviewDAL.deleteUserReview(reviewIDString);
     }
 }

@@ -8,6 +8,7 @@ import lombok.AllArgsConstructor;
 import lombok.NonNull;
 import lombok.extern.log4j.Log4j2;
 
+import org.bson.types.ObjectId;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.FindAndReplaceOptions;
 import org.springframework.data.mongodb.core.MongoTemplate;
@@ -134,8 +135,10 @@ public class ReviewDALImpl implements ReviewDAL {
     }
 
     @Override
-    public boolean deleteUserReview(@NonNull final String reviewId) {
-        final Query query = new Query().addCriteria(Criteria.where("_id").is("_id"));
+    public boolean deleteUserReview(@NonNull final DeleteReviewInfo delReviewInfo) {
+        String reviewKeyString = delReviewInfo.getReviewId();
+
+        final Query query = new Query().addCriteria(Criteria.where("_id").is(reviewKeyString));
         Review deletedReview = mongoTemplate.findAndRemove(query, Review.class);
         
         return deletedReview != null;
