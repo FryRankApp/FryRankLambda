@@ -180,53 +180,6 @@ class TransformationStats:
             "failures_by_reason": self.failures_by_reason
         }
 
-def generate_restaurant_aggregates(reviews_data):
-    restaurant_map = {}
-
-    for review in reviews_data:
-        restaurant_id = review.get('restaurantId')
-        if not restaurant_id:
-            continue
-
-        if restaurant_id not in restaurant_map:
-            restaurant_map[restaurant_id] = {
-                'reviews': [],
-                'totalScore': 0,
-                'reviewCount': 0
-            }
-
-        restaurant_map[restaurant_id]['reviews'].append(review)
-
-        score = review.get('score')
-        if score is not None and isinstance(score, (int, float)):
-            restaurant_map[restaurant_id]['totalScore'] += score
-            restaurant_map[restaurant_id]['reviewCount'] += 1
-
-    aggregate_items = []
-
-    for restaurant_id, data in restaurant_map.items():
-        review_count = data['reviewCount']
-        total_score = data['totalScore']
-
-        # Calculate average score (avoid division by zero)
-        average_score = total_score / review_count if review_count > 0 else 0
-
-        # Create the aggregate item
-        aggregate_item = {
-            'restaurantId': restaurant_id,
-            'identifier': 'AGGREGATE',
-            'timestamp': 'AGGREGATE',
-            'isAggregate': True,
-            'totalScore': total_score,
-            'reviewCount': review_count,
-            'averageScore': round(average_score, 2)  # Round to 2 decimal places
-        }
-
-        aggregate_items.append(aggregate_item)
-
-    return aggregate_items
-
-
 def transform_reviews_for_dynamodb(mongo_items):
     """
     Transform MongoDB review documents to DynamoDB format. Additionally generates review aggregate
