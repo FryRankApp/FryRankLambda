@@ -16,6 +16,7 @@ public class Constants {
     public static final String GENERIC_VALIDATOR_ERROR_MESSAGE = "Encountered error while validating API input.";
     public static final String REVIEW_VALIDATOR_ERRORS_OBJECT_NAME = "review";
     public static final String USER_METADATA_VALIDATOR_ERRORS_OBJECT_NAME = "userMetadata";
+    public static final String DELETE_REVIEW_INFO_VALIDATOR_ERRORS_OBJECT_NAME = "deleteReviewInfo";
     public static final String REJECTION_REQUIRED_CODE = "field.required";
     public static final String REJECTION_FORMAT_CODE = "field.invalidFormat";
 
@@ -32,6 +33,7 @@ public class Constants {
 
     // Handler class names
     public static final String ADD_NEW_REVIEW_HANDLER = "AddNewReviewForRestaurantHandler";
+    public static final String DELETE_EXISTING_REVIEW_HANDLER = "DeleteExistingReviewForRestaurantHandler";
     public static final String GET_ALL_REVIEWS_HANDLER = "GetAllReviewsHandler";
     public static final String GET_AGGREGATE_REVIEW_HANDLER = "GetAggregateReviewInformationHandler";
     public static final String GET_RECENT_REVIEWS_HANDLER = "GetRecentReviewsHandler";
