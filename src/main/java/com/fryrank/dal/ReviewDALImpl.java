@@ -132,7 +132,7 @@ public class ReviewDALImpl implements ReviewDAL {
 
     @Override
     public boolean deleteUserReview(@NonNull final DeleteReviewRequest delReviewRequest) {
-        String reviewId = delReviewRequest.getReviewId();
+        String reviewId = delReviewRequest.reviewId();
 
         final Query query = new Query().addCriteria(Criteria.where("_id").is(reviewId));
         Review deletedReview = mongoTemplate.findAndRemove(query, Review.class);
