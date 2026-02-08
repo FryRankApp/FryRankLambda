@@ -1,5 +1,6 @@
 package com.fryrank.model;
 
+import lombok.Builder;
 import lombok.Data;
 import lombok.NonNull;
 import org.springframework.data.annotation.Id;
@@ -7,6 +8,7 @@ import org.springframework.data.mongodb.core.mapping.Document;
 
 @Document("review")
 @Data
+@Builder
 public class Review {
     @Id
     private final String reviewId;
