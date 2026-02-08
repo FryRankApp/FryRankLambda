@@ -3,6 +3,6 @@ package com.fryrank.model;
 import lombok.Data;
 
 @Data
-public class DeleteReviewInfo {
+public class DeleteReviewRequest {
     private final String reviewId;
 }

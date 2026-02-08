@@ -8,6 +8,7 @@ import lombok.extern.log4j.Log4j2;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 
 import static com.fryrank.util.HeaderUtils.createCorsHeaders;
@@ -79,6 +80,9 @@ public class APIGatewayResponseBuilder {
         } catch (IllegalArgumentException e) {
             log.error("IllegalArgumentException caught in handler: {}", handlerName, e);
             return buildErrorResponse(400, "Bad Request: " + e.getMessage(), corsHeaders);
+        } catch (NoSuchElementException e) {
+            log.error("NoSuchElementException caught in handler: {}", handlerName, e);
+            return buildErrorResponse(404, e.getMessage(), corsHeaders);
         } catch (Exception e) {
             log.error("Exception caught in handler: {}", handlerName, e);
             return buildErrorResponse(500, "Internal Server Error: " + e.getMessage(), corsHeaders);

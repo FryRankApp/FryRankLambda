@@ -1,14 +1,10 @@
 package com.fryrank.dal;
 
 import com.fryrank.model.*;
-import com.mongodb.client.result.DeleteResult;
-import com.mongodb.internal.operation.FindAndDeleteOperation;
-
 import lombok.AllArgsConstructor;
 import lombok.NonNull;
 import lombok.extern.log4j.Log4j2;
 
-import org.bson.types.ObjectId;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.FindAndReplaceOptions;
 import org.springframework.data.mongodb.core.MongoTemplate;
@@ -135,10 +131,10 @@ public class ReviewDALImpl implements ReviewDAL {
     }
 
     @Override
-    public boolean deleteUserReview(@NonNull final DeleteReviewInfo delReviewInfo) {
-        String reviewKeyString = delReviewInfo.getReviewId();
+    public boolean deleteUserReview(@NonNull final DeleteReviewRequest delReviewRequest) {
+        String reviewId = delReviewRequest.getReviewId();
 
-        final Query query = new Query().addCriteria(Criteria.where("_id").is(reviewKeyString));
+        final Query query = new Query().addCriteria(Criteria.where("_id").is(reviewId));
         Review deletedReview = mongoTemplate.findAndRemove(query, Review.class);
         
         return deletedReview != null;

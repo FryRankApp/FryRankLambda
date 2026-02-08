@@ -1,7 +1,7 @@
 package com.fryrank.dal;
 
 import com.fryrank.model.AggregateReviewFilter;
-import com.fryrank.model.DeleteReviewInfo;
+import com.fryrank.model.DeleteReviewRequest;
 import com.fryrank.model.GetAggregateReviewInformationOutput;
 import com.fryrank.model.GetAllReviewsOutput;
 import com.fryrank.model.Review;
@@ -20,5 +20,5 @@ public interface ReviewDAL {
 
     Review addNewReview(final Review review);
 
-    boolean deleteUserReview(final DeleteReviewInfo delReviewInfo);
+    boolean deleteUserReview(final DeleteReviewRequest delReviewRequest);
 }
