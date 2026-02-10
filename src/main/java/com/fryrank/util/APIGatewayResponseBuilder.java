@@ -2,13 +2,13 @@ package com.fryrank.util;
 
 import com.amazonaws.services.lambda.runtime.events.APIGatewayV2HTTPEvent;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayV2HTTPResponse;
+import com.fryrank.model.exceptions.NotFoundException;
 import com.fryrank.validator.ValidatorException;
 import com.google.gson.Gson;
 import lombok.extern.log4j.Log4j2;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.NoSuchElementException;
 import java.util.Optional;
 
 import static com.fryrank.util.HeaderUtils.createCorsHeaders;
@@ -80,8 +80,8 @@ public class APIGatewayResponseBuilder {
         } catch (IllegalArgumentException e) {
             log.error("IllegalArgumentException caught in handler: {}", handlerName, e);
             return buildErrorResponse(400, "Bad Request: " + e.getMessage(), corsHeaders);
-        } catch (NoSuchElementException e) {
-            log.error("NoSuchElementException caught in handler: {}", handlerName, e);
+        } catch (NotFoundException e) {
+            log.error("NotFoundException caught in handler: {}", handlerName, e);
             return buildErrorResponse(404, e.getMessage(), corsHeaders);
         } catch (Exception e) {
             log.error("Exception caught in handler: {}", handlerName, e);

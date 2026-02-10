@@ -30,6 +30,13 @@ public class DeleteReviewHandler implements RequestHandler<APIGatewayV2HTTPEvent
         deleteReviewRequestValidator = new DeleteReviewRequestValidator();
     }
 
+    public DeleteReviewHandler(ReviewDALImpl reviewDAL, ReviewDomain reviewDomain, APIGatewayRequestValidator requestValidator, DeleteReviewRequestValidator deleteReviewRequestValidator) {
+        this.reviewDAL = reviewDAL;
+        this.reviewDomain = reviewDomain;
+        this.requestValidator = requestValidator;
+        this.deleteReviewRequestValidator = deleteReviewRequestValidator;
+    }
+
     @Override
     public APIGatewayV2HTTPResponse handleRequest(APIGatewayV2HTTPEvent input, Context context) {
         log.info("Handling request: {}", input);

@@ -4,10 +4,10 @@ import static com.fryrank.Constants.REVIEW_VALIDATOR_ERRORS_OBJECT_NAME;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.NoSuchElementException;
 import java.util.stream.Collectors;
 
 import com.fryrank.dal.ReviewDAL;
+import com.fryrank.model.exceptions.NotFoundException;
 import com.fryrank.model.AggregateReviewFilter;
 import com.fryrank.model.DeleteReviewRequest;
 import com.fryrank.model.GetAggregateReviewInformationOutput;
@@ -60,9 +60,9 @@ public class ReviewDomain {
         return reviewDAL.addNewReview(review);
     }
 
-    public void deleteReview(@NonNull final DeleteReviewRequest reviewIDString) {
+    public void deleteReview(@NonNull final DeleteReviewRequest reviewIDString) throws NotFoundException {
         if (!reviewDAL.deleteUserReview(reviewIDString)) {
-            throw new NoSuchElementException("Review not found in database.");
+            throw new NotFoundException("Review not found in database.");
         }
     }
 }

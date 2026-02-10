@@ -21,7 +21,7 @@ public class DeleteReviewRequestValidator implements Validator {
     @Override
     public void validate(@NonNull Object target, @NonNull Errors errors) {
         DeleteReviewRequest deleteReviewInfo = (DeleteReviewRequest) target;
-        String reviewId = deleteReviewInfo.getReviewId();
+        String reviewId = deleteReviewInfo.reviewId();
 
         // Validate review ID is not null or empty
         if (reviewId == null || reviewId.isEmpty()) {
