@@ -1,5 +1,7 @@
 package com.fryrank.util;
 
+import static com.fryrank.TestConstants.TEST_ACCOUNT_ID;
+import static com.fryrank.TestConstants.TEST_CLIENT_ID;
 import static com.fryrank.TestConstants.TEST_INVALID_TOKEN;
 import static com.fryrank.TestConstants.TEST_VALID_TOKEN;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -33,12 +35,15 @@ public class AuthorizerTests {
     @Mock
     private GoogleIdToken idToken;
 
+    @Mock
+    private GoogleIdToken.Payload payload;
+
     private MockedStatic<SSMParameterStore> mockedSSM;
 
     @BeforeEach
     public void setUp() {
         mockedSSM = mockStatic(SSMParameterStore.class);
-        mockedSSM.when(SSMParameterStore::getGoogleClientIdFromSSM).thenReturn("test-client-id");
+        mockedSSM.when(SSMParameterStore::getGoogleClientIdFromSSM).thenReturn(TEST_CLIENT_ID);
         authorizer = new Authorizer(verifier);
     }
 
@@ -54,12 +59,14 @@ public class AuthorizerTests {
         // Arrange
         final String validToken = TEST_VALID_TOKEN;
         doReturn(idToken).when(verifier).verify(validToken);
+        doReturn(payload).when(idToken).getPayload();
+        doReturn(TEST_ACCOUNT_ID).when(payload).getSubject();
 
         // Act
-        authorizer.authorizeToken(validToken);
+        final String accountId = authorizer.authorizeToken(validToken);
 
-        // Assert - if we get here without exception, the test passes
-        // No assertion needed - success is completing without exception
+        // Assert
+        assertEquals(TEST_ACCOUNT_ID, accountId);
     }
 
     @Test

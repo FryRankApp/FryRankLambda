@@ -28,6 +28,7 @@ public class TestConstants {
     public static final String TEST_VALID_TOKEN = "valid-token";
     public static final String TEST_INVALID_TOKEN = "invalid-token";
     public static final String TEST_MALFORMED_TOKEN = "InvalidToken";
+    public static final String TEST_CLIENT_ID = "test-client-id";
 
     public static final PublicUserMetadata TEST_USER_METADATA_1 = new PublicUserMetadata(
             TEST_ACCOUNT_ID,
