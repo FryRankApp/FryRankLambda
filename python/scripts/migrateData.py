@@ -226,11 +226,32 @@ def transform_reviews_for_dynamodb(mongo_items):
 
             dynamodb_items.append(dynamodb_item)
             stats.add_success(item, dynamodb_item)
+
+            restaurant_id = item.get('restaurantId')
+            if not restaurant_id:
+                continue
+
+            if restaurant_id not in restaurant_map:
+                restaurant_map[restaurant_id] = {
+                    'reviews': [],
+                    'totalScore': 0,
+                    'reviewCount': 0
+                }
+
+            restaurant_map[restaurant_id]['reviews'].append(item)
+
+            score = item.get('score')
+            if score is not None and isinstance(score, (int, float)):
+                restaurant_map[restaurant_id]['totalScore'] += score
+                restaurant_map[restaurant_id]['reviewCount'] += 1
+
+
         except Exception as e:
             stats.add_failure(item, str(e))
             print(f"Failed to transform item: {item.get('_id', 'unknown id')}, Error: {str(e)}")
 
     aggregate_stats = TransformationStats("Restaurant Aggregates")
+    print(f"================= ${restaurant_map.items()}")
 
     for restaurant_id, data in restaurant_map.items():
         review_count = data['reviewCount']
