@@ -181,8 +181,12 @@ class TransformationStats:
         }
 
 def transform_reviews_for_dynamodb(mongo_items):
-    """Transform MongoDB review documents to DynamoDB format."""
+    """
+    Transform MongoDB review documents to DynamoDB format. Additionally generates review aggregate
+    rows since the new DynamoDB table contains those.
+    """
     dynamodb_items = []
+    restaurant_map = {}
     stats = TransformationStats("Review Entry")
 
     for item in mongo_items:
@@ -222,11 +226,58 @@ def transform_reviews_for_dynamodb(mongo_items):
 
             dynamodb_items.append(dynamodb_item)
             stats.add_success(item, dynamodb_item)
+
+            restaurant_id = item.get('restaurantId')
+            if not restaurant_id:
+                continue
+
+            if restaurant_id not in restaurant_map:
+                restaurant_map[restaurant_id] = {
+                    'reviews': [],
+                    'totalScore': 0,
+                    'reviewCount': 0
+                }
+
+            restaurant_map[restaurant_id]['reviews'].append(item)
+
+            score = item.get('score')
+            if score is not None and isinstance(score, (int, float)):
+                restaurant_map[restaurant_id]['totalScore'] += score
+                restaurant_map[restaurant_id]['reviewCount'] += 1
+
+
         except Exception as e:
             stats.add_failure(item, str(e))
             print(f"Failed to transform item: {item.get('_id', 'unknown id')}, Error: {str(e)}")
 
+    aggregate_stats = TransformationStats("Restaurant Aggregates")
+    print(f"================= ${restaurant_map.items()}")
+
+    for restaurant_id, data in restaurant_map.items():
+        review_count = data['reviewCount']
+        total_score = data['totalScore']
+
+        average_score = total_score / review_count if review_count > 0 else 0
+
+        # Create the aggregate item
+        aggregate_item = {
+            'restaurantId': restaurant_id,
+            'identifier': 'AGGREGATE',
+            'timestamp': 'AGGREGATE',
+            'totalScore': Decimal(str(total_score)),
+            'reviewCount': review_count,
+            'averageScore': Decimal(str(round(average_score, 1)))
+        }
+
+        dynamodb_items.append(aggregate_item)
+
+        aggregate_stats.add_success(
+            {"restaurantId": restaurant_id, "calculated": True},
+            aggregate_item
+        )
+
     stats.write_log("review_transformation_log.txt")
+    aggregate_stats.write_log("restaurant_aggregates_log.txt")
     return dynamodb_items, stats
 
 
