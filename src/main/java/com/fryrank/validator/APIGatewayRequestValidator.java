@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 
 import static com.fryrank.Constants.ADD_NEW_REVIEW_HANDLER;
+import static com.fryrank.Constants.DELETE_EXISTING_REVIEW_HANDLER;
 import static com.fryrank.Constants.GET_ALL_REVIEWS_HANDLER;
 import static com.fryrank.Constants.GET_AGGREGATE_REVIEW_HANDLER;
 import static com.fryrank.Constants.GET_RECENT_REVIEWS_HANDLER;
@@ -109,6 +110,9 @@ public class APIGatewayRequestValidator {
                     );
                 break;
 
+            case DELETE_EXISTING_REVIEW_HANDLER:
+                validateRequestBodyExists(request);
+                break;
             case GET_AGGREGATE_REVIEW_HANDLER:
                 Map<String, String> aggregateParams = getQueryParamsFromRequest(request);
                 validateQueryParamExists(aggregateParams, QueryParam.IDS);

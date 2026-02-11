@@ -129,4 +129,14 @@ public class ReviewDALImpl implements ReviewDAL {
 
         return mongoTemplate.findAndReplace(query, review, options);
     }
+
+    @Override
+    public boolean deleteUserReview(@NonNull final DeleteReviewRequest delReviewRequest) {
+        String reviewId = delReviewRequest.reviewId();
+
+        final Query query = new Query().addCriteria(Criteria.where("_id").is(reviewId));
+        Review deletedReview = mongoTemplate.findAndRemove(query, Review.class);
+        
+        return deletedReview != null;
+    }
 }

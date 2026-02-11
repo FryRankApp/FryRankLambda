@@ -1,6 +1,7 @@
 package com.fryrank.dal;
 
 import com.fryrank.model.AggregateReviewFilter;
+import com.fryrank.model.DeleteReviewRequest;
 import com.fryrank.model.GetAggregateReviewInformationOutput;
 import com.fryrank.model.GetAllReviewsOutput;
 import com.fryrank.model.Review;
@@ -18,4 +19,6 @@ public interface ReviewDAL {
     GetAggregateReviewInformationOutput getAggregateReviewInformationForRestaurants(final List<String> restaurantIds, final AggregateReviewFilter aggregateReviewFilter);
 
     Review addNewReview(final Review review);
+
+    boolean deleteUserReview(final DeleteReviewRequest delReviewRequest);
 }
