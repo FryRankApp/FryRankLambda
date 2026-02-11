@@ -39,9 +39,10 @@ public class Authorizer {
     /**
      * Authorizes a bearer token and throws appropriate exceptions for failure cases.
      * @param token The bearer token to authorize (can be null)
+     * @return The Google ID of the authorized user
      * @throws NotAuthorizedException if the token is null, invalid, or authorization fails
      */
-    public void authorizeToken(String token) throws NotAuthorizedException {
+    public String authorizeToken(String token) throws NotAuthorizedException {
         if (token == null || token.isEmpty()) {
             throw new NotAuthorizedException(Constants.AUTH_ERROR_MISSING_OR_INVALID_HEADER);
         }
@@ -51,7 +52,7 @@ public class Authorizer {
             if (idToken == null) {
                 throw new NotAuthorizedException(Constants.AUTH_ERROR_INVALID_TOKEN);
             }
-            // Success - method completes without exception
+            return idToken.getPayload().getSubject();
         } catch (GeneralSecurityException | IOException e) {
             log.error("Authorization failed", e);
             throw new NotAuthorizedException(Constants.AUTH_ERROR_VERIFICATION_FAILED);

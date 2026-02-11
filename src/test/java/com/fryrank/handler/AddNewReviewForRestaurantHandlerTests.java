@@ -14,6 +14,7 @@ import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -22,8 +23,11 @@ import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayV2HTTPEvent;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayV2HTTPResponse;
 import com.fryrank.Constants;
+
+import static com.fryrank.TestConstants.TEST_ACCOUNT_ID;
 import static com.fryrank.TestConstants.TEST_BODY_1;
 import static com.fryrank.TestConstants.TEST_INVALID_TOKEN;
+import static com.fryrank.TestConstants.TEST_ISO_DATE_TIME_1;
 import static com.fryrank.TestConstants.TEST_MALFORMED_TOKEN;
 import static com.fryrank.TestConstants.TEST_REVIEW_ID_1;
 import static com.fryrank.TestConstants.TEST_RESTAURANT_ID;
@@ -86,13 +90,15 @@ public class AddNewReviewForRestaurantHandlerTests {
             .score(5.0)
             .title(TEST_TITLE_1)
             .body(TEST_BODY_1)
+            .accountId(TEST_ACCOUNT_ID)
+            .isoDateTime(TEST_ISO_DATE_TIME_1)
             .build();
         
         final APIGatewayV2HTTPEvent event = createTestEvent(createBearerToken(TEST_VALID_TOKEN), gson.toJson(inputReview));
         
         // Setup mocks - mock Authorizer and domain layer
         doNothing().when(requestValidator).validateRequest(any(), any());
-        doNothing().when(authorizer).authorizeToken(TEST_VALID_TOKEN); // No exception for valid token
+        when(authorizer.authorizeToken(TEST_VALID_TOKEN)).thenReturn(TEST_ACCOUNT_ID);
         when(reviewDomain.addNewReviewForRestaurant(any(Review.class))).thenReturn(outputReview);
         
         // Act
@@ -109,7 +115,15 @@ public class AddNewReviewForRestaurantHandlerTests {
         assertEquals(TEST_BODY_1, responseReview.getBody());
         
         verify(authorizer).authorizeToken(TEST_VALID_TOKEN);
-        verify(reviewDomain).addNewReviewForRestaurant(inputReview);
+        
+        // Capture the Review object passed to the domain layer
+        ArgumentCaptor<Review> reviewCaptor = ArgumentCaptor.forClass(Review.class);
+        verify(reviewDomain).addNewReviewForRestaurant(reviewCaptor.capture());
+        
+        Review capturedReview = reviewCaptor.getValue();
+        assertNotNull(capturedReview.getAccountId(), "Account ID should not be null when authorization succeeds");
+        assertEquals(TEST_ACCOUNT_ID, capturedReview.getAccountId(), "Account ID should match the authorized user's ID");
+        assertNotNull(capturedReview.getIsoDateTime(), "Timestamp should not be null when creating a review");
     }
 
     @Test

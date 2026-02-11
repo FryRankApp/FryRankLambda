@@ -25,9 +25,9 @@ public class Review {
     @NonNull
     private final String body;
 
-    private final String isoDateTime;
+    private String isoDateTime;
 
-    private final String accountId;
+    private String accountId;
 
     private final PublicUserMetadata userMetadata;
 }

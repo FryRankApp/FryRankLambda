@@ -54,15 +54,20 @@ public class AddNewReviewForRestaurantHandler implements RequestHandler<APIGatew
             requestValidator.validateRequest(handlerName, input);
 
             // Extract bearer token from authorization header and authorize
+            final String accountId;
             try {
                 final String token = HeaderUtils.extractBearerToken(input);
-                authorizer.authorizeToken(token);
+                accountId = authorizer.authorizeToken(token);
             } catch (NotAuthorizedException e) {
                 return APIGatewayResponseBuilder.buildErrorResponse(401, e.getMessage());
             }
 
             final Review review = new Gson().fromJson(input.getBody(), Review.class);
             ValidatorUtils.validateAndThrow(review, REVIEW_VALIDATOR_ERRORS_OBJECT_NAME, reviewValidator);
+            
+            // Set accountId and timestamp after successful authorization
+            review.setAccountId(accountId);
+            review.setIsoDateTime(java.time.Instant.now().toString());
             
             final Review output = reviewDomain.addNewReviewForRestaurant(review);
 
