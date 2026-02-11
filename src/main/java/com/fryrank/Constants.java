@@ -11,10 +11,12 @@ public class Constants {
 
     // SSM Parameter Store
     public static final String DATABASE_URI_PARAMETER_NAME_ENV_VAR = "SSM_DATABASE_URI_PARAMETER_KEY";
+    public static final String GOOGLE_CLIENT_ID_PARAMETER_NAME_ENV_VAR = "SSM_GOOGLE_CLIENT_ID_PARAMETER_KEY";
 
     // Input Validator
     public static final String GENERIC_VALIDATOR_ERROR_MESSAGE = "Encountered error while validating API input.";
     public static final String REVIEW_VALIDATOR_ERRORS_OBJECT_NAME = "review";
+    public static final String DELETE_REVIEW_REQUEST_VALIDATOR_ERRORS_OBJECT_NAME = "DeleteReviewRequest";
     public static final String USER_METADATA_VALIDATOR_ERRORS_OBJECT_NAME = "userMetadata";
     public static final String REJECTION_REQUIRED_CODE = "field.required";
     public static final String REJECTION_FORMAT_CODE = "field.invalidFormat";
@@ -32,6 +34,7 @@ public class Constants {
 
     // Handler class names
     public static final String ADD_NEW_REVIEW_HANDLER = "AddNewReviewForRestaurantHandler";
+    public static final String DELETE_EXISTING_REVIEW_HANDLER = "DeleteReviewHandler";
     public static final String GET_ALL_REVIEWS_HANDLER = "GetAllReviewsHandler";
     public static final String GET_AGGREGATE_REVIEW_HANDLER = "GetAggregateReviewInformationHandler";
     public static final String GET_RECENT_REVIEWS_HANDLER = "GetRecentReviewsHandler";
@@ -62,6 +65,11 @@ public class Constants {
         FRYRANK_PROD_OXYSERVER,
         FRYRANK_PROD_WWW
     );
+
+    // Authorization Error Messages
+    public static final String AUTH_ERROR_MISSING_OR_INVALID_HEADER = "Unauthorized: Missing or invalid authorization header";
+    public static final String AUTH_ERROR_INVALID_TOKEN = "Unauthorized: Invalid token";
+    public static final String AUTH_ERROR_VERIFICATION_FAILED = "Unauthorized: Token verification failed";
 
     // Headers
     public static final String HEADER_ACCESS_CONTROL_ALLOW_ORIGIN = "Access-Control-Allow-Origin";

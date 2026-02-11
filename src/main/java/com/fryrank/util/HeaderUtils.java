@@ -89,4 +89,35 @@ public class HeaderUtils {
 
         return lowerCaseMap;
     }
+
+    /**
+     * Extracts the bearer token from the Authorization header.
+     * 
+     * @param event The API Gateway HTTP event
+     * @return The token if found and properly formatted, otherwise null
+     */
+    public static String extractBearerToken(APIGatewayV2HTTPEvent event) {
+        log.info("Extracting bearer token from incoming HTTP request");
+        
+        if (event.getHeaders() == null) {
+            log.info("No headers found");
+            return null;
+        }
+
+        final String authHeader = event.getHeaders().get("Authorization");
+        
+        if (authHeader == null) {
+            log.info("No authorization header found");
+            return null;
+        }
+        
+        if (!authHeader.startsWith("Bearer ")) {
+            log.info("Authorization header does not start with 'Bearer '");
+            return null;
+        }
+        
+        final String token = authHeader.substring(7); // Remove "Bearer " prefix
+        log.info("Successfully extracted bearer token");
+        return token;
+    }
 }

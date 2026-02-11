@@ -7,7 +7,9 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import com.fryrank.dal.ReviewDAL;
+import com.fryrank.model.exceptions.NotFoundException;
 import com.fryrank.model.AggregateReviewFilter;
+import com.fryrank.model.DeleteReviewRequest;
 import com.fryrank.model.GetAggregateReviewInformationOutput;
 import com.fryrank.model.GetAllReviewsOutput;
 import com.fryrank.model.Review;
@@ -56,5 +58,11 @@ public class ReviewDomain {
     public Review addNewReviewForRestaurant(@NonNull final Review review) throws ValidatorException {
         ValidatorUtils.validateAndThrow(review, REVIEW_VALIDATOR_ERRORS_OBJECT_NAME, new ReviewValidator());
         return reviewDAL.addNewReview(review);
+    }
+
+    public void deleteReview(@NonNull final DeleteReviewRequest reviewIDString) throws NotFoundException {
+        if (!reviewDAL.deleteUserReview(reviewIDString)) {
+            throw new NotFoundException("Review not found in database.");
+        }
     }
 }
