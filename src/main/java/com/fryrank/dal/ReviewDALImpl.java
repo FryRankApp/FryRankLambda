@@ -1,4 +1,3 @@
-
 package com.fryrank.dal;
 
 import com.fryrank.model.*;
@@ -8,11 +7,23 @@ import lombok.NonNull;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Repository;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
-import software.amazon.awssdk.services.dynamodb.model.*;
+import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
+import software.amazon.awssdk.services.dynamodb.model.BatchGetItemRequest;
+import software.amazon.awssdk.services.dynamodb.model.BatchGetItemResponse;
+import software.amazon.awssdk.services.dynamodb.model.GetItemRequest;
+import software.amazon.awssdk.services.dynamodb.model.GetItemResponse;
+import software.amazon.awssdk.services.dynamodb.model.KeysAndAttributes;
+import software.amazon.awssdk.services.dynamodb.model.Put;
+import software.amazon.awssdk.services.dynamodb.model.QueryRequest;
+import software.amazon.awssdk.services.dynamodb.model.QueryResponse;
+import software.amazon.awssdk.services.dynamodb.model.TransactWriteItem;
+import software.amazon.awssdk.services.dynamodb.model.TransactWriteItemsRequest;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.util.*;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import static com.fryrank.Constants.ACCOUNT_ID_KEY;
@@ -67,53 +78,32 @@ public class ReviewDALImpl implements ReviewDAL {
     @Override
     public GetAllReviewsOutput getAllReviewsByRestaurantId(@NonNull final String restaurantId) {
         log.info("Getting all reviews for restaurantId: {}", restaurantId);
-
-        final QueryRequest request = QueryRequest.builder()
-                .tableName(TABLE_NAME)
-                .indexName(RESTAURANT_ID_TIME_INDEX)
-                .keyConditionExpression("#rid = :restaurantId")
-                // TODO(FRY-114): Temporary filter expression because we have not yet converted over outputs to use the
-                //  new Ranking model objects. Once we convert outputs to use Ranking objects, we can remove this
-                .filterExpression("attribute_exists(isReview)")
-                .expressionAttributeNames(Map.of("#rid", RESTAURANT_ID_KEY))
-                .expressionAttributeValues(Map.of(
-                        ":restaurantId", AttributeValue.builder().s(restaurantId).build()
-                ))
-                .scanIndexForward(false)  // Most recent first
-                .build();
-
-        final QueryResponse response = dynamoDb.query(request);
-        final List<Review> reviews = response.items().stream()
-                .map(this::mapItemToReviewWithUserMetadata)
-                .collect(Collectors.toList());
-
-        return new GetAllReviewsOutput(reviews);
+        return queryReviews(RESTAURANT_ID_TIME_INDEX, RESTAURANT_ID_KEY, restaurantId);
     }
 
     @Override
     public GetAllReviewsOutput getAllReviewsByAccountId(@NonNull final String accountId) {
         log.info("Getting all reviews for accountId: {}", accountId);
+        return queryReviews(ACCOUNT_ID_TIME_INDEX, ACCOUNT_ID_KEY, accountId);
+    }
 
+    private GetAllReviewsOutput queryReviews(String indexName, String keyAttribute, String keyValue) {
         final QueryRequest request = QueryRequest.builder()
                 .tableName(TABLE_NAME)
-                .indexName(ACCOUNT_ID_TIME_INDEX)
-                .keyConditionExpression("#aid = :accountId")
+                .indexName(indexName)
+                .keyConditionExpression("#key = :value")
                 // TODO(FRY-114): Temporary filter expression because we have not yet converted over outputs to use the
                 //  new Ranking model objects. Once we convert outputs to use Ranking objects, we can remove this
                 .filterExpression("attribute_exists(isReview)")
-                .expressionAttributeNames(Map.of("#aid", ACCOUNT_ID_KEY))
+                .expressionAttributeNames(Map.of("#key", keyAttribute))
                 .expressionAttributeValues(Map.of(
-                        ":accountId", AttributeValue.builder().s(accountId).build()
+                        ":value", AttributeValue.builder().s(keyValue).build()
                 ))
                 .scanIndexForward(false)  // Most recent first
                 .build();
 
         final QueryResponse response = dynamoDb.query(request);
-        final List<Review> reviews = response.items().stream()
-                .map(this::mapItemToReviewWithUserMetadata)
-                .collect(Collectors.toList());
-
-        return new GetAllReviewsOutput(reviews);
+        return mapItemsToReviewsWithUserMetadata(response.items());
     }
 
     @Override
@@ -133,11 +123,7 @@ public class ReviewDALImpl implements ReviewDAL {
                 .build();
 
         final QueryResponse response = dynamoDb.query(request);
-        final List<Review> reviews = response.items().stream()
-                .map(this::mapItemToReviewWithUserMetadata)
-                .collect(Collectors.toList());
-
-        return new GetAllReviewsOutput(reviews);
+        return mapItemsToReviewsWithUserMetadata(response.items());
     }
 
     @Override
@@ -276,6 +262,8 @@ public class ReviewDALImpl implements ReviewDAL {
         dynamoDb.transactWriteItems(transactRequest);
 
         // Return the review with the generated reviewId
+        // TODO(FRY-114): Once we standardize the Review model, we will no longer need to generate a reviewId which
+        // does not exist in dyanmoDB
         final String reviewId = review.getRestaurantId() + ":" + identifier;
         return new Review(
                 reviewId,
@@ -300,19 +288,36 @@ public class ReviewDALImpl implements ReviewDAL {
     }
 
     /**
-     * Maps a DynamoDB item to a Review object and fetches associated user metadata.
+     * Maps DynamoDB items to Review objects with batched user metadata fetching.
      */
-    private Review mapItemToReviewWithUserMetadata(Map<String, AttributeValue> item) {
+    private GetAllReviewsOutput mapItemsToReviewsWithUserMetadata(List<Map<String, AttributeValue>> items) {
+        final List<String> accountIds = items.stream()
+                .map(item -> getStringAttribute(item, ACCOUNT_ID_KEY))
+                .filter(accountId -> accountId != null)
+                .distinct()
+                .collect(Collectors.toList());
+
+        final Map<String, PublicUserMetadata> userMetadataMap = batchFetchUserMetadata(accountIds);
+
+        final List<Review> reviews = items.stream()
+                .map(item -> mapItemToReview(item, userMetadataMap))
+                .collect(Collectors.toList());
+
+        return new GetAllReviewsOutput(reviews);
+    }
+
+    /**
+     * Maps a DynamoDB item to a Review object using pre-fetched user metadata.
+     */
+    private Review mapItemToReview(Map<String, AttributeValue> item, Map<String, PublicUserMetadata> userMetadataMap) {
         final String accountId = getStringAttribute(item, ACCOUNT_ID_KEY);
         final String restaurantId = getStringAttribute(item, RESTAURANT_ID_KEY);
         final String identifier = getStringAttribute(item, IDENTIFIER_KEY);
-        PublicUserMetadata userMetadata = null;
 
-        if (accountId != null) {
-            userMetadata = fetchUserMetadata(accountId);
-        }
+        final PublicUserMetadata userMetadata = accountId != null ? userMetadataMap.get(accountId) : null;
 
-        // Construct reviewId from composite key
+        // TODO(FRY-114): Once we standardize the Review model, we will no longer need to generate a reviewId which
+        // does not exist in dyanmoDB
         final String reviewId = restaurantId + ":" + identifier;
 
         return new Review(
@@ -325,6 +330,46 @@ public class ReviewDALImpl implements ReviewDAL {
                 accountId,
                 userMetadata
         );
+    }
+
+    /**
+     * Batch fetches user metadata for multiple account IDs.
+     */
+    private Map<String, PublicUserMetadata> batchFetchUserMetadata(List<String> accountIds) {
+        if (accountIds.isEmpty()) {
+            return Map.of();
+        }
+
+        final Map<String, PublicUserMetadata> result = new HashMap<>();
+
+        // BatchGetItem has a limit of 100 items per request
+        final int batchSize = 100;
+        for (int i = 0; i < accountIds.size(); i += batchSize) {
+            final List<String> batchAccountIds = accountIds.subList(i, Math.min(i + batchSize, accountIds.size()));
+
+            final List<Map<String, AttributeValue>> keys = batchAccountIds.stream()
+                    .map(accountId -> Map.of(ACCOUNT_ID_KEY, AttributeValue.builder().s(accountId).build()))
+                    .collect(Collectors.toList());
+
+            final BatchGetItemRequest batchRequest = BatchGetItemRequest.builder()
+                    .requestItems(Map.of(USER_METADATA_TABLE_NAME, KeysAndAttributes.builder().keys(keys).build()))
+                    .build();
+
+            final BatchGetItemResponse batchResponse = dynamoDb.batchGetItem(batchRequest);
+            final List<Map<String, AttributeValue>> items = batchResponse.responses().get(USER_METADATA_TABLE_NAME);
+
+            if (items != null) {
+                for (Map<String, AttributeValue> item : items) {
+                    final String accountId = getStringAttribute(item, ACCOUNT_ID_KEY);
+                    result.put(accountId, new PublicUserMetadata(
+                            accountId,
+                            getStringAttribute(item, USERNAME_KEY)
+                    ));
+                }
+            }
+        }
+
+        return result;
     }
 
     /**

@@ -11,6 +11,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
+import software.amazon.awssdk.services.dynamodb.model.BatchGetItemRequest;
+import software.amazon.awssdk.services.dynamodb.model.BatchGetItemResponse;
 import software.amazon.awssdk.services.dynamodb.model.GetItemRequest;
 import software.amazon.awssdk.services.dynamodb.model.GetItemResponse;
 import software.amazon.awssdk.services.dynamodb.model.QueryRequest;
@@ -258,12 +260,10 @@ public class ReviewDALTests {
      * Helper to mock user metadata lookups
      */
     private void mockUserMetadataLookup() {
-        GetItemResponse userMetadataResponse = GetItemResponse.builder()
-                .item(Map.of(
-                        ACCOUNT_ID_KEY, AttributeValue.builder().s(TEST_ACCOUNT_ID).build(),
-                        "username", AttributeValue.builder().s("testuser").build()
-                ))
+        // Mock batch get for user metadata
+        BatchGetItemResponse batchResponse = BatchGetItemResponse.builder()
+                .responses(Map.of())  // Empty map - no user metadata found
                 .build();
-        when(dynamoDb.getItem(any(GetItemRequest.class))).thenReturn(userMetadataResponse);
+        when(dynamoDb.batchGetItem(any(BatchGetItemRequest.class))).thenReturn(batchResponse);
     }
 }
