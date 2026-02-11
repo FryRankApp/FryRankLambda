@@ -12,6 +12,7 @@ import java.util.HashMap;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -45,6 +46,7 @@ public class DeleteReviewHandlerTests {
     @Mock
     private Context context;
 
+    @InjectMocks
     private DeleteReviewHandler handler;
 
     private Gson gson;
@@ -52,7 +54,6 @@ public class DeleteReviewHandlerTests {
     @BeforeEach
     public void setUp() {
         gson = new Gson();
-        handler = new DeleteReviewHandler(reviewDAL, reviewDomain, requestValidator, deleteReviewRequestValidator);
     }
 
     @Test

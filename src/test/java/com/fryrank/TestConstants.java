@@ -21,8 +21,8 @@ public class TestConstants {
     public static final String TEST_ISO_DATE_TIME_1 = "1970-01-01T00:00:00Z";
     public static final String TEST_ACCOUNT_ID = "test_account_id";
     public static final String TEST_USERNAME = "testflush";
-    public static final String TEST_DELETE_REVIEW_ID = "ChIJA2dbZQDtj4ARrJthdMuKC0g:115565646588811391907";
-    public static final String TEST_DELETE_REVIEW_ID_NO_COLON = "ChIJA2dbZQDtj4ARrJthdMuKC0g115565646588811391907";
+    public static final String TEST_DELETE_REVIEW_ID = "abcdefg:1234567";
+    public static final String TEST_DELETE_REVIEW_ID_NO_COLON = "abcdefg1234567";
 
     // Authorization test constants
     public static final String TEST_VALID_TOKEN = "valid-token";
