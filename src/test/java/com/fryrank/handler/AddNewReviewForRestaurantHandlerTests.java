@@ -115,12 +115,12 @@ public class AddNewReviewForRestaurantHandlerTests {
         assertEquals(TEST_BODY_1, responseReview.getBody());
         
         verify(authorizer).authorizeToken(TEST_VALID_TOKEN);
-        
+
         // Capture the Review object passed to the domain layer
-        ArgumentCaptor<Review> reviewCaptor = ArgumentCaptor.forClass(Review.class);
+        final ArgumentCaptor<Review> reviewCaptor = ArgumentCaptor.forClass(Review.class);
         verify(reviewDomain).addNewReviewForRestaurant(reviewCaptor.capture());
         
-        Review capturedReview = reviewCaptor.getValue();
+        final Review capturedReview = reviewCaptor.getValue();
         assertNotNull(capturedReview.getAccountId(), "Account ID should not be null when authorization succeeds");
         assertEquals(TEST_ACCOUNT_ID, capturedReview.getAccountId(), "Account ID should match the authorized user's ID");
         assertNotNull(capturedReview.getIsoDateTime(), "Timestamp should not be null when creating a review");
