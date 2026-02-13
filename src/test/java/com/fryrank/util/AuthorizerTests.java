@@ -5,6 +5,7 @@ import static com.fryrank.TestConstants.TEST_CLIENT_ID;
 import static com.fryrank.TestConstants.TEST_INVALID_TOKEN;
 import static com.fryrank.TestConstants.TEST_VALID_TOKEN;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.io.IOException;
 import java.security.GeneralSecurityException;
@@ -77,7 +78,7 @@ public class AuthorizerTests {
         doReturn(null).when(verifier).verify(invalidToken);
 
         // Act & Assert
-        final NotAuthorizedException exception = org.junit.jupiter.api.Assertions.assertThrows(
+        final NotAuthorizedException exception = assertThrows(
             NotAuthorizedException.class,
             () -> authorizer.authorizeAndGetAccountId(invalidToken)
         );
@@ -91,7 +92,7 @@ public class AuthorizerTests {
         final Authorizer disabledAuthorizer = new Authorizer();
 
         // Act & Assert
-        final AuthorizationDisabledException exception = org.junit.jupiter.api.Assertions.assertThrows(
+        final AuthorizationDisabledException exception = assertThrows(
             AuthorizationDisabledException.class,
             () -> disabledAuthorizer.authorizeAndGetAccountId("any-token")
         );
@@ -104,7 +105,7 @@ public class AuthorizerTests {
         final Authorizer disabledAuthorizer = new Authorizer(verifier, true);
 
         // Act & Assert
-        final AuthorizationDisabledException exception = org.junit.jupiter.api.Assertions.assertThrows(
+        final AuthorizationDisabledException exception = assertThrows(
             AuthorizationDisabledException.class,
             () -> disabledAuthorizer.authorizeAndGetAccountId("any-token")
         );
