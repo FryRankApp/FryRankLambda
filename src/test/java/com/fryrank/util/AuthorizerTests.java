@@ -63,7 +63,7 @@ public class AuthorizerTests {
         doReturn(TEST_ACCOUNT_ID).when(payload).getSubject();
 
         // Act
-        final String accountId = authorizer.authorizeToken(validToken);
+        final String accountId = authorizer.authorizeAndGetAccountId(validToken);
 
         // Assert
         assertEquals(TEST_ACCOUNT_ID, accountId);
@@ -78,7 +78,7 @@ public class AuthorizerTests {
         // Act & Assert
         final NotAuthorizedException exception = org.junit.jupiter.api.Assertions.assertThrows(
             NotAuthorizedException.class,
-            () -> authorizer.authorizeToken(invalidToken)
+            () -> authorizer.authorizeAndGetAccountId(invalidToken)
         );
         assertEquals("Unauthorized: Invalid token", exception.getMessage());
     }

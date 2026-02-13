@@ -98,7 +98,7 @@ public class AddNewReviewForRestaurantHandlerTests {
         
         // Setup mocks - mock Authorizer and domain layer
         doNothing().when(requestValidator).validateRequest(any(), any());
-        when(authorizer.authorizeToken(TEST_VALID_TOKEN)).thenReturn(TEST_ACCOUNT_ID);
+        when(authorizer.authorizeAndGetAccountId(TEST_VALID_TOKEN)).thenReturn(TEST_ACCOUNT_ID);
         when(reviewDomain.addNewReviewForRestaurant(any(Review.class))).thenReturn(outputReview);
         
         // Act
@@ -114,7 +114,7 @@ public class AddNewReviewForRestaurantHandlerTests {
         assertEquals(5.0, responseReview.getScore());
         assertEquals(TEST_BODY_1, responseReview.getBody());
         
-        verify(authorizer).authorizeToken(TEST_VALID_TOKEN);
+        verify(authorizer).authorizeAndGetAccountId(TEST_VALID_TOKEN);
 
         // Capture the Review object passed to the domain layer
         final ArgumentCaptor<Review> reviewCaptor = ArgumentCaptor.forClass(Review.class);
@@ -140,7 +140,7 @@ public class AddNewReviewForRestaurantHandlerTests {
         
         // Setup mocks - mock Authorizer to throw exception for invalid token
         doNothing().when(requestValidator).validateRequest(any(), any());
-        doThrow(new NotAuthorizedException(Constants.AUTH_ERROR_INVALID_TOKEN)).when(authorizer).authorizeToken(TEST_INVALID_TOKEN);
+        doThrow(new NotAuthorizedException(Constants.AUTH_ERROR_INVALID_TOKEN)).when(authorizer).authorizeAndGetAccountId(TEST_INVALID_TOKEN);
         
         // Act
         final APIGatewayV2HTTPResponse response = handler.handleRequest(event, context);
@@ -149,7 +149,7 @@ public class AddNewReviewForRestaurantHandlerTests {
         assertEquals(401, response.getStatusCode());
         assertEquals(Constants.AUTH_ERROR_INVALID_TOKEN, response.getBody());
         
-        verify(authorizer).authorizeToken(TEST_INVALID_TOKEN);
+        verify(authorizer).authorizeAndGetAccountId(TEST_INVALID_TOKEN);
     }
 
     @Test
@@ -166,7 +166,7 @@ public class AddNewReviewForRestaurantHandlerTests {
         
         // Setup mocks - mock Authorizer to throw exception for null token (missing header)
         doNothing().when(requestValidator).validateRequest(any(), any());
-        doThrow(new NotAuthorizedException(Constants.AUTH_ERROR_MISSING_OR_INVALID_HEADER)).when(authorizer).authorizeToken(null);
+        doThrow(new NotAuthorizedException(Constants.AUTH_ERROR_MISSING_OR_INVALID_HEADER)).when(authorizer).authorizeAndGetAccountId(null);
         
         // Act
         final APIGatewayV2HTTPResponse response = handler.handleRequest(event, context);
@@ -190,7 +190,7 @@ public class AddNewReviewForRestaurantHandlerTests {
         
         // Setup mocks - mock Authorizer to throw exception for malformed token
         doNothing().when(requestValidator).validateRequest(any(), any());
-        doThrow(new NotAuthorizedException(Constants.AUTH_ERROR_MISSING_OR_INVALID_HEADER)).when(authorizer).authorizeToken(null);
+        doThrow(new NotAuthorizedException(Constants.AUTH_ERROR_MISSING_OR_INVALID_HEADER)).when(authorizer).authorizeAndGetAccountId(null);
         
         // Act
         final APIGatewayV2HTTPResponse response = handler.handleRequest(event, context);

@@ -57,7 +57,7 @@ public class AddNewReviewForRestaurantHandler implements RequestHandler<APIGatew
             final String accountId;
             try {
                 final String token = HeaderUtils.extractBearerToken(input);
-                accountId = authorizer.authorizeToken(token);
+                accountId = authorizer.authorizeAndGetAccountId(token);
             } catch (NotAuthorizedException e) {
                 return APIGatewayResponseBuilder.buildErrorResponse(401, e.getMessage());
             }
