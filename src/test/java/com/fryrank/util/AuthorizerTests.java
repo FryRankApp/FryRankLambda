@@ -20,6 +20,7 @@ import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import com.fryrank.model.exceptions.AuthorizationDisabledException;
 import com.fryrank.model.exceptions.NotAuthorizedException;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
@@ -55,7 +56,7 @@ public class AuthorizerTests {
     }
 
     @Test
-    public void testIsValidToken_WithValidToken_ReturnsTrue() throws NotAuthorizedException, GeneralSecurityException, IOException {
+    public void testIsValidToken_WithValidToken_ReturnsTrue() throws NotAuthorizedException, GeneralSecurityException, IOException, AuthorizationDisabledException {
         // Arrange
         final String validToken = TEST_VALID_TOKEN;
         doReturn(idToken).when(verifier).verify(validToken);
@@ -81,5 +82,32 @@ public class AuthorizerTests {
             () -> authorizer.authorizeAndGetAccountId(invalidToken)
         );
         assertEquals("Unauthorized: Invalid token", exception.getMessage());
+    }
+
+    @Test
+    public void testAuthorizeAndGetAccountId_WhenAuthDisabled_ThrowsException() throws NotAuthorizedException {
+        // Arrange
+        mockedSSM.when(SSMParameterStore::getDisableAuthFromSSM).thenReturn("true");
+        final Authorizer disabledAuthorizer = new Authorizer();
+
+        // Act & Assert
+        final AuthorizationDisabledException exception = org.junit.jupiter.api.Assertions.assertThrows(
+            AuthorizationDisabledException.class,
+            () -> disabledAuthorizer.authorizeAndGetAccountId("any-token")
+        );
+        assertEquals("Authorization is disabled", exception.getMessage());
+    }
+
+    @Test
+    public void testAuthorizeAndGetAccountId_WithExplicitAuthDisabledFlag_ThrowsException() throws NotAuthorizedException {
+        // Arrange
+        final Authorizer disabledAuthorizer = new Authorizer(verifier, true);
+
+        // Act & Assert
+        final AuthorizationDisabledException exception = org.junit.jupiter.api.Assertions.assertThrows(
+            AuthorizationDisabledException.class,
+            () -> disabledAuthorizer.authorizeAndGetAccountId("any-token")
+        );
+        assertEquals("Authorization is disabled", exception.getMessage());
     }
 }

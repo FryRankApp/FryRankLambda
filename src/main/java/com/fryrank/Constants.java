@@ -12,6 +12,7 @@ public class Constants {
     // SSM Parameter Store
     public static final String DATABASE_URI_PARAMETER_NAME_ENV_VAR = "SSM_DATABASE_URI_PARAMETER_KEY";
     public static final String GOOGLE_CLIENT_ID_PARAMETER_NAME_ENV_VAR = "SSM_GOOGLE_CLIENT_ID_PARAMETER_KEY";
+    public static final String SSM_DISABLE_AUTH_PARAMETER_NAME_ENV_VAR = "SSM_DISABLE_AUTH_PARAMETER_KEY";
 
     // Input Validator
     public static final String GENERIC_VALIDATOR_ERROR_MESSAGE = "Encountered error while validating API input.";

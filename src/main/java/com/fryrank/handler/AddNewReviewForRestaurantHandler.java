@@ -7,6 +7,7 @@ import com.amazonaws.services.lambda.runtime.events.APIGatewayV2HTTPResponse;
 import com.fryrank.dal.ReviewDALImpl;
 import com.fryrank.domain.ReviewDomain;
 import com.fryrank.model.Review;
+import com.fryrank.model.exceptions.AuthorizationDisabledException;
 import com.fryrank.model.exceptions.NotAuthorizedException;
 import com.fryrank.util.APIGatewayResponseBuilder;
 import com.fryrank.util.Authorizer;
@@ -54,19 +55,23 @@ public class AddNewReviewForRestaurantHandler implements RequestHandler<APIGatew
             requestValidator.validateRequest(handlerName, input);
 
             // Extract bearer token from authorization header and authorize
-            final String accountId;
+            String accountId = null;
             try {
                 final String token = HeaderUtils.extractBearerToken(input);
                 accountId = authorizer.authorizeAndGetAccountId(token);
             } catch (NotAuthorizedException e) {
                 return APIGatewayResponseBuilder.buildErrorResponse(401, e.getMessage());
+            } catch (AuthorizationDisabledException e) {
+                log.info("Authorization disabled, using accountId from request body");
             }
 
             final Review review = new Gson().fromJson(input.getBody(), Review.class);
             ValidatorUtils.validateAndThrow(review, REVIEW_VALIDATOR_ERRORS_OBJECT_NAME, reviewValidator);
 
-            // Set accountId and timestamp after successful authorization
-            review.setAccountId(accountId);
+            // Set accountId and timestamp - use from authorization if available, otherwise keep from request body
+            if (accountId != null) {
+                review.setAccountId(accountId);
+            }
             review.setIsoDateTime(java.time.Instant.now().toString());
             
             final Review output = reviewDomain.addNewReviewForRestaurant(review);

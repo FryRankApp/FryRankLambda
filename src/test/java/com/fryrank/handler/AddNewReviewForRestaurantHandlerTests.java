@@ -102,7 +102,7 @@ public class AddNewReviewForRestaurantHandlerTests {
         when(reviewDomain.addNewReviewForRestaurant(any(Review.class))).thenReturn(outputReview);
         
         // Act
-        APIGatewayV2HTTPResponse response = handler.handleRequest(event, context);
+        final APIGatewayV2HTTPResponse response = handler.handleRequest(event, context);
         
         // Assert
         assertEquals(200, response.getStatusCode());
@@ -198,6 +198,48 @@ public class AddNewReviewForRestaurantHandlerTests {
         // Assert
         assertEquals(401, response.getStatusCode());
         assertEquals(Constants.AUTH_ERROR_MISSING_OR_INVALID_HEADER, response.getBody());
+    }
+
+    @Test
+    public void testHandleRequest_WithAuthDisabled_UsesAccountIdFromRequestBody() throws Exception {
+        // Arrange - include accountId in the request body
+        final Review inputReview = Review.builder()
+            .restaurantId(TEST_RESTAURANT_ID)
+            .score(5.0)
+            .title(TEST_TITLE_1)
+            .body(TEST_BODY_1)
+            .accountId(TEST_ACCOUNT_ID)
+            .build();
+        
+        final Review outputReview = Review.builder()
+            .reviewId(TEST_REVIEW_ID_1)
+            .restaurantId(TEST_RESTAURANT_ID)
+            .score(5.0)
+            .title(TEST_TITLE_1)
+            .body(TEST_BODY_1)
+            .accountId(TEST_ACCOUNT_ID)
+            .isoDateTime(TEST_ISO_DATE_TIME_1)
+            .build();
+        
+        final APIGatewayV2HTTPEvent event = createTestEvent(null, gson.toJson(inputReview));
+        
+        // Setup mocks - mock Authorizer to throw exception (auth disabled)
+        doNothing().when(requestValidator).validateRequest(any(), any());
+        doThrow(new com.fryrank.model.exceptions.AuthorizationDisabledException("Authorization is disabled")).when(authorizer).authorizeAndGetAccountId(null);
+        when(reviewDomain.addNewReviewForRestaurant(any(Review.class))).thenReturn(outputReview);
+        
+        // Act
+        final APIGatewayV2HTTPResponse response = handler.handleRequest(event, context);
+        
+        // Assert
+        assertEquals(200, response.getStatusCode());
+        
+        // Capture the Review object passed to the domain layer
+        final ArgumentCaptor<Review> reviewCaptor = ArgumentCaptor.forClass(Review.class);
+        verify(reviewDomain).addNewReviewForRestaurant(reviewCaptor.capture());
+        
+        final Review capturedReview = reviewCaptor.getValue();
+        assertEquals(TEST_ACCOUNT_ID, capturedReview.getAccountId(), "Account ID should be used from request body when auth is disabled");
     }
 
     private APIGatewayV2HTTPEvent createTestEvent(String authHeader, String body) {
