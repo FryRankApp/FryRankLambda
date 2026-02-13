@@ -36,6 +36,7 @@ import static com.fryrank.TestConstants.TEST_VALID_TOKEN;
 import com.fryrank.dal.ReviewDALImpl;
 import com.fryrank.domain.ReviewDomain;
 import com.fryrank.model.Review;
+import com.fryrank.model.exceptions.AuthorizationDisabledException;
 import com.fryrank.model.exceptions.NotAuthorizedException;
 import com.fryrank.util.Authorizer;
 import com.fryrank.validator.APIGatewayRequestValidator;
@@ -225,7 +226,7 @@ public class AddNewReviewForRestaurantHandlerTests {
         
         // Setup mocks - mock Authorizer to throw exception (auth disabled)
         doNothing().when(requestValidator).validateRequest(any(), any());
-        doThrow(new com.fryrank.model.exceptions.AuthorizationDisabledException("Authorization is disabled")).when(authorizer).authorizeAndGetAccountId(null);
+        doThrow(new AuthorizationDisabledException("Authorization is disabled")).when(authorizer).authorizeAndGetAccountId(null);
         when(reviewDomain.addNewReviewForRestaurant(any(Review.class))).thenReturn(outputReview);
         
         // Act
