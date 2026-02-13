@@ -21,17 +21,8 @@ public class Constants {
     public static final String REJECTION_REQUIRED_CODE = "field.required";
     public static final String REJECTION_FORMAT_CODE = "field.invalidFormat";
 
-    // Output field names
-    public static final String USER_METADATA_OUTPUT_FIELD_NAME = "userMetadata";
-
     // MongoDB keys
     public static final String ACCOUNT_ID_KEY = "accountId";
-    public static final String PRIMARY_KEY = "_id";
-
-    // DynamoDB table names
-    public static final String REVIEW_TABLE_NAME = "review-table";
-    public static final String PUBLIC_USER_METADATA_TABLE_NAME = "public-user-metadata-table";
-
 
     // DynamoDB attribute names
     public static final String RESTAURANT_ID_KEY = "restaurantId";
@@ -51,11 +42,6 @@ public class Constants {
     public static final String RESTAURANT_ID_TIME_INDEX = "restaurantId-time-index";
     public static final String ACCOUNT_ID_TIME_INDEX = "accountId-time-index";
     public static final String RECENT_REVIEWS_INDEX = "recent-reviews-index";
-
-
-    // MongoDB collection names
-    public static final String REVIEW_COLLECTION_NAME = "review";
-    public static final String PUBLIC_USER_METADATA_COLLECTION_NAME = "user-metadata";
 
     // Handler class names
     public static final String ADD_NEW_REVIEW_HANDLER = "AddNewReviewForRestaurantHandler";
