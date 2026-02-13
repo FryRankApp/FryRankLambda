@@ -10,12 +10,15 @@ import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.BatchGetItemRequest;
 import software.amazon.awssdk.services.dynamodb.model.BatchGetItemResponse;
+import software.amazon.awssdk.services.dynamodb.model.DeleteItemRequest;
+import software.amazon.awssdk.services.dynamodb.model.DeleteItemResponse;
 import software.amazon.awssdk.services.dynamodb.model.GetItemRequest;
 import software.amazon.awssdk.services.dynamodb.model.GetItemResponse;
 import software.amazon.awssdk.services.dynamodb.model.KeysAndAttributes;
 import software.amazon.awssdk.services.dynamodb.model.Put;
 import software.amazon.awssdk.services.dynamodb.model.QueryRequest;
 import software.amazon.awssdk.services.dynamodb.model.QueryResponse;
+import software.amazon.awssdk.services.dynamodb.model.ReturnValue;
 import software.amazon.awssdk.services.dynamodb.model.TransactWriteItem;
 import software.amazon.awssdk.services.dynamodb.model.TransactWriteItemsRequest;
 
@@ -24,6 +27,7 @@ import java.math.RoundingMode;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 import static com.fryrank.Constants.ACCOUNT_ID_KEY;
@@ -265,26 +269,40 @@ public class ReviewDALImpl implements ReviewDAL {
         // TODO(FRY-114): Once we standardize the Review model, we will no longer need to generate a reviewId which
         // does not exist in dyanmoDB
         final String reviewId = review.getRestaurantId() + ":" + identifier;
-        return new Review(
-                reviewId,
-                review.getRestaurantId(),
-                review.getScore(),
-                review.getTitle(),
-                review.getBody(),
-                review.getIsoDateTime(),
-                review.getAccountId(),
-                review.getUserMetadata()
-        );
+        return Review.builder()
+                .reviewId(reviewId)
+                .restaurantId(review.getRestaurantId())
+                .score(review.getScore())
+                .title(review.getTitle())
+                .body(review.getBody())
+                .isoDateTime(review.getIsoDateTime())
+                .accountId(review.getAccountId())
+                .userMetadata(review.getUserMetadata())
+                .build();
     }
 
+    // TODO(FRY-114): Once we standardize the Review model, we can refactor this API to require a restaurantId and an
+    // accountId instead.
     @Override
     public boolean deleteUserReview(@NonNull final DeleteReviewRequest delReviewRequest) {
         String reviewId = delReviewRequest.reviewId();
 
-        final Query query = new Query().addCriteria(Criteria.where("_id").is(reviewId));
-        Review deletedReview = mongoTemplate.findAndRemove(query, Review.class);
-        
-        return deletedReview != null;
+        String[] keyParts = reviewId.split(":");
+        String restaurantId = keyParts[0];
+        String identifier = "REVIEW:" + keyParts[1];
+
+        DeleteItemRequest deleteRequest = DeleteItemRequest.builder()
+                .tableName(System.getenv("RANKINGS_TABLE_NAME"))
+                .key(Map.of(
+                        "restaurantId", AttributeValue.builder().s(restaurantId).build(),
+                        "identifier", AttributeValue.builder().s(identifier).build()
+                ))
+                .returnValues(ReturnValue.ALL_OLD)
+                .build();
+
+        DeleteItemResponse response = dynamoDb.deleteItem(deleteRequest);
+
+        return response.attributes() != null && !response.attributes().isEmpty();
     }
 
     /**
@@ -320,16 +338,18 @@ public class ReviewDALImpl implements ReviewDAL {
         // does not exist in dyanmoDB
         final String reviewId = restaurantId + ":" + identifier;
 
-        return new Review(
-                reviewId,
-                restaurantId,
-                getDoubleAttribute(item, SCORE_KEY),
-                getStringAttribute(item, TITLE_KEY),
-                getStringAttribute(item, BODY_KEY),
-                getStringAttribute(item, ISO_DATE_TIME),
-                accountId,
-                userMetadata
-        );
+        assert restaurantId != null;
+        return Review.builder()
+                .reviewId(reviewId)
+                .restaurantId(restaurantId)
+                .score(Objects.requireNonNull(getDoubleAttribute(item, SCORE_KEY)))
+                .title(Objects.requireNonNull(getStringAttribute(item, TITLE_KEY)))
+                .body(Objects.requireNonNull(getStringAttribute(item, BODY_KEY)))
+                // TODO(FRY-108): Once we update isoDateTime to non-optional we can add a requirement here for non null.
+                .isoDateTime(getStringAttribute(item, ISO_DATE_TIME))
+                .accountId(accountId)
+                .userMetadata(userMetadata)
+                .build();
     }
 
     /**
