@@ -25,6 +25,7 @@ import com.amazonaws.services.lambda.runtime.events.APIGatewayV2HTTPResponse;
 import com.fryrank.Constants;
 
 import static com.fryrank.TestConstants.TEST_ACCOUNT_ID;
+import static com.fryrank.TestConstants.TEST_AUTHORIZED_ACCOUNT_ID;
 import static com.fryrank.TestConstants.TEST_BODY_1;
 import static com.fryrank.TestConstants.TEST_INVALID_TOKEN;
 import static com.fryrank.TestConstants.TEST_ISO_DATE_TIME_1;
@@ -77,12 +78,13 @@ public class AddNewReviewForRestaurantHandlerTests {
 
     @Test
     public void testHandleRequest_WithValidTokenAndReview_ReturnsSuccess() throws Exception {
-        // Arrange
+        // Arrange - input has an accountId but it should be overridden by the authorized accountId
         final Review inputReview = Review.builder()
             .restaurantId(TEST_RESTAURANT_ID)
             .score(5.0)
             .title(TEST_TITLE_1)
             .body(TEST_BODY_1)
+            .accountId(TEST_ACCOUNT_ID)
             .build();
         
         final Review outputReview = Review.builder()
@@ -91,15 +93,15 @@ public class AddNewReviewForRestaurantHandlerTests {
             .score(5.0)
             .title(TEST_TITLE_1)
             .body(TEST_BODY_1)
-            .accountId(TEST_ACCOUNT_ID)
+            .accountId(TEST_AUTHORIZED_ACCOUNT_ID)
             .isoDateTime(TEST_ISO_DATE_TIME_1)
             .build();
         
         final APIGatewayV2HTTPEvent event = createTestEvent(createBearerToken(TEST_VALID_TOKEN), gson.toJson(inputReview));
         
-        // Setup mocks - mock Authorizer and domain layer
+        // Setup mocks - mock Authorizer returns different accountId than what's in request body
         doNothing().when(requestValidator).validateRequest(any(), any());
-        when(authorizer.authorizeAndGetAccountId(TEST_VALID_TOKEN)).thenReturn(TEST_ACCOUNT_ID);
+        when(authorizer.authorizeAndGetAccountId(TEST_VALID_TOKEN)).thenReturn(TEST_AUTHORIZED_ACCOUNT_ID);
         when(reviewDomain.addNewReviewForRestaurant(any(Review.class))).thenReturn(outputReview);
         
         // Act
@@ -123,7 +125,7 @@ public class AddNewReviewForRestaurantHandlerTests {
         
         final Review capturedReview = reviewCaptor.getValue();
         assertNotNull(capturedReview.getAccountId(), "Account ID should not be null when authorization succeeds");
-        assertEquals(TEST_ACCOUNT_ID, capturedReview.getAccountId(), "Account ID should match the authorized user's ID");
+        assertEquals(TEST_AUTHORIZED_ACCOUNT_ID, capturedReview.getAccountId(), "Account ID should match the authorized user's ID, not the one from request body");
         assertNotNull(capturedReview.getIsoDateTime(), "Timestamp should not be null when creating a review");
     }
 
