@@ -8,6 +8,7 @@ import software.amazon.awssdk.services.ssm.model.SsmException;
 
 import static com.fryrank.Constants.DATABASE_URI_PARAMETER_NAME_ENV_VAR;
 import static com.fryrank.Constants.GOOGLE_CLIENT_ID_PARAMETER_NAME_ENV_VAR;
+import static com.fryrank.Constants.SSM_DISABLE_AUTH_PARAMETER_NAME_ENV_VAR;
 
 @Log4j2
 public class SSMParameterStore {
@@ -18,6 +19,10 @@ public class SSMParameterStore {
 
     public static String getGoogleClientIdFromSSM() {
         return getParameterFromSSM(GOOGLE_CLIENT_ID_PARAMETER_NAME_ENV_VAR);
+    }
+
+    public static String getDisableAuthFromSSM() {
+        return getParameterFromSSM(SSM_DISABLE_AUTH_PARAMETER_NAME_ENV_VAR);
     }
 
     private static String getParameterFromSSM(String parameterName) {

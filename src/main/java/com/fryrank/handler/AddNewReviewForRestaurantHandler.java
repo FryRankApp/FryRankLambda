@@ -7,6 +7,7 @@ import com.amazonaws.services.lambda.runtime.events.APIGatewayV2HTTPResponse;
 import com.fryrank.dal.ReviewDALImpl;
 import com.fryrank.domain.ReviewDomain;
 import com.fryrank.model.Review;
+import com.fryrank.model.exceptions.AuthorizationDisabledException;
 import com.fryrank.model.exceptions.NotAuthorizedException;
 import com.fryrank.util.APIGatewayResponseBuilder;
 import com.fryrank.util.Authorizer;
@@ -53,22 +54,23 @@ public class AddNewReviewForRestaurantHandler implements RequestHandler<APIGatew
         return APIGatewayResponseBuilder.handleRequest(handlerName, input, () -> {
             requestValidator.validateRequest(handlerName, input);
 
+            final Review review = new Gson().fromJson(input.getBody(), Review.class);
+
             // Extract bearer token from authorization header and authorize
-            final String accountId;
             try {
                 final String token = HeaderUtils.extractBearerToken(input);
-                accountId = authorizer.authorizeAndGetAccountId(token);
+                final String authorizedAccountId = authorizer.authorizeAndGetAccountId(token);
+                review.setAccountId(authorizedAccountId);
             } catch (NotAuthorizedException e) {
                 return APIGatewayResponseBuilder.buildErrorResponse(401, e.getMessage());
+            } catch (AuthorizationDisabledException e) {
+                log.info("Authorization disabled, using accountId from request body");
             }
+            
+            review.setIsoDateTime(java.time.Instant.now().toString());
 
-            final Review review = new Gson().fromJson(input.getBody(), Review.class);
             ValidatorUtils.validateAndThrow(review, REVIEW_VALIDATOR_ERRORS_OBJECT_NAME, reviewValidator);
 
-            // Set accountId and timestamp after successful authorization
-            review.setAccountId(accountId);
-            review.setIsoDateTime(java.time.Instant.now().toString());
-            
             final Review output = reviewDomain.addNewReviewForRestaurant(review);
 
             log.info("Request processed successfully");
