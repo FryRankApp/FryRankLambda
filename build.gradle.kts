@@ -52,6 +52,13 @@ dependencies {
     implementation("com.google.api-client:google-api-client:1.32.1")
     implementation("com.google.http-client:google-http-client:2.1.0")
     implementation("com.google.oauth-client:google-oauth-client:1.30.4")
+
+    // AWS DynamoDB
+    implementation(platform("software.amazon.awssdk:bom:2.25.62"))
+    implementation("software.amazon.awssdk:dynamodb")
+    implementation("software.amazon.awssdk:regions")
+
+    implementation("com.amazonaws:aws-xray-recorder-sdk-aws-sdk-v2:2.15.0")
 }
 
 // Apply a specific Java toolchain to ease working on different environments.
@@ -69,7 +76,10 @@ application {
 tasks {
     test {
         useJUnitPlatform()  // Use JUnit 5
-        
+
+        environment("PUBLIC_USER_METADATA_TABLE_NAME", "test-user-metadata")
+        environment("REVIEW_TABLE_NAME", "test-review-table")
+
         // Enable test output in console
         testLogging {
             events("passed", "skipped", "failed", "started")
@@ -79,7 +89,7 @@ tasks {
             showStackTraces = true
             exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
         }
-        
+
         // Generate HTML test report
         reports {
             html.required.set(true)
