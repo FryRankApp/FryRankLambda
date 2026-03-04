@@ -6,11 +6,17 @@ import lombok.NoArgsConstructor;
 import lombok.NonNull;
 import lombok.experimental.SuperBuilder;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
+import software.amazon.awssdk.services.dynamodb.model.ConditionalCheckFailedException;
 
 import java.util.HashMap;
 import java.util.Map;
 
-import static com.fryrank.Constants.*;
+import static com.fryrank.Constants.AVERAGE_SCORE_KEY;
+import static com.fryrank.Constants.IDENTIFIER_KEY;
+import static com.fryrank.Constants.ISO_DATE_TIME_KEY;
+import static com.fryrank.Constants.RESTAURANT_ID_KEY;
+import static com.fryrank.Constants.REVIEW_COUNT_KEY;
+import static com.fryrank.Constants.TOTAL_SCORE_KEY;
 
 @Data
 @SuperBuilder

@@ -16,18 +16,12 @@ import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
 import java.util.Map;
 
 import static com.fryrank.Constants.ACCOUNT_ID_KEY;
-import static com.fryrank.util.EnvironmentUtils.getRequiredEnv;
+import static com.fryrank.Constants.USER_METADATA_TABLE_NAME;
 
 @Repository
 @Log4j2
 @AllArgsConstructor
 public class UserMetadataDALImpl implements UserMetadataDAL {
-
-    /**
-     * DynamoDB table name for public user metadata.
-     * Must be set via environment variable.
-     */
-    private static final String TABLE_NAME = getRequiredEnv("PUBLIC_USER_METADATA_TABLE_NAME");
 
     private static final String USERNAME_KEY = "username";
 
@@ -37,6 +31,7 @@ public class UserMetadataDALImpl implements UserMetadataDAL {
         this.dynamoDb = DynamoDbUtils.client();
     }
 
+    // TODO(FRY-137): Consolidate into 1 function
     @Override
     public PublicUserMetadataOutput putPublicUserMetadataForAccountId(
             @NonNull final String accountId,
@@ -63,7 +58,7 @@ public class UserMetadataDALImpl implements UserMetadataDAL {
         );
 
         final GetItemRequest request = GetItemRequest.builder()
-                .tableName(TABLE_NAME)
+                .tableName(USER_METADATA_TABLE_NAME)
                 .key(key)
                 .consistentRead(true)
                 .build();
@@ -80,6 +75,7 @@ public class UserMetadataDALImpl implements UserMetadataDAL {
         return new PublicUserMetadataOutput(username);
     }
 
+    // TODO(FRY-137): Consolidate into 1 function
     @Override
     public PublicUserMetadataOutput upsertPublicUserMetadata(@NonNull final PublicUserMetadata userMetadata) {
         log.info("Upserting public user metadata for accountId: {}", userMetadata.getAccountId());
@@ -90,7 +86,7 @@ public class UserMetadataDALImpl implements UserMetadataDAL {
         );
 
         final PutItemRequest request = PutItemRequest.builder()
-                .tableName(TABLE_NAME)
+                .tableName(USER_METADATA_TABLE_NAME)
                 .item(item)
                 .build();
 

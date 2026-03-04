@@ -39,6 +39,10 @@ public class Constants {
     public static final String IS_REVIEW_KEY = "isReview";
     public static final String IS_REVIEW_VALUE = "true";
 
+    // DynamoDB table names
+    public static final String REVIEW_TABLE_NAME = "reviews";
+    public static final String USER_METADATA_TABLE_NAME = "publicUserMetadata";
+
     // DynamoDB GSI names
     public static final String RESTAURANT_ID_TIME_INDEX = "restaurantId-time-index";
     public static final String ACCOUNT_ID_TIME_INDEX = "accountId-time-index";

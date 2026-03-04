@@ -10,12 +10,14 @@ import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.BatchGetItemRequest;
 import software.amazon.awssdk.services.dynamodb.model.BatchGetItemResponse;
+import software.amazon.awssdk.services.dynamodb.model.ConditionalCheckFailedException;
 import software.amazon.awssdk.services.dynamodb.model.DeleteItemRequest;
 import software.amazon.awssdk.services.dynamodb.model.DeleteItemResponse;
 import software.amazon.awssdk.services.dynamodb.model.GetItemRequest;
 import software.amazon.awssdk.services.dynamodb.model.GetItemResponse;
 import software.amazon.awssdk.services.dynamodb.model.KeysAndAttributes;
 import software.amazon.awssdk.services.dynamodb.model.Put;
+import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
 import software.amazon.awssdk.services.dynamodb.model.QueryRequest;
 import software.amazon.awssdk.services.dynamodb.model.QueryResponse;
 import software.amazon.awssdk.services.dynamodb.model.ReturnValue;
@@ -30,21 +32,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
-import static com.fryrank.Constants.ACCOUNT_ID_KEY;
-import static com.fryrank.Constants.ACCOUNT_ID_TIME_INDEX;
-import static com.fryrank.Constants.AVERAGE_SCORE_KEY;
-import static com.fryrank.Constants.BODY_KEY;
-import static com.fryrank.Constants.IDENTIFIER_KEY;
-import static com.fryrank.Constants.ISO_DATE_TIME;
-import static com.fryrank.Constants.IS_REVIEW_KEY;
-import static com.fryrank.Constants.IS_REVIEW_VALUE;
-import static com.fryrank.Constants.RECENT_REVIEWS_INDEX;
-import static com.fryrank.Constants.RESTAURANT_ID_KEY;
-import static com.fryrank.Constants.RESTAURANT_ID_TIME_INDEX;
-import static com.fryrank.Constants.SCORE_KEY;
-import static com.fryrank.Constants.TITLE_KEY;
-import static com.fryrank.Constants.USERNAME_KEY;
-import static com.fryrank.util.EnvironmentUtils.getRequiredEnv;
+import static com.fryrank.Constants.*;
 
 @Repository
 @Log4j2
@@ -66,8 +54,7 @@ public class ReviewDALImpl implements ReviewDAL {
      *
      */
 
-    private static final String TABLE_NAME = getRequiredEnv("REVIEW_TABLE_NAME");
-    private static final String USER_METADATA_TABLE_NAME = getRequiredEnv("PUBLIC_USER_METADATA_TABLE_NAME");
+    private static final int MAX_AGGREGATE_UPDATE_RETRIES = 3;
 
     // Ranking identifiers
     public static final String REVIEW_IDENTIFIER_PREFIX = "REVIEW:";
@@ -93,7 +80,7 @@ public class ReviewDALImpl implements ReviewDAL {
 
     private GetAllReviewsOutput queryReviews(String indexName, String keyAttribute, String keyValue) {
         final QueryRequest request = QueryRequest.builder()
-                .tableName(TABLE_NAME)
+                .tableName(REVIEW_TABLE_NAME)
                 .indexName(indexName)
                 .keyConditionExpression("#key = :value")
                 // TODO(FRY-114): Temporary filter expression because we have not yet converted over outputs to use the
@@ -115,8 +102,9 @@ public class ReviewDALImpl implements ReviewDAL {
         log.info("Getting {} recent reviews", count);
 
         final QueryRequest request = QueryRequest.builder()
-                .tableName(TABLE_NAME)
+                .tableName(REVIEW_TABLE_NAME)
                 .indexName(RECENT_REVIEWS_INDEX)
+                // #ir is an expression attribute placeholder for the isReview attribute.
                 .keyConditionExpression("#ir = :isReview")
                 .expressionAttributeNames(Map.of("#ir", IS_REVIEW_KEY))
                 .expressionAttributeValues(Map.of(
@@ -158,11 +146,11 @@ public class ReviewDALImpl implements ReviewDAL {
                     .build();
 
             BatchGetItemRequest batchRequest = BatchGetItemRequest.builder()
-                    .requestItems(Map.of(TABLE_NAME, keysAndAttributes))
+                    .requestItems(Map.of(REVIEW_TABLE_NAME, keysAndAttributes))
                     .build();
 
             BatchGetItemResponse batchResponse = dynamoDb.batchGetItem(batchRequest);
-            List<Map<String, AttributeValue>> items = batchResponse.responses().get(TABLE_NAME);
+            List<Map<String, AttributeValue>> items = batchResponse.responses().get(REVIEW_TABLE_NAME);
 
             if (items != null) {
                 for (Map<String, AttributeValue> item : items) {
@@ -220,50 +208,15 @@ public class ReviewDALImpl implements ReviewDAL {
             reviewItem.put(ACCOUNT_ID_KEY, AttributeValue.builder().s(review.getAccountId()).build());
         }
 
-        final Map<String, AttributeValue> aggregateKey = Map.of(
-                RESTAURANT_ID_KEY, AttributeValue.builder().s(restaurantId).build(),
-                IDENTIFIER_KEY, AttributeValue.builder().s(AGGREGATE_IDENTIFIER).build()
-        );
-
-        final GetItemRequest getAggregateRequest = GetItemRequest.builder()
-                .tableName(TABLE_NAME)
-                .key(aggregateKey)
+        PutItemRequest putReviewRequest = PutItemRequest.builder()
+                .tableName(REVIEW_TABLE_NAME)
+                .item(reviewItem)
                 .build();
+        dynamoDb.putItem(putReviewRequest);
+        log.info("Created review for restaurantId: {}, accountId: {}", restaurantId, review.getAccountId());
 
-        final GetItemResponse aggregateResponse = dynamoDb.getItem(getAggregateRequest);
-        final Map<String, AttributeValue> existingAggregate = aggregateResponse.item();
-
-        final AggregateRanking aggregateRanking;
-
-        if (existingAggregate == null || existingAggregate.isEmpty()) {
-            aggregateRanking = AggregateRanking.forFirstReview(restaurantId, review.getScore());
-            log.info("Creating new aggregate for restaurantId: {}", review.getRestaurantId());
-        } else {
-            AggregateRanking existingAggregateRanking = AggregateRanking.fromMap(existingAggregate);
-            aggregateRanking = existingAggregateRanking.withNewReview(review.getScore());
-            log.info("Updating aggregate for restaurantId: {} (reviewCount: {} -> {})",
-                    review.getRestaurantId(), existingAggregateRanking.getReviewCount(), aggregateRanking.getReviewCount());
-        }
-
-        // Use TransactWriteItems to write both the review and aggregate atomically
-        final TransactWriteItemsRequest transactRequest = TransactWriteItemsRequest.builder()
-                .transactItems(
-                        TransactWriteItem.builder()
-                                .put(Put.builder()
-                                        .tableName(TABLE_NAME)
-                                        .item(reviewItem)
-                                        .build())
-                                .build(),
-                        TransactWriteItem.builder()
-                                .put(Put.builder()
-                                        .tableName(TABLE_NAME)
-                                        .item(aggregateRanking.toMap())
-                                        .build())
-                                .build()
-                )
-                .build();
-
-        dynamoDb.transactWriteItems(transactRequest);
+        // Update aggregate with optimistic locking
+        updateAggregateWithOptimisticLocking(restaurantId, review.getScore());
 
         // Return the review with the generated reviewId
         // TODO(FRY-114): Once we standardize the Review model, we will no longer need to generate a reviewId which
@@ -277,8 +230,84 @@ public class ReviewDALImpl implements ReviewDAL {
                 .body(review.getBody())
                 .isoDateTime(review.getIsoDateTime())
                 .accountId(review.getAccountId())
-                .userMetadata(review.getUserMetadata())
                 .build();
+    }
+
+    /**
+     * Atomically updates aggregate ranking using optimistic locking.
+     * Uses reviewCount as the version field to detect concurrent modifications.
+     * Retries on conflict with exponential backoff.
+     */
+    private void updateAggregateWithOptimisticLocking(String restaurantId, Double newScore) {
+        final Map<String, AttributeValue> aggregateKey = Map.of(
+                RESTAURANT_ID_KEY, AttributeValue.builder().s(restaurantId).build(),
+                IDENTIFIER_KEY, AttributeValue.builder().s(AGGREGATE_IDENTIFIER).build()
+        );
+
+        for (int attempt = 0; attempt < MAX_AGGREGATE_UPDATE_RETRIES; attempt++) {
+            try {
+                //Read current aggregate
+                final GetItemRequest getAggregateRequest = GetItemRequest.builder()
+                        .tableName(REVIEW_TABLE_NAME)
+                        .key(aggregateKey)
+                        .build();
+
+                final GetItemResponse aggregateResponse = dynamoDb.getItem(getAggregateRequest);
+                final Map<String, AttributeValue> existingAggregate = aggregateResponse.item();
+
+                final AggregateRanking aggregateRanking;
+                final PutItemRequest.Builder putBuilder = PutItemRequest.builder()
+                        .tableName(REVIEW_TABLE_NAME);
+
+                if (existingAggregate == null || existingAggregate.isEmpty()) {
+                    // First review for this restaurant
+                    aggregateRanking = AggregateRanking.forFirstReview(restaurantId, newScore);
+                    putBuilder
+                            .item(aggregateRanking.toMap())
+                            .conditionExpression("attribute_not_exists(#pk)")
+                            .expressionAttributeNames(Map.of("#pk", RESTAURANT_ID_KEY));
+                    log.info("Creating new aggregate for restaurantId: {}", restaurantId);
+                } else {
+                    // Update existing aggregate
+                    AggregateRanking existingAggregateRanking = AggregateRanking.fromMap(existingAggregate);
+                    aggregateRanking = existingAggregateRanking.withNewReview(newScore);
+                    putBuilder
+                            .item(aggregateRanking.toMap())
+                            .conditionExpression("#reviewCount = :expectedCount")
+                            .expressionAttributeNames(Map.of("#reviewCount", REVIEW_COUNT_KEY))
+                            .expressionAttributeValues(Map.of(
+                                    ":expectedCount", AttributeValue.builder()
+                                            .n(String.valueOf(existingAggregateRanking.getReviewCount()))
+                                            .build()
+                            ));
+                    log.info("Updating aggregate for restaurantId: {} (reviewCount: {} -> {})",
+                            restaurantId, existingAggregateRanking.getReviewCount(), aggregateRanking.getReviewCount());
+                }
+
+                // Perform conditional write to check if data has changed since read
+                dynamoDb.putItem(putBuilder.build());
+                log.info("Successfully updated aggregate for restaurantId: {}", restaurantId);
+                return; // Success!
+
+            } catch (ConditionalCheckFailedException e) {
+                // This conflict is because another concurrent write happened
+                log.warn("Optimistic lock conflict for restaurantId: {} on attempt {}/{}, retrying...",
+                        restaurantId, attempt + 1, MAX_AGGREGATE_UPDATE_RETRIES);
+
+                if (attempt == MAX_AGGREGATE_UPDATE_RETRIES - 1) {
+                    throw new RuntimeException(
+                            "Failed to update aggregate for restaurantId: " + restaurantId +
+                                    " after " + MAX_AGGREGATE_UPDATE_RETRIES + " attempts due to concurrent modifications", e);
+                }
+
+                try {
+                    Thread.sleep((long) (Math.pow(2, attempt) * 10));
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    throw new RuntimeException("Interrupted during retry backoff", ie);
+                }
+            }
+        }
     }
 
     // TODO(FRY-114): Once we standardize the Review model, we can refactor this API to require a restaurantId and an
@@ -292,7 +321,7 @@ public class ReviewDALImpl implements ReviewDAL {
         String identifier = "REVIEW:" + keyParts[1];
 
         DeleteItemRequest deleteRequest = DeleteItemRequest.builder()
-                .tableName(System.getenv("RANKINGS_TABLE_NAME"))
+                .tableName(REVIEW_TABLE_NAME)
                 .key(Map.of(
                         "restaurantId", AttributeValue.builder().s(restaurantId).build(),
                         "identifier", AttributeValue.builder().s(identifier).build()
@@ -309,15 +338,15 @@ public class ReviewDALImpl implements ReviewDAL {
      * Maps DynamoDB items to Review objects with batched user metadata fetching.
      */
     private GetAllReviewsOutput mapItemsToReviewsWithUserMetadata(List<Map<String, AttributeValue>> items) {
-        final List<String> accountIds = items.stream()
+        final List<String> accountIds = items.parallelStream()
                 .map(item -> getStringAttribute(item, ACCOUNT_ID_KEY))
-                .filter(accountId -> accountId != null)
+                .filter(Objects::nonNull)
                 .distinct()
                 .collect(Collectors.toList());
 
         final Map<String, PublicUserMetadata> userMetadataMap = batchFetchUserMetadata(accountIds);
 
-        final List<Review> reviews = items.stream()
+        final List<Review> reviews = items.parallelStream()
                 .map(item -> mapItemToReview(item, userMetadataMap))
                 .collect(Collectors.toList());
 
@@ -348,7 +377,6 @@ public class ReviewDALImpl implements ReviewDAL {
                 // TODO(FRY-108): Once we update isoDateTime to non-optional we can add a requirement here for non null.
                 .isoDateTime(getStringAttribute(item, ISO_DATE_TIME))
                 .accountId(accountId)
-                .userMetadata(userMetadata)
                 .build();
     }
 
@@ -390,28 +418,6 @@ public class ReviewDALImpl implements ReviewDAL {
         }
 
         return result;
-    }
-
-    /**
-     * Fetches user metadata from the user metadata table.
-     */
-    private PublicUserMetadata fetchUserMetadata(String accountId) {
-        final GetItemRequest request = GetItemRequest.builder()
-                .tableName(USER_METADATA_TABLE_NAME)
-                .key(Map.of(ACCOUNT_ID_KEY, AttributeValue.builder().s(accountId).build()))
-                .build();
-
-        final GetItemResponse response = dynamoDb.getItem(request);
-        final Map<String, AttributeValue> userItem = response.item();
-
-        if (userItem == null || userItem.isEmpty()) {
-            return null;
-        }
-
-        return new PublicUserMetadata(
-                accountId,
-                getStringAttribute(userItem, USERNAME_KEY)
-        );
     }
 
     private String getStringAttribute(Map<String, AttributeValue> item, String key) {
