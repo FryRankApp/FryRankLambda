@@ -60,7 +60,6 @@ public class UserMetadataDALImpl implements UserMetadataDAL {
         final GetItemRequest request = GetItemRequest.builder()
                 .tableName(USER_METADATA_TABLE_NAME)
                 .key(key)
-                .consistentRead(true)
                 .build();
 
         final GetItemResponse response = dynamoDb.getItem(request);
