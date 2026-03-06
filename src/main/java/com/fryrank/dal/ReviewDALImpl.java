@@ -1,6 +1,13 @@
 package com.fryrank.dal;
 
-import com.fryrank.model.*;
+import com.fryrank.model.AggregateRanking;
+import com.fryrank.model.AggregateReviewFilter;
+import com.fryrank.model.AggregateReviewInformation;
+import com.fryrank.model.DeleteReviewRequest;
+import com.fryrank.model.GetAggregateReviewInformationOutput;
+import com.fryrank.model.GetAllReviewsOutput;
+import com.fryrank.model.PublicUserMetadata;
+import com.fryrank.model.Review;
 import com.fryrank.util.DynamoDbUtils;
 import lombok.AllArgsConstructor;
 import lombok.NonNull;
@@ -10,19 +17,18 @@ import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.BatchGetItemRequest;
 import software.amazon.awssdk.services.dynamodb.model.BatchGetItemResponse;
-import software.amazon.awssdk.services.dynamodb.model.ConditionalCheckFailedException;
 import software.amazon.awssdk.services.dynamodb.model.DeleteItemRequest;
 import software.amazon.awssdk.services.dynamodb.model.DeleteItemResponse;
 import software.amazon.awssdk.services.dynamodb.model.GetItemRequest;
 import software.amazon.awssdk.services.dynamodb.model.GetItemResponse;
 import software.amazon.awssdk.services.dynamodb.model.KeysAndAttributes;
 import software.amazon.awssdk.services.dynamodb.model.Put;
-import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
 import software.amazon.awssdk.services.dynamodb.model.QueryRequest;
 import software.amazon.awssdk.services.dynamodb.model.QueryResponse;
 import software.amazon.awssdk.services.dynamodb.model.ReturnValue;
 import software.amazon.awssdk.services.dynamodb.model.TransactWriteItem;
 import software.amazon.awssdk.services.dynamodb.model.TransactWriteItemsRequest;
+import software.amazon.awssdk.services.dynamodb.model.TransactionCanceledException;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -80,7 +86,7 @@ public class ReviewDALImpl implements ReviewDAL {
 
     private GetAllReviewsOutput queryReviews(String indexName, String keyAttribute, String keyValue) {
         final QueryRequest request = QueryRequest.builder()
-                .tableName(REVIEW_TABLE_NAME)
+                .tableName(RANKINGS_TABLE_NAME)
                 .indexName(indexName)
                 .keyConditionExpression("#key = :value")
                 // TODO(FRY-114): Temporary filter expression because we have not yet converted over outputs to use the
@@ -102,7 +108,7 @@ public class ReviewDALImpl implements ReviewDAL {
         log.info("Getting {} recent reviews", count);
 
         final QueryRequest request = QueryRequest.builder()
-                .tableName(REVIEW_TABLE_NAME)
+                .tableName(RANKINGS_TABLE_NAME)
                 .indexName(RECENT_REVIEWS_INDEX)
                 // #ir is an expression attribute placeholder for the isReview attribute.
                 .keyConditionExpression("#ir = :isReview")
@@ -146,11 +152,11 @@ public class ReviewDALImpl implements ReviewDAL {
                     .build();
 
             BatchGetItemRequest batchRequest = BatchGetItemRequest.builder()
-                    .requestItems(Map.of(REVIEW_TABLE_NAME, keysAndAttributes))
+                    .requestItems(Map.of(RANKINGS_TABLE_NAME, keysAndAttributes))
                     .build();
 
             BatchGetItemResponse batchResponse = dynamoDb.batchGetItem(batchRequest);
-            List<Map<String, AttributeValue>> items = batchResponse.responses().get(REVIEW_TABLE_NAME);
+            List<Map<String, AttributeValue>> items = batchResponse.responses().get(RANKINGS_TABLE_NAME);
 
             if (items != null) {
                 for (Map<String, AttributeValue> item : items) {
@@ -231,15 +237,15 @@ public class ReviewDALImpl implements ReviewDAL {
     private void addReviewWithTransactionalAggregate(String restaurantId, Map<String, AttributeValue> reviewItem, Double newScore) {
         for (int attempt = 0; attempt < MAX_AGGREGATE_UPDATE_RETRIES; attempt++) {
             try {
-                // Read current aggregate
-                final Map<String, AttributeValue> aggregateKey = Map.of(
+                // Read current restaurant's review aggregate entry
+                final Map<String, AttributeValue> rankingsTablePrimaryKey = Map.of(
                         RESTAURANT_ID_KEY, AttributeValue.builder().s(restaurantId).build(),
                         IDENTIFIER_KEY, AttributeValue.builder().s(AGGREGATE_IDENTIFIER).build()
                 );
 
                 final GetItemRequest getAggregateRequest = GetItemRequest.builder()
-                        .tableName(REVIEW_TABLE_NAME)
-                        .key(aggregateKey)
+                        .tableName(RANKINGS_TABLE_NAME)
+                        .key(rankingsTablePrimaryKey)
                         .build();
 
                 final GetItemResponse aggregateResponse = dynamoDb.getItem(getAggregateRequest);
@@ -247,7 +253,7 @@ public class ReviewDALImpl implements ReviewDAL {
 
                 // Build the review Put
                 final Put reviewPut = Put.builder()
-                        .tableName(REVIEW_TABLE_NAME)
+                        .tableName(RANKINGS_TABLE_NAME)
                         .item(reviewItem)
                         .build();
 
@@ -257,7 +263,7 @@ public class ReviewDALImpl implements ReviewDAL {
                     // First review for this restaurant
                     AggregateRanking aggregateRanking = AggregateRanking.forFirstReview(restaurantId, newScore);
                     aggregatePut = Put.builder()
-                            .tableName(REVIEW_TABLE_NAME)
+                            .tableName(RANKINGS_TABLE_NAME)
                             .item(aggregateRanking.toMap())
                             .conditionExpression("attribute_not_exists(#pk)")
                             .expressionAttributeNames(Map.of("#pk", RESTAURANT_ID_KEY))
@@ -268,7 +274,7 @@ public class ReviewDALImpl implements ReviewDAL {
                     AggregateRanking existingAggregateRanking = AggregateRanking.fromMap(existingAggregate);
                     AggregateRanking newAggregateRanking = existingAggregateRanking.withNewReview(newScore);
                     aggregatePut = Put.builder()
-                            .tableName(REVIEW_TABLE_NAME)
+                            .tableName(RANKINGS_TABLE_NAME)
                             .item(newAggregateRanking.toMap())
                             .conditionExpression("#reviewCount = :expectedCount")
                             .expressionAttributeNames(Map.of("#reviewCount", REVIEW_COUNT_KEY))
@@ -292,9 +298,9 @@ public class ReviewDALImpl implements ReviewDAL {
 
                 dynamoDb.transactWriteItems(transactRequest);
                 log.info("Successfully added review and updated aggregate for restaurantId: {}", restaurantId);
-                return; // Success!
+                return;
 
-            } catch (software.amazon.awssdk.services.dynamodb.model.TransactionCanceledException e) {
+            } catch (TransactionCanceledException e) {
                 // Check if it was due to the aggregate condition failing (optimistic lock conflict)
                 log.warn("Transaction conflict for restaurantId: {} on attempt {}/{}, retrying...",
                         restaurantId, attempt + 1, MAX_AGGREGATE_UPDATE_RETRIES);
@@ -326,7 +332,7 @@ public class ReviewDALImpl implements ReviewDAL {
         String identifier = "REVIEW:" + keyParts[1];
 
         DeleteItemRequest deleteRequest = DeleteItemRequest.builder()
-                .tableName(REVIEW_TABLE_NAME)
+                .tableName(RANKINGS_TABLE_NAME)
                 .key(Map.of(
                         "restaurantId", AttributeValue.builder().s(restaurantId).build(),
                         "identifier", AttributeValue.builder().s(identifier).build()

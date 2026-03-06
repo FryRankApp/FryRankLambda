@@ -40,8 +40,8 @@ public class Constants {
     public static final String IS_REVIEW_VALUE = "true";
 
     // DynamoDB table names
-    public static final String REVIEW_TABLE_NAME = "reviews";
-    public static final String USER_METADATA_TABLE_NAME = "publicUserMetadata";
+    public static final String RANKINGS_TABLE_NAME = "fryrank-app-rankings";
+    public static final String USER_METADATA_TABLE_NAME = "fryrank-app-user-metadata";
 
     // DynamoDB GSI names
     public static final String RESTAURANT_ID_TIME_INDEX = "restaurantId-time-index";
