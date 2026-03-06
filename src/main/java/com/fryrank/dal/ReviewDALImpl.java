@@ -56,32 +56,46 @@ public class ReviewDALImpl implements ReviewDAL {
         this.mongoTemplate = MongoDBUtils.createMongoTemplate();
     }
 
-    @Override
-    public GetAllReviewsOutput getAllReviewsByRestaurantId(@NonNull final String restaurantId) {
-        log.info("Getting all reviews for restaurantId: {}", restaurantId);
+	@Override
+	public GetAllReviewsOutput getAllReviewsByRestaurantId(@NonNull final String restaurantId, final Integer limit, final String cursorIsoDateTime) {
+		log.info("Getting reviews for restaurantId: {} with limit: {} and cursor: {}", restaurantId, limit, cursorIsoDateTime);
+		Criteria criteria = Criteria.where(RESTAURANT_ID_KEY).is(restaurantId);
+		if (cursorIsoDateTime != null) {
+			criteria = criteria.and(ISO_DATE_TIME).lt(cursorIsoDateTime);
+		}
+		return getReviewsWithPagination(criteria, limit);
+	}
 
-        List<AggregationOperation> aggregationOperations = new ArrayList<>(AGGREGATION_OPERATIONS_FOR_PUBLIC_USER_METADATA_COLLECTION_JOIN);
-        final Criteria equalToRestaurantIdCriteria = Criteria.where(RESTAURANT_ID_KEY).is(restaurantId);
-        aggregationOperations.add(match(equalToRestaurantIdCriteria));
+	@Override
+	public GetAllReviewsOutput getAllReviewsByAccountId(@NonNull final String accountId, final Integer limit, final String cursorIsoDateTime) {
+		log.info("Getting reviews for accountId: {} with limit: {} and cursor: {}", accountId, limit, cursorIsoDateTime);
+		Criteria criteria = Criteria.where(ACCOUNT_ID_KEY).is(accountId);
+		if (cursorIsoDateTime != null) {
+			criteria = criteria.and(ISO_DATE_TIME).lt(cursorIsoDateTime);
+		}
+		return getReviewsWithPagination(criteria, limit);
+	}
 
-        final Aggregation aggregation = newAggregation(aggregationOperations);
-        final AggregationResults<Review> result = mongoTemplate.aggregate(aggregation, REVIEW_COLLECTION_NAME, Review.class);
+	private GetAllReviewsOutput getReviewsWithPagination(final Criteria criteria, final Integer limit) {
+		List<AggregationOperation> aggregationOperations = new ArrayList<>(AGGREGATION_OPERATIONS_FOR_PUBLIC_USER_METADATA_COLLECTION_JOIN);
+		aggregationOperations.add(match(criteria));
 
-        return new GetAllReviewsOutput(result.getMappedResults());
-    }
+		if (limit != null) {
+			aggregationOperations.add(sort(Sort.by(Sort.Direction.DESC, ISO_DATE_TIME)));
+			aggregationOperations.add(limit(limit));
+		}
 
-    @Override
-    public GetAllReviewsOutput getAllReviewsByAccountId(@NonNull final String accountId) {
-        log.info("Getting all reviews for accountId: {}", accountId);
-        List<AggregationOperation> aggregationOperations = new ArrayList<>(AGGREGATION_OPERATIONS_FOR_PUBLIC_USER_METADATA_COLLECTION_JOIN);
-        final Criteria equalToAccountIdCriteria = Criteria.where(ACCOUNT_ID_KEY).is(accountId);
-        aggregationOperations.add(match(equalToAccountIdCriteria));
+		final Aggregation aggregation = newAggregation(aggregationOperations);
+		final AggregationResults<Review> result = mongoTemplate.aggregate(aggregation, REVIEW_COLLECTION_NAME, Review.class);
 
-        final Aggregation aggregation = newAggregation(aggregationOperations);
-        final AggregationResults<Review> result = mongoTemplate.aggregate(aggregation, REVIEW_COLLECTION_NAME, Review.class);
+		final List<Review> reviews = result.getMappedResults();
+		String nextCursor = null;
+		if (limit != null && reviews.size() == limit) {
+			nextCursor = reviews.get(reviews.size() - 1).getIsoDateTime();
+		}
 
-        return new GetAllReviewsOutput(result.getMappedResults());
-    }
+		return new GetAllReviewsOutput(reviews, nextCursor);
+	}
 
     @Override
     public GetAllReviewsOutput getRecentReviews(@NonNull final Integer count){

@@ -126,6 +126,7 @@ class APIGatewayRequestValidatorTest {
         Map<String, String> queryParams = new HashMap<>();
         queryParams.put(QueryParam.RESTAURANT_ID.getValue(), "123");
         queryParams.put(QueryParam.ACCOUNT_ID.getValue(), "456");
+		queryParams.put(QueryParam.LIMIT.getValue(), "10");
         event.setQueryStringParameters(queryParams);
 
         // Act & Assert
@@ -139,6 +140,7 @@ class APIGatewayRequestValidatorTest {
         // Arrange
         Map<String, String> queryParams = new HashMap<>();
         queryParams.put(QueryParam.RESTAURANT_ID.getValue(), "123");
+		queryParams.put(QueryParam.LIMIT.getValue(), "10");
         event.setQueryStringParameters(queryParams);
 
         // Act & Assert
@@ -152,6 +154,7 @@ class APIGatewayRequestValidatorTest {
         // Arrange
         Map<String, String> queryParams = new HashMap<>();
         queryParams.put(QueryParam.ACCOUNT_ID.getValue(), "456");
+		queryParams.put(QueryParam.LIMIT.getValue(), "10");
         event.setQueryStringParameters(queryParams);
 
         // Act & Assert

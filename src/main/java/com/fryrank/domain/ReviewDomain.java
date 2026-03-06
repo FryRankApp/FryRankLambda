@@ -27,20 +27,22 @@ public class ReviewDomain {
 
     ReviewDAL reviewDAL;
 
-    public GetAllReviewsOutput getAllReviews(final String restaurantId, final String accountId) {
+	public GetAllReviewsOutput getAllReviews(final String restaurantId, final String accountId, final Integer limit, final String cursorIsoDateTime) {
 
-        log.info("Getting all reviews{}{}",
-                restaurantId != null ? " for restaurantId: " + restaurantId : "",
-                accountId != null ? " for accountId: " + accountId : "");
+		log.info("Getting paginated reviews{}{} with limit: {} and cursor: {}",
+				restaurantId != null ? " for restaurantId: " + restaurantId : "",
+				accountId != null ? " for accountId: " + accountId : "",
+				limit,
+				cursorIsoDateTime);
 
-        if (restaurantId != null) {
-            return reviewDAL.getAllReviewsByRestaurantId(restaurantId);
-        } else if (accountId != null) {
-            return reviewDAL.getAllReviewsByAccountId(accountId);
-        } else {
-            throw new NullPointerException("At least one of restaurantId and accountId must not be null.");
-        }
-    }
+		if (restaurantId != null) {
+			return reviewDAL.getAllReviewsByRestaurantId(restaurantId, limit, cursorIsoDateTime);
+		} else if (accountId != null) {
+			return reviewDAL.getAllReviewsByAccountId(accountId, limit, cursorIsoDateTime);
+		} else {
+			throw new NullPointerException("At least one of restaurantId and accountId must not be null.");
+		}
+	}
 
     public GetAllReviewsOutput getRecentReviews(final Integer count) {
         return reviewDAL.getRecentReviews(count);
