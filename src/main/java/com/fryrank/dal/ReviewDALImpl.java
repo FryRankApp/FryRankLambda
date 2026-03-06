@@ -208,19 +208,10 @@ public class ReviewDALImpl implements ReviewDAL {
             reviewItem.put(ACCOUNT_ID_KEY, AttributeValue.builder().s(review.getAccountId()).build());
         }
 
-        PutItemRequest putReviewRequest = PutItemRequest.builder()
-                .tableName(REVIEW_TABLE_NAME)
-                .item(reviewItem)
-                .build();
-        dynamoDb.putItem(putReviewRequest);
-        log.info("Created review for restaurantId: {}, accountId: {}", restaurantId, review.getAccountId());
-
-        // Update aggregate with optimistic locking
-        updateAggregateWithOptimisticLocking(restaurantId, review.getScore());
+        // Use transactional write with optimistic locking retries
+        addReviewWithTransactionalAggregate(restaurantId, reviewItem, review.getScore());
 
         // Return the review with the generated reviewId
-        // TODO(FRY-114): Once we standardize the Review model, we will no longer need to generate a reviewId which
-        // does not exist in dyanmoDB
         final String reviewId = review.getRestaurantId() + ":" + identifier;
         return Review.builder()
                 .reviewId(reviewId)
@@ -234,19 +225,18 @@ public class ReviewDALImpl implements ReviewDAL {
     }
 
     /**
-     * Atomically updates aggregate ranking using optimistic locking.
-     * Uses reviewCount as the version field to detect concurrent modifications.
-     * Retries on conflict with exponential backoff.
+     * Atomically writes a review and updates the aggregate using DynamoDB transactions.
+     * Uses optimistic locking on the aggregate with retries for concurrent modifications.
      */
-    private void updateAggregateWithOptimisticLocking(String restaurantId, Double newScore) {
-        final Map<String, AttributeValue> aggregateKey = Map.of(
-                RESTAURANT_ID_KEY, AttributeValue.builder().s(restaurantId).build(),
-                IDENTIFIER_KEY, AttributeValue.builder().s(AGGREGATE_IDENTIFIER).build()
-        );
-
+    private void addReviewWithTransactionalAggregate(String restaurantId, Map<String, AttributeValue> reviewItem, Double newScore) {
         for (int attempt = 0; attempt < MAX_AGGREGATE_UPDATE_RETRIES; attempt++) {
             try {
-                //Read current aggregate
+                // Read current aggregate
+                final Map<String, AttributeValue> aggregateKey = Map.of(
+                        RESTAURANT_ID_KEY, AttributeValue.builder().s(restaurantId).build(),
+                        IDENTIFIER_KEY, AttributeValue.builder().s(AGGREGATE_IDENTIFIER).build()
+                );
+
                 final GetItemRequest getAggregateRequest = GetItemRequest.builder()
                         .tableName(REVIEW_TABLE_NAME)
                         .key(aggregateKey)
@@ -255,48 +245,63 @@ public class ReviewDALImpl implements ReviewDAL {
                 final GetItemResponse aggregateResponse = dynamoDb.getItem(getAggregateRequest);
                 final Map<String, AttributeValue> existingAggregate = aggregateResponse.item();
 
-                final AggregateRanking aggregateRanking;
-                final PutItemRequest.Builder putBuilder = PutItemRequest.builder()
-                        .tableName(REVIEW_TABLE_NAME);
+                // Build the review Put
+                final Put reviewPut = Put.builder()
+                        .tableName(REVIEW_TABLE_NAME)
+                        .item(reviewItem)
+                        .build();
 
+                // Build the aggregate Put with condition
+                final Put aggregatePut;
                 if (existingAggregate == null || existingAggregate.isEmpty()) {
                     // First review for this restaurant
-                    aggregateRanking = AggregateRanking.forFirstReview(restaurantId, newScore);
-                    putBuilder
+                    AggregateRanking aggregateRanking = AggregateRanking.forFirstReview(restaurantId, newScore);
+                    aggregatePut = Put.builder()
+                            .tableName(REVIEW_TABLE_NAME)
                             .item(aggregateRanking.toMap())
                             .conditionExpression("attribute_not_exists(#pk)")
-                            .expressionAttributeNames(Map.of("#pk", RESTAURANT_ID_KEY));
+                            .expressionAttributeNames(Map.of("#pk", RESTAURANT_ID_KEY))
+                            .build();
                     log.info("Creating new aggregate for restaurantId: {}", restaurantId);
                 } else {
                     // Update existing aggregate
                     AggregateRanking existingAggregateRanking = AggregateRanking.fromMap(existingAggregate);
-                    aggregateRanking = existingAggregateRanking.withNewReview(newScore);
-                    putBuilder
-                            .item(aggregateRanking.toMap())
+                    AggregateRanking newAggregateRanking = existingAggregateRanking.withNewReview(newScore);
+                    aggregatePut = Put.builder()
+                            .tableName(REVIEW_TABLE_NAME)
+                            .item(newAggregateRanking.toMap())
                             .conditionExpression("#reviewCount = :expectedCount")
                             .expressionAttributeNames(Map.of("#reviewCount", REVIEW_COUNT_KEY))
                             .expressionAttributeValues(Map.of(
                                     ":expectedCount", AttributeValue.builder()
                                             .n(String.valueOf(existingAggregateRanking.getReviewCount()))
                                             .build()
-                            ));
+                            ))
+                            .build();
                     log.info("Updating aggregate for restaurantId: {} (reviewCount: {} -> {})",
-                            restaurantId, existingAggregateRanking.getReviewCount(), aggregateRanking.getReviewCount());
+                            restaurantId, existingAggregateRanking.getReviewCount(), newAggregateRanking.getReviewCount());
                 }
 
-                // Perform conditional write to check if data has changed since read
-                dynamoDb.putItem(putBuilder.build());
-                log.info("Successfully updated aggregate for restaurantId: {}", restaurantId);
+                // Execute transaction - both writes succeed or both fail
+                TransactWriteItemsRequest transactRequest = TransactWriteItemsRequest.builder()
+                        .transactItems(
+                                TransactWriteItem.builder().put(reviewPut).build(),
+                                TransactWriteItem.builder().put(aggregatePut).build()
+                        )
+                        .build();
+
+                dynamoDb.transactWriteItems(transactRequest);
+                log.info("Successfully added review and updated aggregate for restaurantId: {}", restaurantId);
                 return; // Success!
 
-            } catch (ConditionalCheckFailedException e) {
-                // This conflict is because another concurrent write happened
-                log.warn("Optimistic lock conflict for restaurantId: {} on attempt {}/{}, retrying...",
+            } catch (software.amazon.awssdk.services.dynamodb.model.TransactionCanceledException e) {
+                // Check if it was due to the aggregate condition failing (optimistic lock conflict)
+                log.warn("Transaction conflict for restaurantId: {} on attempt {}/{}, retrying...",
                         restaurantId, attempt + 1, MAX_AGGREGATE_UPDATE_RETRIES);
 
                 if (attempt == MAX_AGGREGATE_UPDATE_RETRIES - 1) {
                     throw new RuntimeException(
-                            "Failed to update aggregate for restaurantId: " + restaurantId +
+                            "Failed to add review for restaurantId: " + restaurantId +
                                     " after " + MAX_AGGREGATE_UPDATE_RETRIES + " attempts due to concurrent modifications", e);
                 }
 

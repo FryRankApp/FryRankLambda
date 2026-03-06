@@ -13,7 +13,9 @@ import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.BatchGetItemRequest;
 import software.amazon.awssdk.services.dynamodb.model.BatchGetItemResponse;
+import software.amazon.awssdk.services.dynamodb.model.CancellationReason;
 import software.amazon.awssdk.services.dynamodb.model.ConditionalCheckFailedException;
+import software.amazon.awssdk.services.dynamodb.model.DeleteItemRequest;
 import software.amazon.awssdk.services.dynamodb.model.GetItemRequest;
 import software.amazon.awssdk.services.dynamodb.model.GetItemResponse;
 import software.amazon.awssdk.services.dynamodb.model.KeysAndAttributes;
@@ -21,6 +23,9 @@ import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
 import software.amazon.awssdk.services.dynamodb.model.PutItemResponse;
 import software.amazon.awssdk.services.dynamodb.model.QueryRequest;
 import software.amazon.awssdk.services.dynamodb.model.QueryResponse;
+import software.amazon.awssdk.services.dynamodb.model.TransactionCanceledException;
+import software.amazon.awssdk.services.dynamodb.model.TransactWriteItemsRequest;
+import software.amazon.awssdk.services.dynamodb.model.TransactWriteItemsResponse;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -139,9 +144,9 @@ public class ReviewDALTests {
                 .build();
         when(dynamoDb.getItem(any(GetItemRequest.class))).thenReturn(emptyAggregateResponse);
 
-        // Mock putItem for both review and aggregate
-        when(dynamoDb.putItem(any(PutItemRequest.class)))
-                .thenReturn(PutItemResponse.builder().build());
+        // Mock transactWriteItems
+        when(dynamoDb.transactWriteItems(any(TransactWriteItemsRequest.class)))
+                .thenReturn(TransactWriteItemsResponse.builder().build());
 
         final Review actualReview = reviewDAL.addNewReview(TEST_REVIEW_1);
 
@@ -152,28 +157,28 @@ public class ReviewDALTests {
         assertEquals(TEST_REVIEW_1.getTitle(), actualReview.getTitle());
         assertEquals(TEST_REVIEW_1.getBody(), actualReview.getBody());
 
-        // Capture and verify the putItem requests (should be called twice: review + aggregate)
-        ArgumentCaptor<PutItemRequest> putCaptor = ArgumentCaptor.forClass(PutItemRequest.class);
-        verify(dynamoDb, times(2)).putItem(putCaptor.capture());
+        // Capture and verify the transactWriteItems request
+        ArgumentCaptor<TransactWriteItemsRequest> transactCaptor = ArgumentCaptor.forClass(TransactWriteItemsRequest.class);
+        verify(dynamoDb, times(1)).transactWriteItems(transactCaptor.capture());
 
-        List<PutItemRequest> capturedRequests = putCaptor.getAllValues();
-        assertEquals(2, capturedRequests.size());
+        TransactWriteItemsRequest capturedRequest = transactCaptor.getValue();
+        assertEquals(2, capturedRequest.transactItems().size());
 
-        // First put should be the review
-        Map<String, AttributeValue> reviewItem = capturedRequests.get(0).item();
+        // First item should be the review
+        Map<String, AttributeValue> reviewItem = capturedRequest.transactItems().get(0).put().item();
         assertTrue(reviewItem.get("identifier").s().startsWith("REVIEW:"));
         assertEquals(TEST_REVIEW_1.getScore().toString(), reviewItem.get("score").n());
 
-        // Second put should be the aggregate with condition expression for new aggregate
-        PutItemRequest aggregateRequest = capturedRequests.get(1);
-        Map<String, AttributeValue> aggregateItem = aggregateRequest.item();
+        // Second item should be the aggregate with condition expression for new aggregate
+        var aggregatePut = capturedRequest.transactItems().get(1).put();
+        Map<String, AttributeValue> aggregateItem = aggregatePut.item();
         assertEquals("AGGREGATE", aggregateItem.get("identifier").s());
         assertEquals("1", aggregateItem.get("reviewCount").n());
         assertEquals(TEST_REVIEW_1.getScore().toString(), aggregateItem.get("totalScore").n());
         assertEquals(TEST_REVIEW_1.getScore().toString(), aggregateItem.get("averageScore").n());
 
         // Verify condition expression for new aggregate
-        assertEquals("attribute_not_exists(#pk)", aggregateRequest.conditionExpression());
+        assertEquals("attribute_not_exists(#pk)", aggregatePut.conditionExpression());
     }
 
     @Test
@@ -185,6 +190,7 @@ public class ReviewDALTests {
         Map<String, AttributeValue> existingAggregate = new HashMap<>();
         existingAggregate.put("restaurantId", AttributeValue.builder().s(TEST_REVIEW_1.getRestaurantId()).build());
         existingAggregate.put("identifier", AttributeValue.builder().s("AGGREGATE").build());
+        existingAggregate.put("isoDateTime", AttributeValue.builder().s("AGGREGATE").build());
         existingAggregate.put("totalScore", AttributeValue.builder().n(String.valueOf(existingTotalScore)).build());
         existingAggregate.put("reviewCount", AttributeValue.builder().n(String.valueOf(existingReviewCount)).build());
         existingAggregate.put("averageScore", AttributeValue.builder().n("10.0").build());
@@ -194,9 +200,9 @@ public class ReviewDALTests {
                 .build();
         when(dynamoDb.getItem(any(GetItemRequest.class))).thenReturn(aggregateResponse);
 
-        // Mock putItem
-        when(dynamoDb.putItem(any(PutItemRequest.class)))
-                .thenReturn(PutItemResponse.builder().build());
+        // Mock transactWriteItems
+        when(dynamoDb.transactWriteItems(any(TransactWriteItemsRequest.class)))
+                .thenReturn(TransactWriteItemsResponse.builder().build());
 
         final Review actualReview = reviewDAL.addNewReview(TEST_REVIEW_1);
 
@@ -204,19 +210,13 @@ public class ReviewDALTests {
         assertNotNull(actualReview);
         assertEquals(TEST_REVIEW_1.getRestaurantId(), actualReview.getRestaurantId());
 
-        // Capture and verify the putItem requests
-        ArgumentCaptor<PutItemRequest> putCaptor = ArgumentCaptor.forClass(PutItemRequest.class);
-        verify(dynamoDb, times(2)).putItem(putCaptor.capture());
+        // Capture and verify the transactWriteItems request
+        ArgumentCaptor<TransactWriteItemsRequest> transactCaptor = ArgumentCaptor.forClass(TransactWriteItemsRequest.class);
+        verify(dynamoDb, times(1)).transactWriteItems(transactCaptor.capture());
 
-        List<PutItemRequest> capturedRequests = putCaptor.getAllValues();
-
-        // Find the aggregate request (has condition expression with reviewCount)
-        PutItemRequest aggregateRequest = capturedRequests.stream()
-                .filter(req -> req.conditionExpression() != null && req.conditionExpression().contains("reviewCount"))
-                .findFirst()
-                .orElseThrow(() -> new AssertionError("Aggregate request with condition not found"));
-
-        Map<String, AttributeValue> aggregateItem = aggregateRequest.item();
+        TransactWriteItemsRequest capturedRequest = transactCaptor.getValue();
+        var aggregatePut = capturedRequest.transactItems().get(1).put();
+        Map<String, AttributeValue> aggregateItem = aggregatePut.item();
 
         // Verify updated aggregate values
         double expectedNewTotalScore = existingTotalScore + TEST_REVIEW_1.getScore();
@@ -228,9 +228,9 @@ public class ReviewDALTests {
         assertEquals(String.valueOf(expectedNewAverageScore), aggregateItem.get("averageScore").n());
 
         // Verify condition expression checks expected count
-        assertEquals("#reviewCount = :expectedCount", aggregateRequest.conditionExpression());
+        assertEquals("#reviewCount = :expectedCount", aggregatePut.conditionExpression());
         assertEquals(String.valueOf(existingReviewCount),
-                aggregateRequest.expressionAttributeValues().get(":expectedCount").n());
+                aggregatePut.expressionAttributeValues().get(":expectedCount").n());
     }
 
     @Test
@@ -239,7 +239,7 @@ public class ReviewDALTests {
     }
 
     @Test
-    public void testAddNewReview_optimisticLockConflict_retriesSuccessfully() throws Exception {
+    public void testAddNewReview_transactionConflict_retriesSuccessfully() throws Exception {
         // Existing aggregate
         Map<String, AttributeValue> existingAggregate = new HashMap<>();
         existingAggregate.put("restaurantId", AttributeValue.builder().s(TEST_REVIEW_1.getRestaurantId()).build());
@@ -266,13 +266,16 @@ public class ReviewDALTests {
                 .thenReturn(firstResponse)
                 .thenReturn(secondResponse);
 
-        // First putItem for review succeeds
-        // Second putItem (aggregate) fails with conflict, third putItem succeeds
-        when(dynamoDb.putItem(any(PutItemRequest.class)))
-                .thenReturn(PutItemResponse.builder().build())  // Review succeeds
-                .thenThrow(ConditionalCheckFailedException.builder()
-                        .message("Condition check failed").build())  // First aggregate attempt fails
-                .thenReturn(PutItemResponse.builder().build());  // Retry succeeds
+        // First transaction fails with conflict, second succeeds
+        when(dynamoDb.transactWriteItems(any(TransactWriteItemsRequest.class)))
+                .thenThrow(TransactionCanceledException.builder()
+                        .message("Transaction cancelled")
+                        .cancellationReasons(
+                                CancellationReason.builder().code("None").build(),
+                                CancellationReason.builder().code("ConditionalCheckFailed").build()
+                        )
+                        .build())
+                .thenReturn(TransactWriteItemsResponse.builder().build());
 
         final Review actualReview = reviewDAL.addNewReview(TEST_REVIEW_1);
 
@@ -282,12 +285,12 @@ public class ReviewDALTests {
         // Verify getItem was called twice (initial + retry)
         verify(dynamoDb, times(2)).getItem(any(GetItemRequest.class));
 
-        // Verify putItem was called 3 times (review + failed aggregate + successful aggregate)
-        verify(dynamoDb, times(3)).putItem(any(PutItemRequest.class));
+        // Verify transactWriteItems was called twice (failed + successful)
+        verify(dynamoDb, times(2)).transactWriteItems(any(TransactWriteItemsRequest.class));
     }
 
     @Test
-    public void testAddNewReview_optimisticLockConflict_exhaustsRetries() throws Exception {
+    public void testAddNewReview_transactionConflict_exhaustsRetries() throws Exception {
         // Existing aggregate
         Map<String, AttributeValue> existingAggregate = new HashMap<>();
         existingAggregate.put("restaurantId", AttributeValue.builder().s(TEST_REVIEW_1.getRestaurantId()).build());
@@ -300,21 +303,24 @@ public class ReviewDALTests {
         GetItemResponse aggregateResponse = GetItemResponse.builder().item(existingAggregate).build();
         when(dynamoDb.getItem(any(GetItemRequest.class))).thenReturn(aggregateResponse);
 
-        // First putItem for review succeeds, all aggregate attempts fail
-        when(dynamoDb.putItem(any(PutItemRequest.class)))
-                .thenReturn(PutItemResponse.builder().build())  // Review succeeds
-                .thenThrow(ConditionalCheckFailedException.builder()
-                        .message("Condition check failed").build());  // All aggregate attempts fail
+        // All transaction attempts fail
+        when(dynamoDb.transactWriteItems(any(TransactWriteItemsRequest.class)))
+                .thenThrow(TransactionCanceledException.builder()
+                        .message("Transaction cancelled")
+                        .cancellationReasons(
+                                CancellationReason.builder().code("None").build(),
+                                CancellationReason.builder().code("ConditionalCheckFailed").build()
+                        )
+                        .build());
 
         RuntimeException exception = assertThrows(RuntimeException.class,
                 () -> reviewDAL.addNewReview(TEST_REVIEW_1));
 
-        assertTrue(exception.getMessage().contains("Failed to update aggregate"));
+        assertTrue(exception.getMessage().contains("Failed to add review"));
         assertTrue(exception.getMessage().contains("concurrent modifications"));
 
         // Verify retries happened (MAX_AGGREGATE_UPDATE_RETRIES = 3)
-        // 1 for review + 3 for aggregate retries = 4 total putItem calls
-        verify(dynamoDb, times(4)).putItem(any(PutItemRequest.class));
+        verify(dynamoDb, times(3)).transactWriteItems(any(TransactWriteItemsRequest.class));
         verify(dynamoDb, times(3)).getItem(any(GetItemRequest.class));
     }
 
@@ -337,32 +343,91 @@ public class ReviewDALTests {
                 .thenReturn(emptyResponse)
                 .thenReturn(existingResponse);
 
-        when(dynamoDb.putItem(any(PutItemRequest.class)))
-                .thenReturn(PutItemResponse.builder().build())  // Review succeeds
-                .thenThrow(ConditionalCheckFailedException.builder()
-                        .message("Condition check failed").build())  // New aggregate fails (already exists)
-                .thenReturn(PutItemResponse.builder().build());  // Update existing succeeds
+        when(dynamoDb.transactWriteItems(any(TransactWriteItemsRequest.class)))
+                .thenThrow(TransactionCanceledException.builder()
+                        .message("Transaction cancelled")
+                        .cancellationReasons(
+                                CancellationReason.builder().code("None").build(),
+                                CancellationReason.builder().code("ConditionalCheckFailed").build()
+                        )
+                        .build())
+                .thenReturn(TransactWriteItemsResponse.builder().build());
 
         final Review actualReview = reviewDAL.addNewReview(TEST_REVIEW_1);
 
         assertNotNull(actualReview);
 
-        // Capture aggregate putItem requests to verify transition from "new" to "update" mode
-        ArgumentCaptor<PutItemRequest> putCaptor = ArgumentCaptor.forClass(PutItemRequest.class);
-        verify(dynamoDb, times(3)).putItem(putCaptor.capture());
+        // Capture transaction requests to verify transition from "new" to "update" mode
+        ArgumentCaptor<TransactWriteItemsRequest> transactCaptor = ArgumentCaptor.forClass(TransactWriteItemsRequest.class);
+        verify(dynamoDb, times(2)).transactWriteItems(transactCaptor.capture());
 
-        List<PutItemRequest> aggregateRequests = putCaptor.getAllValues().stream()
-                .filter(req -> req.conditionExpression() != null)
-                .toList();
+        List<TransactWriteItemsRequest> capturedRequests = transactCaptor.getAllValues();
 
-        // First aggregate attempt should use attribute_not_exists (new aggregate)
-        assertEquals("attribute_not_exists(#pk)", aggregateRequests.get(0).conditionExpression());
+        // First attempt should use attribute_not_exists (new aggregate)
+        var firstAggregatePut = capturedRequests.get(0).transactItems().get(1).put();
+        assertEquals("attribute_not_exists(#pk)", firstAggregatePut.conditionExpression());
 
-        // Second aggregate attempt should use reviewCount check (update existing)
-        assertEquals("#reviewCount = :expectedCount", aggregateRequests.get(1).conditionExpression());
+        // Second attempt should use reviewCount check (update existing)
+        var secondAggregatePut = capturedRequests.get(1).transactItems().get(1).put();
+        assertEquals("#reviewCount = :expectedCount", secondAggregatePut.conditionExpression());
 
         // Final aggregate should have reviewCount=2 (existing 1 + new review)
-        assertEquals("2", aggregateRequests.get(1).item().get("reviewCount").n());
+        assertEquals("2", secondAggregatePut.item().get("reviewCount").n());
+    }
+
+    @Test
+    public void testAddNewReview_transactionAtomicity_bothItemsInSameTransaction() throws Exception {
+        // Mock getItem to return empty (no existing aggregate)
+        GetItemResponse emptyAggregateResponse = GetItemResponse.builder()
+                .item(Map.of())
+                .build();
+        when(dynamoDb.getItem(any(GetItemRequest.class))).thenReturn(emptyAggregateResponse);
+
+        // Mock transactWriteItems
+        when(dynamoDb.transactWriteItems(any(TransactWriteItemsRequest.class)))
+                .thenReturn(TransactWriteItemsResponse.builder().build());
+
+        reviewDAL.addNewReview(TEST_REVIEW_1);
+
+        // Verify that both review and aggregate are in the same transaction
+        ArgumentCaptor<TransactWriteItemsRequest> transactCaptor = ArgumentCaptor.forClass(TransactWriteItemsRequest.class);
+        verify(dynamoDb, times(1)).transactWriteItems(transactCaptor.capture());
+
+        TransactWriteItemsRequest capturedRequest = transactCaptor.getValue();
+
+        // Should have exactly 2 items in the transaction
+        assertEquals(2, capturedRequest.transactItems().size());
+
+        // Both should be Put operations
+        assertNotNull(capturedRequest.transactItems().get(0).put());
+        assertNotNull(capturedRequest.transactItems().get(1).put());
+
+        // Verify no separate putItem calls were made (everything is in the transaction)
+        verify(dynamoDb, times(0)).putItem(any(PutItemRequest.class));
+    }
+
+    @Test
+    public void testAddNewReview_transactionFailure_noReviewWritten() throws Exception {
+        // Mock getItem to return empty (no existing aggregate)
+        GetItemResponse emptyAggregateResponse = GetItemResponse.builder()
+                .item(Map.of())
+                .build();
+        when(dynamoDb.getItem(any(GetItemRequest.class))).thenReturn(emptyAggregateResponse);
+
+        // All transaction attempts fail with a non-conditional error
+        when(dynamoDb.transactWriteItems(any(TransactWriteItemsRequest.class)))
+                .thenThrow(TransactionCanceledException.builder()
+                        .message("Transaction cancelled")
+                        .build());
+
+        // Verify exception is thrown
+        assertThrows(RuntimeException.class, () -> reviewDAL.addNewReview(TEST_REVIEW_1));
+
+        // Verify no separate putItem was called - the review is never written outside the transaction
+        verify(dynamoDb, times(0)).putItem(any(PutItemRequest.class));
+
+        // Verify no deleteItem was called - no rollback needed since transaction is atomic
+        verify(dynamoDb, times(0)).deleteItem(any(DeleteItemRequest.class));
     }
 
     // ==================== Batch Fetch User Metadata Tests ====================
