@@ -1,6 +1,7 @@
 package com.fryrank.dal;
 
 import com.fryrank.model.*;
+import com.mongodb.client.result.UpdateResult;
 import lombok.AllArgsConstructor;
 import lombok.NonNull;
 import lombok.extern.log4j.Log4j2;
@@ -16,6 +17,7 @@ import org.springframework.data.mongodb.core.aggregation.LookupOperation;
 import org.springframework.data.mongodb.core.aggregation.MatchOperation;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
+import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.stereotype.Repository;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -138,5 +140,14 @@ public class ReviewDALImpl implements ReviewDAL {
         Review deletedReview = mongoTemplate.findAndRemove(query, Review.class);
         
         return deletedReview != null;
+    }
+
+    @Override
+    public boolean updateLikeCount(@NonNull String reviewId, int newLikeCount) {
+        Query query = Query.query(Criteria.where("_id").is(reviewId));
+        Update update = new Update().set("likeCount", Math.max(0, newLikeCount));
+
+        UpdateResult result = mongoTemplate.updateFirst(query, update, Review.class);
+        return result.getModifiedCount() > 0;
     }
 }

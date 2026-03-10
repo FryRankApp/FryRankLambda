@@ -65,4 +65,10 @@ public class ReviewDomain {
             throw new NotFoundException("Review not found in database.");
         }
     }
+
+    public void updateLikeCount(@NonNull final String reviewId, final int newLikeCount) throws NotFoundException {
+        if (!reviewDAL.updateLikeCount(reviewId, newLikeCount)) {
+            throw new NotFoundException("Review not found in database.");
+        }
+    }
 }
