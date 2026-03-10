@@ -18,6 +18,7 @@ public class Constants {
     public static final String GENERIC_VALIDATOR_ERROR_MESSAGE = "Encountered error while validating API input.";
     public static final String REVIEW_VALIDATOR_ERRORS_OBJECT_NAME = "review";
     public static final String DELETE_REVIEW_REQUEST_VALIDATOR_ERRORS_OBJECT_NAME = "DeleteReviewRequest";
+    public static final String UPDATE_LIKE_COUNT_REQUEST_VALIDATOR_ERRORS_OBJECT_NAME = "UpdateLikeCountRequest";
     public static final String USER_METADATA_VALIDATOR_ERRORS_OBJECT_NAME = "userMetadata";
     public static final String REJECTION_REQUIRED_CODE = "field.required";
     public static final String REJECTION_FORMAT_CODE = "field.invalidFormat";
@@ -54,17 +55,19 @@ public class Constants {
     public static final String FRYRANK_PROD_WWW = "https://www.fryrank.app";
     public static final String FRYRANK_PROD_ALT_URL = "https://pure-temple-61679-98a4d5c2d04e.herokuapp.com";
     public static final String FRYRANK_PROD_CLOUDFRONT = "https://d3h6a05rzfj3y8.cloudfront.net";
+    public static final String FRYRANK_CORS = "https://d34zj8wsl0pw71.cloudfront.net";
     public static final Set<String> ALLOWED_ORIGINS = Set.of(
-        LOCALHOST, 
-        FRYRANK_STAGE_OXYSERVER,
-        FRYRANK_BETA_STAGE_ALT_URL,
-        FRYRANK_BETA,
-        FRYRANK_STAGE_CLOUDFRONT,
-        FRYRANK_PROD,
-        FRYRANK_PROD_ALT_URL,
-        FRYRANK_PROD_CLOUDFRONT,
-        FRYRANK_PROD_OXYSERVER,
-        FRYRANK_PROD_WWW
+            FRYRANK_CORS,
+            LOCALHOST,
+            FRYRANK_STAGE_OXYSERVER,
+            FRYRANK_BETA_STAGE_ALT_URL,
+            FRYRANK_BETA,
+            FRYRANK_STAGE_CLOUDFRONT,
+            FRYRANK_PROD,
+            FRYRANK_PROD_ALT_URL,
+            FRYRANK_PROD_CLOUDFRONT,
+            FRYRANK_PROD_OXYSERVER,
+            FRYRANK_PROD_WWW
     );
 
     // Authorization Error Messages

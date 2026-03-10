@@ -25,6 +25,9 @@ public class Review {
     @NonNull
     private final String body;
 
+    @Builder.Default
+    private final Integer likeCount = 0;
+
     private String isoDateTime;
 
     private String accountId;

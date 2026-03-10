@@ -5,6 +5,7 @@ import com.fryrank.model.DeleteReviewRequest;
 import com.fryrank.model.GetAggregateReviewInformationOutput;
 import com.fryrank.model.GetAllReviewsOutput;
 import com.fryrank.model.Review;
+import lombok.NonNull;
 
 import java.util.List;
 
@@ -21,4 +22,6 @@ public interface ReviewDAL {
     Review addNewReview(final Review review);
 
     boolean deleteUserReview(final DeleteReviewRequest delReviewRequest);
+
+    boolean updateLikeCount(@NonNull String reviewId, int newLikeCount);
 }
