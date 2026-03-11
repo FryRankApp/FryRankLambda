@@ -477,6 +477,7 @@ public class ReviewDALImpl implements ReviewDAL {
                 // TODO(FRY-108): Once we update isoDateTime to non-optional we can add a requirement here for non null.
                 .isoDateTime(getStringAttribute(item, ISO_DATE_TIME))
                 .accountId(accountId)
+                .userMetadata(userMetadata)
                 .build();
     }
 
