@@ -12,6 +12,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import static com.fryrank.TestConstants.TEST_ACCOUNT_ID;
 import static com.fryrank.TestConstants.TEST_BODY_1;
+import static com.fryrank.TestConstants.TEST_CURSOR_1;
 import static com.fryrank.TestConstants.TEST_ISO_DATE_TIME_1;
 import static com.fryrank.TestConstants.TEST_RESTAURANT_ID;
 import static com.fryrank.TestConstants.TEST_REVIEWS;
@@ -46,24 +47,24 @@ public class ReviewDomainTests {
     @Test
     public void testGetAllReviewsForRestaurant() throws Exception {
         final GetAllReviewsOutput expectedOutput = new GetAllReviewsOutput(TEST_REVIEWS);
-        when(reviewDAL.getAllReviewsByRestaurantId(TEST_RESTAURANT_ID, TEST_LIMIT, TEST_ISO_DATE_TIME_1)).thenReturn(expectedOutput);
+        when(reviewDAL.getAllReviewsByRestaurantId(TEST_RESTAURANT_ID, TEST_LIMIT, TEST_CURSOR_1)).thenReturn(expectedOutput);
 
-        final GetAllReviewsOutput actualOutput = domain.getAllReviews(TEST_RESTAURANT_ID, null, TEST_LIMIT, TEST_ISO_DATE_TIME_1);
+        final GetAllReviewsOutput actualOutput = domain.getAllReviews(TEST_RESTAURANT_ID, null, TEST_LIMIT, TEST_CURSOR_1);
         assertEquals(expectedOutput, actualOutput);
     }
 
     @Test
     public void testGetAllReviewsForAccount() throws Exception {
         final GetAllReviewsOutput expectedOutput = new GetAllReviewsOutput(TEST_REVIEWS);
-        when(reviewDAL.getAllReviewsByAccountId(TEST_ACCOUNT_ID, TEST_LIMIT, TEST_ISO_DATE_TIME_1)).thenReturn(expectedOutput);
+        when(reviewDAL.getAllReviewsByAccountId(TEST_ACCOUNT_ID, TEST_LIMIT, TEST_CURSOR_1)).thenReturn(expectedOutput);
 
-        final GetAllReviewsOutput actualOutput = domain.getAllReviews(null, TEST_ACCOUNT_ID, TEST_LIMIT, TEST_ISO_DATE_TIME_1);
+        final GetAllReviewsOutput actualOutput = domain.getAllReviews(null, TEST_ACCOUNT_ID, TEST_LIMIT, TEST_CURSOR_1);
         assertEquals(expectedOutput, actualOutput);
     }
 
     @Test
     public void testGetAllReviewsNoParameter() throws Exception {
-        assertThrows(NullPointerException.class, () -> domain.getAllReviews(null, null, TEST_LIMIT, TEST_ISO_DATE_TIME_1));
+        assertThrows(NullPointerException.class, () -> domain.getAllReviews(null, null, TEST_LIMIT, TEST_CURSOR_1));
     }
 
     @Test

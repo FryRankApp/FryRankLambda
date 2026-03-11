@@ -5,6 +5,8 @@ import lombok.NonNull;
 import org.springframework.validation.Errors;
 import org.springframework.validation.Validator;
 
+import com.fryrank.util.CursorUtils;
+
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeParseException;
 
@@ -17,7 +19,7 @@ public class GetAllReviewsRequestValidator implements Validator {
     public static final String CURSOR = "cursor";
     public static final String LIMIT_REJECTION_REQUIRED_REASON = "The limit query parameter is required.";
     public static final String LIMIT_REJECTION_FORMAT_REASON = "Limit must be a positive integer.";
-    public static final String CURSOR_REJECTION_FORMAT_REASON = "Cursor must be a valid ISO-8601 datetime.";
+    public static final String CURSOR_REJECTION_FORMAT_REASON = "Cursor must be a valid Base64-encoded composite cursor.";
 
     @Override
     public boolean supports(@NonNull Class<?> clazz) {
@@ -51,8 +53,9 @@ public class GetAllReviewsRequestValidator implements Validator {
         String cursor = request.cursor();
         if (cursor != null && !cursor.isEmpty()) {
             try {
-                OffsetDateTime.parse(cursor);
-            } catch (DateTimeParseException e) {
+                CursorUtils.CompositeCursor decoded = CursorUtils.decode(cursor);
+                OffsetDateTime.parse(decoded.isoDateTime());
+            } catch (IllegalArgumentException | DateTimeParseException e) {
                 errors.rejectValue(CURSOR, REJECTION_FORMAT_CODE, CURSOR_REJECTION_FORMAT_REASON);
             }
         }

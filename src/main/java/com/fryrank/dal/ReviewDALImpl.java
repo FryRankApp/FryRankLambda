@@ -25,6 +25,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.fryrank.util.CursorUtils;
+import com.fryrank.util.CursorUtils.CompositeCursor;
+
 import static com.fryrank.Constants.ACCOUNT_ID_KEY;
 import static com.fryrank.Constants.PRIMARY_KEY;
 import static com.fryrank.Constants.REVIEW_COLLECTION_NAME;
@@ -57,23 +60,31 @@ public class ReviewDALImpl implements ReviewDAL {
     }
 
 	@Override
-	public GetAllReviewsOutput getAllReviewsByRestaurantId(@NonNull final String restaurantId, final Integer limit, final String cursorIsoDateTime) {
-		log.info("Getting reviews for restaurantId: {} with limit: {} and cursor: {}", restaurantId, limit, cursorIsoDateTime);
+	public GetAllReviewsOutput getAllReviewsByRestaurantId(@NonNull final String restaurantId, final Integer limit, final String cursor) {
+		log.info("Getting reviews for restaurantId: {} with limit: {} and cursor: {}", restaurantId, limit, cursor);
 		Criteria criteria = Criteria.where(RESTAURANT_ID_KEY).is(restaurantId);
-		if (cursorIsoDateTime != null) {
-			criteria = criteria.and(ISO_DATE_TIME).lt(cursorIsoDateTime);
+		if (cursor != null) {
+			criteria = criteria.andOperator(buildCursorCriteria(cursor));
 		}
 		return getReviewsWithPagination(criteria, limit);
 	}
 
 	@Override
-	public GetAllReviewsOutput getAllReviewsByAccountId(@NonNull final String accountId, final Integer limit, final String cursorIsoDateTime) {
-		log.info("Getting reviews for accountId: {} with limit: {} and cursor: {}", accountId, limit, cursorIsoDateTime);
+	public GetAllReviewsOutput getAllReviewsByAccountId(@NonNull final String accountId, final Integer limit, final String cursor) {
+		log.info("Getting reviews for accountId: {} with limit: {} and cursor: {}", accountId, limit, cursor);
 		Criteria criteria = Criteria.where(ACCOUNT_ID_KEY).is(accountId);
-		if (cursorIsoDateTime != null) {
-			criteria = criteria.and(ISO_DATE_TIME).lt(cursorIsoDateTime);
+		if (cursor != null) {
+			criteria = criteria.andOperator(buildCursorCriteria(cursor));
 		}
 		return getReviewsWithPagination(criteria, limit);
+	}
+
+	private Criteria buildCursorCriteria(final String cursor) {
+		CompositeCursor decoded = CursorUtils.decode(cursor);
+		return new Criteria().orOperator(
+			Criteria.where(ISO_DATE_TIME).lt(decoded.isoDateTime()),
+			Criteria.where(ISO_DATE_TIME).is(decoded.isoDateTime()).and(PRIMARY_KEY).gt(decoded.reviewId())
+		);
 	}
 
 	private GetAllReviewsOutput getReviewsWithPagination(final Criteria criteria, final Integer limit) {
@@ -81,7 +92,7 @@ public class ReviewDALImpl implements ReviewDAL {
 		aggregationOperations.add(match(criteria));
 
 		if (limit != null) {
-			aggregationOperations.add(sort(Sort.by(Sort.Direction.DESC, ISO_DATE_TIME)));
+			aggregationOperations.add(sort(Sort.by(Sort.Direction.DESC, ISO_DATE_TIME).and(Sort.by(Sort.Direction.ASC, PRIMARY_KEY))));
 			aggregationOperations.add(limit(limit));
 		}
 
@@ -91,7 +102,8 @@ public class ReviewDALImpl implements ReviewDAL {
 		final List<Review> reviews = result.getMappedResults();
 		String nextCursor = null;
 		if (limit != null && reviews.size() == limit) {
-			nextCursor = reviews.get(reviews.size() - 1).getIsoDateTime();
+			Review last = reviews.get(reviews.size() - 1);
+			nextCursor = CursorUtils.encode(last.getIsoDateTime(), last.getReviewId());
 		}
 
 		return new GetAllReviewsOutput(reviews, nextCursor);

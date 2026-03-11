@@ -4,6 +4,7 @@ import com.fryrank.model.Review;
 import com.fryrank.model.PublicUserMetadata;
 import com.fryrank.model.PublicUserMetadataOutput;
 import com.fryrank.model.enums.QueryParam;
+import com.fryrank.util.CursorUtils;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -20,6 +21,7 @@ public class TestConstants {
     public static final String TEST_BODY_2 = "body_2";
     public static final Integer TEST_LIMIT = 10;
     public static final String TEST_ISO_DATE_TIME_1 = "1970-01-01T00:00:00Z";
+    public static final String TEST_CURSOR_1 = CursorUtils.encode(TEST_ISO_DATE_TIME_1, TEST_REVIEW_ID_1);
     public static final String TEST_ACCOUNT_ID = "test_account_id";
     public static final String TEST_AUTHORIZED_ACCOUNT_ID = "authorized_account_id";
     public static final String TEST_USERNAME = "testflush";

@@ -20,7 +20,7 @@ import java.util.List;
 import static com.fryrank.TestConstants.TEST_ACCOUNT_ID;
 import static com.fryrank.TestConstants.TEST_RESTAURANT_ID;
 import static com.fryrank.TestConstants.TEST_LIMIT;
-import static com.fryrank.TestConstants.TEST_ISO_DATE_TIME_1;
+import static com.fryrank.TestConstants.TEST_CURSOR_1;
 import static com.fryrank.TestConstants.TEST_REVIEWS;
 import static com.fryrank.TestConstants.TEST_REVIEW_1;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -43,7 +43,7 @@ public class ReviewDALTests {
         when(mongoTemplate.aggregate(Mockito.any(Aggregation.class), Mockito.anyString(), Mockito.eq(Review.class))).thenReturn(aggregationResults);
 
         final GetAllReviewsOutput expectedOutput = new GetAllReviewsOutput(TEST_REVIEWS);
-        final GetAllReviewsOutput actualOutput = reviewDAL.getAllReviewsByRestaurantId(TEST_RESTAURANT_ID, TEST_LIMIT, TEST_ISO_DATE_TIME_1);
+        final GetAllReviewsOutput actualOutput = reviewDAL.getAllReviewsByRestaurantId(TEST_RESTAURANT_ID, TEST_LIMIT, TEST_CURSOR_1);
         assertEquals(actualOutput, expectedOutput);
     }
 
@@ -55,7 +55,7 @@ public class ReviewDALTests {
         when(mongoTemplate.aggregate(Mockito.any(Aggregation.class), Mockito.anyString(), Mockito.eq(Review.class))).thenReturn(aggregationResults);
 
         final GetAllReviewsOutput expectedOutput = new GetAllReviewsOutput(expectedReviews);
-        final GetAllReviewsOutput actualOutput = reviewDAL.getAllReviewsByRestaurantId(TEST_RESTAURANT_ID, TEST_LIMIT, TEST_ISO_DATE_TIME_1);
+        final GetAllReviewsOutput actualOutput = reviewDAL.getAllReviewsByRestaurantId(TEST_RESTAURANT_ID, TEST_LIMIT, TEST_CURSOR_1);
         assertEquals(actualOutput, expectedOutput);
     }
 
@@ -65,7 +65,7 @@ public class ReviewDALTests {
         when(mongoTemplate.aggregate(Mockito.any(Aggregation.class), Mockito.anyString(), Mockito.eq(Review.class))).thenReturn(aggregationResults);
 
         final GetAllReviewsOutput expectedOutput = new GetAllReviewsOutput(TEST_REVIEWS);
-        final GetAllReviewsOutput actualOutput = reviewDAL.getAllReviewsByAccountId(TEST_ACCOUNT_ID, TEST_LIMIT, TEST_ISO_DATE_TIME_1);
+        final GetAllReviewsOutput actualOutput = reviewDAL.getAllReviewsByAccountId(TEST_ACCOUNT_ID, TEST_LIMIT, TEST_CURSOR_1);
         assertEquals(actualOutput, expectedOutput);
     }
 
@@ -77,7 +77,7 @@ public class ReviewDALTests {
         when(mongoTemplate.aggregate(Mockito.any(Aggregation.class), Mockito.anyString(), Mockito.eq(Review.class))).thenReturn(aggregationResults);
 
         final GetAllReviewsOutput expectedOutput = new GetAllReviewsOutput(expectedReviews);
-        final GetAllReviewsOutput actualOutput = reviewDAL.getAllReviewsByAccountId(TEST_ACCOUNT_ID, TEST_LIMIT, TEST_ISO_DATE_TIME_1);
+        final GetAllReviewsOutput actualOutput = reviewDAL.getAllReviewsByAccountId(TEST_ACCOUNT_ID, TEST_LIMIT, TEST_CURSOR_1);
         assertEquals(actualOutput, expectedOutput);
     }
 
