@@ -3,6 +3,7 @@ package com.fryrank.dal;
 
 import com.fryrank.model.GetAllReviewsOutput;
 import com.fryrank.model.Review;
+import com.fryrank.model.DeleteReviewRequest;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -14,13 +15,11 @@ import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.BatchGetItemRequest;
 import software.amazon.awssdk.services.dynamodb.model.BatchGetItemResponse;
 import software.amazon.awssdk.services.dynamodb.model.CancellationReason;
-import software.amazon.awssdk.services.dynamodb.model.ConditionalCheckFailedException;
 import software.amazon.awssdk.services.dynamodb.model.DeleteItemRequest;
 import software.amazon.awssdk.services.dynamodb.model.GetItemRequest;
 import software.amazon.awssdk.services.dynamodb.model.GetItemResponse;
 import software.amazon.awssdk.services.dynamodb.model.KeysAndAttributes;
 import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
-import software.amazon.awssdk.services.dynamodb.model.PutItemResponse;
 import software.amazon.awssdk.services.dynamodb.model.QueryRequest;
 import software.amazon.awssdk.services.dynamodb.model.QueryResponse;
 import software.amazon.awssdk.services.dynamodb.model.TransactionCanceledException;
@@ -42,6 +41,7 @@ import static com.fryrank.TestConstants.TEST_RESTAURANT_ID;
 import static com.fryrank.TestConstants.TEST_REVIEWS;
 import static com.fryrank.TestConstants.TEST_REVIEW_1;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -613,6 +613,336 @@ public class ReviewDALTests {
         assertEquals(uniqueAccounts, keys.keys().size());
     }
 
+    // ==================== Delete User Review Tests ====================
+
+    @Test
+    public void testDeleteUserReview_happyPath_updatesAggregate() throws Exception {
+        // Review ID format is "restaurantId:accountId"
+        String restaurantId = "res123";
+        String accountId = "acc456";
+        String reviewId = restaurantId + ":" + accountId;
+        Double reviewScore = 8.0;
+
+        DeleteReviewRequest deleteRequest = new DeleteReviewRequest(reviewId);
+
+        // Mock getting the existing review
+        Map<String, AttributeValue> existingReview = new HashMap<>();
+        existingReview.put("restaurantId", AttributeValue.builder().s(restaurantId).build());
+        existingReview.put("identifier", AttributeValue.builder().s("REVIEW:" + accountId).build());
+        existingReview.put("score", AttributeValue.builder().n(reviewScore.toString()).build());
+        existingReview.put("title", AttributeValue.builder().s("Test Title").build());
+        existingReview.put("body", AttributeValue.builder().s("Test Body").build());
+
+        // Existing aggregate: totalScore=40, reviewCount=5, averageScore=8.0
+        Map<String, AttributeValue> existingAggregate = new HashMap<>();
+        existingAggregate.put("restaurantId", AttributeValue.builder().s(restaurantId).build());
+        existingAggregate.put("identifier", AttributeValue.builder().s("AGGREGATE").build());
+        existingAggregate.put("isoDateTime", AttributeValue.builder().s("AGGREGATE").build());
+        existingAggregate.put("totalScore", AttributeValue.builder().n("40.0").build());
+        existingAggregate.put("reviewCount", AttributeValue.builder().n("5").build());
+        existingAggregate.put("averageScore", AttributeValue.builder().n("8.0").build());
+
+        GetItemResponse reviewResponse = GetItemResponse.builder().item(existingReview).build();
+        GetItemResponse aggregateResponse = GetItemResponse.builder().item(existingAggregate).build();
+
+        // First call gets the review, second call gets the aggregate
+        when(dynamoDb.getItem(any(GetItemRequest.class)))
+                .thenReturn(reviewResponse)
+                .thenReturn(aggregateResponse);
+
+        when(dynamoDb.transactWriteItems(any(TransactWriteItemsRequest.class)))
+                .thenReturn(TransactWriteItemsResponse.builder().build());
+
+        boolean result = reviewDAL.deleteUserReview(deleteRequest);
+
+        assertTrue(result);
+
+        // Verify transactWriteItems was called
+        ArgumentCaptor<TransactWriteItemsRequest> transactCaptor = ArgumentCaptor.forClass(TransactWriteItemsRequest.class);
+        verify(dynamoDb, times(1)).transactWriteItems(transactCaptor.capture());
+
+        TransactWriteItemsRequest capturedRequest = transactCaptor.getValue();
+        assertEquals(2, capturedRequest.transactItems().size());
+
+        // First item should be aggregate update (Put)
+        var aggregatePut = capturedRequest.transactItems().get(0).put();
+        assertNotNull(aggregatePut);
+        Map<String, AttributeValue> aggregateItem = aggregatePut.item();
+        assertEquals("4", aggregateItem.get("reviewCount").n()); // 5 - 1
+        assertEquals("32.0", aggregateItem.get("totalScore").n()); // 40 - 8
+
+        // Second item should be review delete
+        var reviewDelete = capturedRequest.transactItems().get(1).delete();
+        assertNotNull(reviewDelete);
+    }
+
+    @Test
+    public void testDeleteUserReview_lastReview_deletesAggregate() throws Exception {
+        String restaurantId = "res123";
+        String accountId = "acc456";
+        String reviewId = restaurantId + ":" + accountId;
+        Double reviewScore = 8.0;
+
+        DeleteReviewRequest deleteRequest = new DeleteReviewRequest(reviewId);
+
+        // Mock getting the existing review
+        Map<String, AttributeValue> existingReview = new HashMap<>();
+        existingReview.put("restaurantId", AttributeValue.builder().s(restaurantId).build());
+        existingReview.put("identifier", AttributeValue.builder().s("REVIEW:" + accountId).build());
+        existingReview.put("score", AttributeValue.builder().n(reviewScore.toString()).build());
+
+        // Existing aggregate with only 1 review
+        Map<String, AttributeValue> existingAggregate = new HashMap<>();
+        existingAggregate.put("restaurantId", AttributeValue.builder().s(restaurantId).build());
+        existingAggregate.put("identifier", AttributeValue.builder().s("AGGREGATE").build());
+        existingAggregate.put("isoDateTime", AttributeValue.builder().s("AGGREGATE").build());
+        existingAggregate.put("totalScore", AttributeValue.builder().n("8.0").build());
+        existingAggregate.put("reviewCount", AttributeValue.builder().n("1").build());
+        existingAggregate.put("averageScore", AttributeValue.builder().n("8.0").build());
+
+        GetItemResponse reviewResponse = GetItemResponse.builder().item(existingReview).build();
+        GetItemResponse aggregateResponse = GetItemResponse.builder().item(existingAggregate).build();
+
+        when(dynamoDb.getItem(any(GetItemRequest.class)))
+                .thenReturn(reviewResponse)
+                .thenReturn(aggregateResponse);
+
+        when(dynamoDb.transactWriteItems(any(TransactWriteItemsRequest.class)))
+                .thenReturn(TransactWriteItemsResponse.builder().build());
+
+        boolean result = reviewDAL.deleteUserReview(deleteRequest);
+
+        assertTrue(result);
+
+        ArgumentCaptor<TransactWriteItemsRequest> transactCaptor = ArgumentCaptor.forClass(TransactWriteItemsRequest.class);
+        verify(dynamoDb, times(1)).transactWriteItems(transactCaptor.capture());
+
+        TransactWriteItemsRequest capturedRequest = transactCaptor.getValue();
+        assertEquals(2, capturedRequest.transactItems().size());
+
+        // First item should be aggregate DELETE (not Put)
+        var aggregateDelete = capturedRequest.transactItems().get(0).delete();
+        assertNotNull(aggregateDelete);
+        assertEquals("#reviewCount = :expectedCount", aggregateDelete.conditionExpression());
+
+        // Second item should be review delete
+        var reviewDelete = capturedRequest.transactItems().get(1).delete();
+        assertNotNull(reviewDelete);
+    }
+
+    @Test
+    public void testDeleteUserReview_reviewDoesNotExist_returnsFalse() throws Exception {
+        String restaurantId = "res123";
+        String accountId = "acc456";
+        String reviewId = restaurantId + ":" + accountId;
+
+        DeleteReviewRequest deleteRequest = new DeleteReviewRequest(reviewId);
+
+        // Mock getting empty review (doesn't exist)
+        GetItemResponse emptyResponse = GetItemResponse.builder().item(Map.of()).build();
+        when(dynamoDb.getItem(any(GetItemRequest.class))).thenReturn(emptyResponse);
+
+        boolean result = reviewDAL.deleteUserReview(deleteRequest);
+
+        assertFalse(result);
+
+        // Verify no transaction was attempted
+        verify(dynamoDb, times(0)).transactWriteItems(any(TransactWriteItemsRequest.class));
+    }
+
+    @Test
+    public void testDeleteUserReview_aggregateDoesNotExist_returnsFalse() throws Exception {
+        String restaurantId = "res123";
+        String accountId = "acc456";
+        String reviewId = restaurantId + ":" + accountId;
+        Double reviewScore = 8.0;
+
+        DeleteReviewRequest deleteRequest = new DeleteReviewRequest(reviewId);
+
+        // Mock getting the existing review
+        Map<String, AttributeValue> existingReview = new HashMap<>();
+        existingReview.put("restaurantId", AttributeValue.builder().s(restaurantId).build());
+        existingReview.put("identifier", AttributeValue.builder().s("REVIEW:" + accountId).build());
+        existingReview.put("score", AttributeValue.builder().n(reviewScore.toString()).build());
+
+        GetItemResponse reviewResponse = GetItemResponse.builder().item(existingReview).build();
+        GetItemResponse emptyAggregateResponse = GetItemResponse.builder().item(Map.of()).build();
+
+        when(dynamoDb.getItem(any(GetItemRequest.class)))
+                .thenReturn(reviewResponse)
+                .thenReturn(emptyAggregateResponse);
+
+        boolean result = reviewDAL.deleteUserReview(deleteRequest);
+
+        assertFalse(result);
+
+        // Verify no transaction was attempted
+        verify(dynamoDb, times(0)).transactWriteItems(any(TransactWriteItemsRequest.class));
+    }
+
+    @Test
+    public void testDeleteUserReview_nullRequest() {
+        assertThrows(NullPointerException.class, () -> reviewDAL.deleteUserReview(null));
+    }
+
+    @Test
+    public void testDeleteUserReview_transactionConflict_retriesSuccessfully() throws Exception {
+        String restaurantId = "res123";
+        String accountId = "acc456";
+        String reviewId = restaurantId + ":" + accountId;
+        Double reviewScore = 8.0;
+
+        DeleteReviewRequest deleteRequest = new DeleteReviewRequest(reviewId);
+
+        // Mock getting the existing review
+        Map<String, AttributeValue> existingReview = new HashMap<>();
+        existingReview.put("restaurantId", AttributeValue.builder().s(restaurantId).build());
+        existingReview.put("identifier", AttributeValue.builder().s("REVIEW:" + accountId).build());
+        existingReview.put("score", AttributeValue.builder().n(reviewScore.toString()).build());
+
+        // First aggregate state
+        Map<String, AttributeValue> existingAggregate = new HashMap<>();
+        existingAggregate.put("restaurantId", AttributeValue.builder().s(restaurantId).build());
+        existingAggregate.put("identifier", AttributeValue.builder().s("AGGREGATE").build());
+        existingAggregate.put("isoDateTime", AttributeValue.builder().s("AGGREGATE").build());
+        existingAggregate.put("totalScore", AttributeValue.builder().n("40.0").build());
+        existingAggregate.put("reviewCount", AttributeValue.builder().n("5").build());
+        existingAggregate.put("averageScore", AttributeValue.builder().n("8.0").build());
+
+        // Updated aggregate (simulating concurrent update)
+        Map<String, AttributeValue> updatedAggregate = new HashMap<>();
+        updatedAggregate.put("restaurantId", AttributeValue.builder().s(restaurantId).build());
+        updatedAggregate.put("identifier", AttributeValue.builder().s("AGGREGATE").build());
+        updatedAggregate.put("isoDateTime", AttributeValue.builder().s("AGGREGATE").build());
+        updatedAggregate.put("totalScore", AttributeValue.builder().n("48.0").build());
+        updatedAggregate.put("reviewCount", AttributeValue.builder().n("6").build());
+        updatedAggregate.put("averageScore", AttributeValue.builder().n("8.0").build());
+
+        GetItemResponse reviewResponse = GetItemResponse.builder().item(existingReview).build();
+        GetItemResponse aggregateResponse1 = GetItemResponse.builder().item(existingAggregate).build();
+        GetItemResponse aggregateResponse2 = GetItemResponse.builder().item(updatedAggregate).build();
+
+        // First call gets review, second gets aggregate (first attempt), third gets aggregate (retry)
+        when(dynamoDb.getItem(any(GetItemRequest.class)))
+                .thenReturn(reviewResponse)
+                .thenReturn(aggregateResponse1)
+                .thenReturn(aggregateResponse2);
+
+        when(dynamoDb.transactWriteItems(any(TransactWriteItemsRequest.class)))
+                .thenThrow(TransactionCanceledException.builder()
+                        .message("Transaction cancelled")
+                        .cancellationReasons(
+                                CancellationReason.builder().code("ConditionalCheckFailed").build(),
+                                CancellationReason.builder().code("None").build()
+                        )
+                        .build())
+                .thenReturn(TransactWriteItemsResponse.builder().build());
+
+        boolean result = reviewDAL.deleteUserReview(deleteRequest);
+
+        assertTrue(result);
+
+        // Verify getItem was called 3 times (1 for review + 2 for aggregate attempts)
+        verify(dynamoDb, times(3)).getItem(any(GetItemRequest.class));
+
+        // Verify transactWriteItems was called twice (failed + successful)
+        verify(dynamoDb, times(2)).transactWriteItems(any(TransactWriteItemsRequest.class));
+    }
+
+    @Test
+    public void testDeleteUserReview_transactionConflict_exhaustsRetries() throws Exception {
+        String restaurantId = "res123";
+        String accountId = "acc456";
+        String reviewId = restaurantId + ":" + accountId;
+        Double reviewScore = 8.0;
+
+        DeleteReviewRequest deleteRequest = new DeleteReviewRequest(reviewId);
+
+        // Mock getting the existing review
+        Map<String, AttributeValue> existingReview = new HashMap<>();
+        existingReview.put("restaurantId", AttributeValue.builder().s(restaurantId).build());
+        existingReview.put("identifier", AttributeValue.builder().s("REVIEW:" + accountId).build());
+        existingReview.put("score", AttributeValue.builder().n(reviewScore.toString()).build());
+
+        Map<String, AttributeValue> existingAggregate = new HashMap<>();
+        existingAggregate.put("restaurantId", AttributeValue.builder().s(restaurantId).build());
+        existingAggregate.put("identifier", AttributeValue.builder().s("AGGREGATE").build());
+        existingAggregate.put("isoDateTime", AttributeValue.builder().s("AGGREGATE").build());
+        existingAggregate.put("totalScore", AttributeValue.builder().n("40.0").build());
+        existingAggregate.put("reviewCount", AttributeValue.builder().n("5").build());
+        existingAggregate.put("averageScore", AttributeValue.builder().n("8.0").build());
+
+        GetItemResponse reviewResponse = GetItemResponse.builder().item(existingReview).build();
+        GetItemResponse aggregateResponse = GetItemResponse.builder().item(existingAggregate).build();
+
+        when(dynamoDb.getItem(any(GetItemRequest.class)))
+                .thenReturn(reviewResponse)
+                .thenReturn(aggregateResponse);
+
+        // All transaction attempts fail
+        when(dynamoDb.transactWriteItems(any(TransactWriteItemsRequest.class)))
+                .thenThrow(TransactionCanceledException.builder()
+                        .message("Transaction cancelled")
+                        .cancellationReasons(
+                                CancellationReason.builder().code("ConditionalCheckFailed").build(),
+                                CancellationReason.builder().code("None").build()
+                        )
+                        .build());
+
+        RuntimeException exception = assertThrows(RuntimeException.class,
+                () -> reviewDAL.deleteUserReview(deleteRequest));
+
+        assertTrue(exception.getMessage().contains("Failed to add review"));
+        assertTrue(exception.getMessage().contains("concurrent modifications"));
+
+        // Verify retries happened (MAX_AGGREGATE_UPDATE_RETRIES = 3)
+        verify(dynamoDb, times(3)).transactWriteItems(any(TransactWriteItemsRequest.class));
+    }
+
+    @Test
+    public void testDeleteUserReview_transactionAtomicity_bothItemsInSameTransaction() throws Exception {
+        String restaurantId = "res123";
+        String accountId = "acc456";
+        String reviewId = restaurantId + ":" + accountId;
+        Double reviewScore = 8.0;
+
+        DeleteReviewRequest deleteRequest = new DeleteReviewRequest(reviewId);
+
+        Map<String, AttributeValue> existingReview = new HashMap<>();
+        existingReview.put("restaurantId", AttributeValue.builder().s(restaurantId).build());
+        existingReview.put("identifier", AttributeValue.builder().s("REVIEW:" + accountId).build());
+        existingReview.put("score", AttributeValue.builder().n(reviewScore.toString()).build());
+
+        Map<String, AttributeValue> existingAggregate = new HashMap<>();
+        existingAggregate.put("restaurantId", AttributeValue.builder().s(restaurantId).build());
+        existingAggregate.put("identifier", AttributeValue.builder().s("AGGREGATE").build());
+        existingAggregate.put("isoDateTime", AttributeValue.builder().s("AGGREGATE").build());
+        existingAggregate.put("totalScore", AttributeValue.builder().n("40.0").build());
+        existingAggregate.put("reviewCount", AttributeValue.builder().n("5").build());
+        existingAggregate.put("averageScore", AttributeValue.builder().n("8.0").build());
+
+        GetItemResponse reviewResponse = GetItemResponse.builder().item(existingReview).build();
+        GetItemResponse aggregateResponse = GetItemResponse.builder().item(existingAggregate).build();
+
+        when(dynamoDb.getItem(any(GetItemRequest.class)))
+                .thenReturn(reviewResponse)
+                .thenReturn(aggregateResponse);
+
+        when(dynamoDb.transactWriteItems(any(TransactWriteItemsRequest.class)))
+                .thenReturn(TransactWriteItemsResponse.builder().build());
+
+        reviewDAL.deleteUserReview(deleteRequest);
+
+        // Verify that both aggregate update and review delete are in the same transaction
+        ArgumentCaptor<TransactWriteItemsRequest> transactCaptor = ArgumentCaptor.forClass(TransactWriteItemsRequest.class);
+        verify(dynamoDb, times(1)).transactWriteItems(transactCaptor.capture());
+
+        TransactWriteItemsRequest capturedRequest = transactCaptor.getValue();
+        assertEquals(2, capturedRequest.transactItems().size());
+
+        // Verify no separate deleteItem calls were made
+        verify(dynamoDb, times(0)).deleteItem(any(DeleteItemRequest.class));
+    }
 
     /**
      * Helper method to convert a Review to DynamoDB attribute map

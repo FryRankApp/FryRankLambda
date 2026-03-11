@@ -87,6 +87,22 @@ public class AggregateRanking extends Ranking {
     }
 
     /**
+     * Deletes an AggregateRanking by removing a review score from this aggregate.
+     */
+    public AggregateRanking withoutReview(Double newScore) {
+        double totalScore = this.totalScore - newScore;
+        int reviewCount = this.reviewCount - 1;
+        return AggregateRanking.builder()
+                .restaurantId(getRestaurantId())
+                .identifier(AGGREGATE_IDENTIFIER)
+                .isoDateTime(AGGREGATE_IDENTIFIER)
+                .totalScore(totalScore)
+                .reviewCount(reviewCount)
+                .averageScore(totalScore / reviewCount)
+                .build();
+    }
+
+    /**
      * Creates a new AggregateRanking for the first review of a restaurant.
      */
     public static AggregateRanking forFirstReview(String restaurantId, Double score) {
