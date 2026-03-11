@@ -252,7 +252,7 @@ public class ReviewDALImpl implements ReviewDAL {
 
         if (attempt == MAX_AGGREGATE_UPDATE_RETRIES - 1) {
             throw new RuntimeException(
-                    "Failed to add review for restaurantId: " + restaurantId +
+                    "Failed to add/delete review for restaurantId: " + restaurantId +
                             " after " + MAX_AGGREGATE_UPDATE_RETRIES + " attempts due to concurrent modifications", e);
         }
 
@@ -358,10 +358,6 @@ public class ReviewDALImpl implements ReviewDAL {
         }
 
         final Double reviewScore = getDoubleAttribute(existingReview, SCORE_KEY);
-        if (reviewScore == null) {
-            log.error("Review with reviewId: {} has no score, cannot update aggregate", reviewId);
-            return false;
-        }
 
         for (int attempt = 0; attempt < MAX_AGGREGATE_UPDATE_RETRIES; attempt++) {
             try {
@@ -370,44 +366,47 @@ public class ReviewDALImpl implements ReviewDAL {
                 final Map<String, AttributeValue> existingAggregate = getRestaurantAggregate(restaurantId);
 
                 if (existingAggregate == null || existingAggregate.isEmpty()) {
-                    log.warn("Aggregate for restaurantId: {} does not exist, skipping delete", restaurantId);
-                    return false;
-                }
-
-                AggregateRanking existingAggregateRanking = AggregateRanking.fromMap(existingAggregate);
-
-                if (existingAggregateRanking.getReviewCount() <= 1) {
-                    // Last review in aggregate, delete the aggregate
-                    final Delete aggregateDelete = Delete.builder()
-                            .tableName(RANKINGS_TABLE_NAME)
-                            .key(Map.of(
-                                    RESTAURANT_ID_KEY, AttributeValue.builder().s(restaurantId).build(),
-                                    IDENTIFIER_KEY, AttributeValue.builder().s(AGGREGATE_IDENTIFIER).build()
-                            ))
-                            .conditionExpression("#reviewCount = :expectedCount")
-                            .expressionAttributeNames(Map.of("#reviewCount", REVIEW_COUNT_KEY))
-                            .expressionAttributeValues(Map.of(
-                                    ":expectedCount", AttributeValue.builder()
-                                            .n(String.valueOf(existingAggregateRanking.getReviewCount()))
-                                            .build()
-                            ))
-                            .build();
-                    transactWriteItems.add(TransactWriteItem.builder().delete(aggregateDelete).build());
+                    log.warn("Aggregate for restaurantId: {} does not exist, deleting review without aggregate update", restaurantId);
+                    // Just delete the review without updating aggregate
+                } else if (reviewScore == null) {
+                    log.warn("Review with reviewId: {} has no score, deleting review without aggregate update", reviewId);
+                    // Just delete the review without updating aggregate
                 } else {
-                    // Update aggregate by removing this review's score
-                    AggregateRanking newAggregateRanking = existingAggregateRanking.withoutReview(reviewScore);
-                    final Put aggregatePut = Put.builder()
-                            .tableName(RANKINGS_TABLE_NAME)
-                            .item(newAggregateRanking.toMap())
-                            .conditionExpression("#reviewCount = :expectedCount")
-                            .expressionAttributeNames(Map.of("#reviewCount", REVIEW_COUNT_KEY))
-                            .expressionAttributeValues(Map.of(
-                                    ":expectedCount", AttributeValue.builder()
-                                            .n(String.valueOf(existingAggregateRanking.getReviewCount()))
-                                            .build()
-                            ))
-                            .build();
-                    transactWriteItems.add(TransactWriteItem.builder().put(aggregatePut).build());
+                    AggregateRanking existingAggregateRanking = AggregateRanking.fromMap(existingAggregate);
+
+                    if (existingAggregateRanking.getReviewCount() <= 1) {
+                        // Last review in aggregate, delete the aggregate
+                        final Delete aggregateDelete = Delete.builder()
+                                .tableName(RANKINGS_TABLE_NAME)
+                                .key(Map.of(
+                                        RESTAURANT_ID_KEY, AttributeValue.builder().s(restaurantId).build(),
+                                        IDENTIFIER_KEY, AttributeValue.builder().s(AGGREGATE_IDENTIFIER).build()
+                                ))
+                                .conditionExpression("#reviewCount = :expectedCount")
+                                .expressionAttributeNames(Map.of("#reviewCount", REVIEW_COUNT_KEY))
+                                .expressionAttributeValues(Map.of(
+                                        ":expectedCount", AttributeValue.builder()
+                                                .n(String.valueOf(existingAggregateRanking.getReviewCount()))
+                                                .build()
+                                ))
+                                .build();
+                        transactWriteItems.add(TransactWriteItem.builder().delete(aggregateDelete).build());
+                    } else {
+                        // Update aggregate by removing this review's score
+                        AggregateRanking newAggregateRanking = existingAggregateRanking.withoutReview(reviewScore);
+                        final Put aggregatePut = Put.builder()
+                                .tableName(RANKINGS_TABLE_NAME)
+                                .item(newAggregateRanking.toMap())
+                                .conditionExpression("#reviewCount = :expectedCount")
+                                .expressionAttributeNames(Map.of("#reviewCount", REVIEW_COUNT_KEY))
+                                .expressionAttributeValues(Map.of(
+                                        ":expectedCount", AttributeValue.builder()
+                                                .n(String.valueOf(existingAggregateRanking.getReviewCount()))
+                                                .build()
+                                ))
+                                .build();
+                        transactWriteItems.add(TransactWriteItem.builder().put(aggregatePut).build());
+                    }
                 }
 
                 final Delete reviewDelete = Delete.builder()

@@ -316,7 +316,7 @@ public class ReviewDALTests {
         RuntimeException exception = assertThrows(RuntimeException.class,
                 () -> reviewDAL.addNewReview(TEST_REVIEW_1));
 
-        assertTrue(exception.getMessage().contains("Failed to add review"));
+        assertTrue(exception.getMessage().contains("Failed to add/delete review"));
         assertTrue(exception.getMessage().contains("concurrent modifications"));
 
         // Verify retries happened (MAX_AGGREGATE_UPDATE_RETRIES = 3)
@@ -751,7 +751,7 @@ public class ReviewDALTests {
     }
 
     @Test
-    public void testDeleteUserReview_aggregateDoesNotExist_returnsFalse() throws Exception {
+    public void testDeleteUserReview_aggregateDoesNotExist_deletesReviewOnly() throws Exception {
         String restaurantId = "res123";
         String accountId = "acc456";
         String reviewId = restaurantId + ":" + accountId;
@@ -772,12 +772,23 @@ public class ReviewDALTests {
                 .thenReturn(reviewResponse)
                 .thenReturn(emptyAggregateResponse);
 
+        when(dynamoDb.transactWriteItems(any(TransactWriteItemsRequest.class)))
+                .thenReturn(TransactWriteItemsResponse.builder().build());
+
         boolean result = reviewDAL.deleteUserReview(deleteRequest);
 
-        assertFalse(result);
+        assertTrue(result);
 
-        // Verify no transaction was attempted
-        verify(dynamoDb, times(0)).transactWriteItems(any(TransactWriteItemsRequest.class));
+        // Verify transaction was called with only the review delete (no aggregate update)
+        ArgumentCaptor<TransactWriteItemsRequest> transactCaptor = ArgumentCaptor.forClass(TransactWriteItemsRequest.class);
+        verify(dynamoDb, times(1)).transactWriteItems(transactCaptor.capture());
+
+        TransactWriteItemsRequest capturedRequest = transactCaptor.getValue();
+        assertEquals(1, capturedRequest.transactItems().size());
+
+        // Should only be review delete
+        var reviewDelete = capturedRequest.transactItems().get(0).delete();
+        assertNotNull(reviewDelete);
     }
 
     @Test
@@ -892,7 +903,7 @@ public class ReviewDALTests {
         RuntimeException exception = assertThrows(RuntimeException.class,
                 () -> reviewDAL.deleteUserReview(deleteRequest));
 
-        assertTrue(exception.getMessage().contains("Failed to add review"));
+        assertTrue(exception.getMessage().contains("Failed to add/delete review"));
         assertTrue(exception.getMessage().contains("concurrent modifications"));
 
         // Verify retries happened (MAX_AGGREGATE_UPDATE_RETRIES = 3)
