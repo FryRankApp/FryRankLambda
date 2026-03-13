@@ -11,6 +11,7 @@ import software.amazon.awssdk.services.dynamodb.model.ConditionalCheckFailedExce
 import java.util.HashMap;
 import java.util.Map;
 
+import static com.fryrank.Constants.AGGREGATE_IDENTIFIER;
 import static com.fryrank.Constants.AVERAGE_SCORE_KEY;
 import static com.fryrank.Constants.IDENTIFIER_KEY;
 import static com.fryrank.Constants.ISO_DATE_TIME_KEY;

@@ -18,15 +18,12 @@ import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.BatchGetItemRequest;
 import software.amazon.awssdk.services.dynamodb.model.BatchGetItemResponse;
 import software.amazon.awssdk.services.dynamodb.model.Delete;
-import software.amazon.awssdk.services.dynamodb.model.DeleteItemRequest;
-import software.amazon.awssdk.services.dynamodb.model.DeleteItemResponse;
 import software.amazon.awssdk.services.dynamodb.model.GetItemRequest;
 import software.amazon.awssdk.services.dynamodb.model.GetItemResponse;
 import software.amazon.awssdk.services.dynamodb.model.KeysAndAttributes;
 import software.amazon.awssdk.services.dynamodb.model.Put;
 import software.amazon.awssdk.services.dynamodb.model.QueryRequest;
 import software.amazon.awssdk.services.dynamodb.model.QueryResponse;
-import software.amazon.awssdk.services.dynamodb.model.ReturnValue;
 import software.amazon.awssdk.services.dynamodb.model.TransactWriteItem;
 import software.amazon.awssdk.services.dynamodb.model.TransactWriteItemsRequest;
 import software.amazon.awssdk.services.dynamodb.model.TransactionCanceledException;
@@ -40,7 +37,25 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
-import static com.fryrank.Constants.*;
+import static com.fryrank.Constants.ACCOUNT_ID_KEY;
+import static com.fryrank.Constants.ACCOUNT_ID_TIME_INDEX;
+import static com.fryrank.Constants.AGGREGATE_IDENTIFIER;
+import static com.fryrank.Constants.AVERAGE_SCORE_KEY;
+import static com.fryrank.Constants.BODY_KEY;
+import static com.fryrank.Constants.IDENTIFIER_KEY;
+import static com.fryrank.Constants.ISO_DATE_TIME;
+import static com.fryrank.Constants.IS_REVIEW_KEY;
+import static com.fryrank.Constants.IS_REVIEW_VALUE;
+import static com.fryrank.Constants.RANKINGS_TABLE_NAME;
+import static com.fryrank.Constants.RECENT_REVIEWS_INDEX;
+import static com.fryrank.Constants.RESTAURANT_ID_KEY;
+import static com.fryrank.Constants.RESTAURANT_ID_TIME_INDEX;
+import static com.fryrank.Constants.REVIEW_COUNT_KEY;
+import static com.fryrank.Constants.REVIEW_IDENTIFIER_PREFIX;
+import static com.fryrank.Constants.SCORE_KEY;
+import static com.fryrank.Constants.TITLE_KEY;
+import static com.fryrank.Constants.USERNAME_KEY;
+import static com.fryrank.Constants.USER_METADATA_TABLE_NAME;
 
 @Repository
 @Log4j2
@@ -63,10 +78,6 @@ public class ReviewDALImpl implements ReviewDAL {
      */
 
     private static final int MAX_AGGREGATE_UPDATE_RETRIES = 3;
-
-    // Ranking identifiers
-    public static final String REVIEW_IDENTIFIER_PREFIX = "REVIEW:";
-    public static final String AGGREGATE_IDENTIFIER = "AGGREGATE";
 
     private final DynamoDbClient dynamoDb;
 
@@ -336,7 +347,7 @@ public class ReviewDALImpl implements ReviewDAL {
 
         String[] keyParts = reviewId.split(":");
         String restaurantId = keyParts[0];
-        String identifier = "REVIEW:" + keyParts[1];
+        String identifier = REVIEW_IDENTIFIER_PREFIX + keyParts[1];
 
         // First, get the review to find its score (needed for aggregate update)
         final Map<String, AttributeValue> reviewKey = Map.of(
@@ -459,13 +470,13 @@ public class ReviewDALImpl implements ReviewDAL {
     private Review mapItemToReview(Map<String, AttributeValue> item, Map<String, PublicUserMetadata> userMetadataMap) {
         final String accountId = getStringAttribute(item, ACCOUNT_ID_KEY);
         final String restaurantId = getStringAttribute(item, RESTAURANT_ID_KEY);
-        final String identifier = getStringAttribute(item, IDENTIFIER_KEY);
+        final String identifierWithoutPrefix = Objects.requireNonNull(getStringAttribute(item, IDENTIFIER_KEY)).replaceFirst(REVIEW_IDENTIFIER_PREFIX, "");
 
         final PublicUserMetadata userMetadata = accountId != null ? userMetadataMap.get(accountId) : null;
 
         // TODO(FRY-114): Once we standardize the Review model, we will no longer need to generate a reviewId which
         // does not exist in dyanmoDB
-        final String reviewId = restaurantId + ":" + identifier;
+        final String reviewId = restaurantId + ":" + identifierWithoutPrefix;
 
         assert restaurantId != null;
         return Review.builder()
