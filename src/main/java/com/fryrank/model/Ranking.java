@@ -7,6 +7,9 @@ import lombok.NoArgsConstructor;
 import lombok.NonNull;
 import lombok.experimental.SuperBuilder;
 
+import static com.fryrank.Constants.AGGREGATE_IDENTIFIER;
+import static com.fryrank.Constants.REVIEW_IDENTIFIER_PREFIX;
+
 /**
  * Represents a row in the rankings table. This can be either a review for a restaurant 
  * or aggregate information that represents the average rating for a restaurant and its 
@@ -18,10 +21,6 @@ import lombok.experimental.SuperBuilder;
 @NoArgsConstructor
 @AllArgsConstructor
 public abstract class Ranking {
-
-    public static final String REVIEW_IDENTIFIER_PREFIX = "REVIEW:";
-    public static final String AGGREGATE_IDENTIFIER = "AGGREGATE";
-
     @NonNull
     private String restaurantId;
 

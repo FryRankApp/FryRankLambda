@@ -39,6 +39,7 @@ import static com.fryrank.Constants.ISO_DATE_TIME;
 import static com.fryrank.Constants.ISO_DATE_TIME_KEY;
 import static com.fryrank.Constants.RESTAURANT_ID_KEY;
 import static com.fryrank.Constants.REVIEW_COUNT_KEY;
+import static com.fryrank.Constants.REVIEW_IDENTIFIER_PREFIX;
 import static com.fryrank.Constants.SCORE_KEY;
 import static com.fryrank.Constants.TITLE_KEY;
 import static com.fryrank.Constants.TOTAL_SCORE_KEY;
@@ -176,7 +177,7 @@ public class ReviewDALTests {
 
         // First item should be the review
         Map<String, AttributeValue> reviewItem = capturedRequest.transactItems().get(0).put().item();
-        assertTrue(reviewItem.get(IDENTIFIER_KEY).s().startsWith("REVIEW:"));
+        assertTrue(reviewItem.get(IDENTIFIER_KEY).s().startsWith(REVIEW_IDENTIFIER_PREFIX));
         assertEquals(TEST_REVIEW_1.getScore().toString(), reviewItem.get(SCORE_KEY).n());
 
         // Second item should be the aggregate with condition expression for new aggregate
@@ -452,7 +453,7 @@ public class ReviewDALTests {
             String accountId = "account_" + i;
             Map<String, AttributeValue> reviewItem = new HashMap<>();
             reviewItem.put(RESTAURANT_ID_KEY, AttributeValue.builder().s(TEST_RESTAURANT_ID).build());
-            reviewItem.put(IDENTIFIER_KEY, AttributeValue.builder().s("REVIEW:" + accountId).build());
+            reviewItem.put(IDENTIFIER_KEY, AttributeValue.builder().s(REVIEW_IDENTIFIER_PREFIX + accountId).build());
             reviewItem.put(SCORE_KEY, AttributeValue.builder().n("5.0").build());
             reviewItem.put(TITLE_KEY, AttributeValue.builder().s("Title " + i).build());
             reviewItem.put(BODY_KEY, AttributeValue.builder().s("Body " + i).build());
@@ -529,7 +530,7 @@ public class ReviewDALTests {
             String accountId = "account_" + i;
             Map<String, AttributeValue> reviewItem = new HashMap<>();
             reviewItem.put(RESTAURANT_ID_KEY, AttributeValue.builder().s(TEST_RESTAURANT_ID).build());
-            reviewItem.put(IDENTIFIER_KEY, AttributeValue.builder().s("REVIEW:" + accountId).build());
+            reviewItem.put(IDENTIFIER_KEY, AttributeValue.builder().s(REVIEW_IDENTIFIER_PREFIX + accountId).build());
             reviewItem.put(SCORE_KEY, AttributeValue.builder().n("5.0").build());
             reviewItem.put(TITLE_KEY, AttributeValue.builder().s("Title " + i).build());
             reviewItem.put(BODY_KEY, AttributeValue.builder().s("Body " + i).build());
@@ -579,7 +580,7 @@ public class ReviewDALTests {
             String accountId = "account_" + (i % uniqueAccounts);  // Reuse account IDs
             Map<String, AttributeValue> reviewItem = new HashMap<>();
             reviewItem.put(RESTAURANT_ID_KEY, AttributeValue.builder().s(TEST_RESTAURANT_ID).build());
-            reviewItem.put(IDENTIFIER_KEY, AttributeValue.builder().s("REVIEW:" + accountId + "_" + i).build());
+            reviewItem.put(IDENTIFIER_KEY, AttributeValue.builder().s(REVIEW_IDENTIFIER_PREFIX + accountId + "_" + i).build());
             reviewItem.put(SCORE_KEY, AttributeValue.builder().n("5.0").build());
             reviewItem.put(TITLE_KEY, AttributeValue.builder().s("Title " + i).build());
             reviewItem.put(BODY_KEY, AttributeValue.builder().s("Body " + i).build());
@@ -638,7 +639,7 @@ public class ReviewDALTests {
         // Mock getting the existing review
         Map<String, AttributeValue> existingReview = new HashMap<>();
         existingReview.put(RESTAURANT_ID_KEY, AttributeValue.builder().s(restaurantId).build());
-        existingReview.put(IDENTIFIER_KEY, AttributeValue.builder().s("REVIEW:" + accountId).build());
+        existingReview.put(IDENTIFIER_KEY, AttributeValue.builder().s(REVIEW_IDENTIFIER_PREFIX + accountId).build());
         existingReview.put(SCORE_KEY, AttributeValue.builder().n(reviewScore.toString()).build());
         existingReview.put(TITLE_KEY, AttributeValue.builder().s("Test Title").build());
         existingReview.put(BODY_KEY, AttributeValue.builder().s("Test Body").build());
@@ -698,7 +699,7 @@ public class ReviewDALTests {
         // Mock getting the existing review
         Map<String, AttributeValue> existingReview = new HashMap<>();
         existingReview.put(RESTAURANT_ID_KEY, AttributeValue.builder().s(restaurantId).build());
-        existingReview.put(IDENTIFIER_KEY, AttributeValue.builder().s("REVIEW:" + accountId).build());
+        existingReview.put(IDENTIFIER_KEY, AttributeValue.builder().s(REVIEW_IDENTIFIER_PREFIX + accountId).build());
         existingReview.put(SCORE_KEY, AttributeValue.builder().n(reviewScore.toString()).build());
 
         // Existing aggregate with only 1 review
@@ -772,7 +773,7 @@ public class ReviewDALTests {
         // Mock getting the existing review
         Map<String, AttributeValue> existingReview = new HashMap<>();
         existingReview.put(RESTAURANT_ID_KEY, AttributeValue.builder().s(restaurantId).build());
-        existingReview.put(IDENTIFIER_KEY, AttributeValue.builder().s("REVIEW:" + accountId).build());
+        existingReview.put(IDENTIFIER_KEY, AttributeValue.builder().s(REVIEW_IDENTIFIER_PREFIX + accountId).build());
         existingReview.put(SCORE_KEY, AttributeValue.builder().n(reviewScore.toString()).build());
 
         GetItemResponse reviewResponse = GetItemResponse.builder().item(existingReview).build();
@@ -818,7 +819,7 @@ public class ReviewDALTests {
         // Mock getting the existing review
         Map<String, AttributeValue> existingReview = new HashMap<>();
         existingReview.put(RESTAURANT_ID_KEY, AttributeValue.builder().s(restaurantId).build());
-        existingReview.put(IDENTIFIER_KEY, AttributeValue.builder().s("REVIEW:" + accountId).build());
+        existingReview.put(IDENTIFIER_KEY, AttributeValue.builder().s(REVIEW_IDENTIFIER_PREFIX + accountId).build());
         existingReview.put(SCORE_KEY, AttributeValue.builder().n(reviewScore.toString()).build());
 
         // First aggregate state
@@ -882,7 +883,7 @@ public class ReviewDALTests {
         // Mock getting the existing review
         Map<String, AttributeValue> existingReview = new HashMap<>();
         existingReview.put(RESTAURANT_ID_KEY, AttributeValue.builder().s(restaurantId).build());
-        existingReview.put(IDENTIFIER_KEY, AttributeValue.builder().s("REVIEW:" + accountId).build());
+        existingReview.put(IDENTIFIER_KEY, AttributeValue.builder().s(REVIEW_IDENTIFIER_PREFIX + accountId).build());
         existingReview.put(SCORE_KEY, AttributeValue.builder().n(reviewScore.toString()).build());
 
         Map<String, AttributeValue> existingAggregate = new HashMap<>();
@@ -931,7 +932,7 @@ public class ReviewDALTests {
 
         Map<String, AttributeValue> existingReview = new HashMap<>();
         existingReview.put(RESTAURANT_ID_KEY, AttributeValue.builder().s(restaurantId).build());
-        existingReview.put(IDENTIFIER_KEY, AttributeValue.builder().s("REVIEW:" + accountId).build());
+        existingReview.put(IDENTIFIER_KEY, AttributeValue.builder().s(REVIEW_IDENTIFIER_PREFIX + accountId).build());
         existingReview.put(SCORE_KEY, AttributeValue.builder().n(reviewScore.toString()).build());
 
         Map<String, AttributeValue> existingAggregate = new HashMap<>();
@@ -969,7 +970,7 @@ public class ReviewDALTests {
     public void testMapItemToReview_happyPath_allFieldsPopulated() throws Exception {
         String accountId = "acc123";
         String restaurantId = "res456";
-        String identifier = "REVIEW:" + accountId;
+        String identifier = REVIEW_IDENTIFIER_PREFIX + accountId;
         Double score = 7.5;
         String title = "Great food";
         String body = "Really enjoyed the meal";
@@ -1041,12 +1042,6 @@ public class ReviewDALTests {
                 .build();
         when(dynamoDb.query(any(QueryRequest.class))).thenReturn(queryResponse);
 
-        // No batch get needed when there are no account IDs
-        BatchGetItemResponse batchResponse = BatchGetItemResponse.builder()
-                .responses(Map.of())
-                .build();
-        when(dynamoDb.batchGetItem(any(BatchGetItemRequest.class))).thenReturn(batchResponse);
-
         final GetAllReviewsOutput actualOutput = reviewDAL.getAllReviewsByRestaurantId(restaurantId);
 
         assertNotNull(actualOutput);
@@ -1060,7 +1055,7 @@ public class ReviewDALTests {
     public void testMapItemToReview_reviewIdGeneration_removesPrefix() throws Exception {
         String accountId = "user123";
         String restaurantId = "res456";
-        String identifier = "REVIEW:" + accountId;
+        String identifier = REVIEW_IDENTIFIER_PREFIX + accountId;
 
         Map<String, AttributeValue> reviewItem = new HashMap<>();
         reviewItem.put(RESTAURANT_ID_KEY, AttributeValue.builder().s(restaurantId).build());
@@ -1094,7 +1089,7 @@ public class ReviewDALTests {
     private Map<String, AttributeValue> reviewToAttributeMap(Review review) {
         Map<String, AttributeValue> map = new HashMap<>();
         map.put(RESTAURANT_ID_KEY, AttributeValue.builder().s(review.getRestaurantId()).build());
-        map.put(IDENTIFIER_KEY, AttributeValue.builder().s("REVIEW:" + review.getAccountId()).build());
+        map.put(IDENTIFIER_KEY, AttributeValue.builder().s(REVIEW_IDENTIFIER_PREFIX + review.getAccountId()).build());
         map.put(SCORE_KEY, AttributeValue.builder().n(review.getScore().toString()).build());
         map.put(TITLE_KEY, AttributeValue.builder().s(review.getTitle()).build());
         map.put(BODY_KEY, AttributeValue.builder().s(review.getBody()).build());

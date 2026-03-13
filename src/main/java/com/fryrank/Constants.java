@@ -39,6 +39,10 @@ public class Constants {
     public static final String IS_REVIEW_KEY = "isReview";
     public static final String IS_REVIEW_VALUE = "true";
 
+    // DynamoDB Ranking table identifiers
+    public static final String REVIEW_IDENTIFIER_PREFIX = "REVIEW:";
+    public static final String AGGREGATE_IDENTIFIER = "AGGREGATE";
+
     // DynamoDB table names
     public static final String RANKINGS_TABLE_NAME = "fryrank-app-rankings";
     public static final String USER_METADATA_TABLE_NAME = "fryrank-app-user-metadata";

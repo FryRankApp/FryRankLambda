@@ -61,10 +61,6 @@ public class ReviewDALImpl implements ReviewDAL {
 
     private static final int MAX_AGGREGATE_UPDATE_RETRIES = 3;
 
-    // Ranking identifiers
-    public static final String REVIEW_IDENTIFIER_PREFIX = "REVIEW:";
-    public static final String AGGREGATE_IDENTIFIER = "AGGREGATE";
-
     private final DynamoDbClient dynamoDb;
 
     public ReviewDALImpl() {
@@ -333,7 +329,7 @@ public class ReviewDALImpl implements ReviewDAL {
 
         String[] keyParts = reviewId.split(":");
         String restaurantId = keyParts[0];
-        String identifier = "REVIEW:" + keyParts[1];
+        String identifier = REVIEW_IDENTIFIER_PREFIX + keyParts[1];
 
         // First, get the review to find its score (needed for aggregate update)
         final Map<String, AttributeValue> reviewKey = Map.of(
