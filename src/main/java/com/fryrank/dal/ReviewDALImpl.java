@@ -18,15 +18,12 @@ import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.BatchGetItemRequest;
 import software.amazon.awssdk.services.dynamodb.model.BatchGetItemResponse;
 import software.amazon.awssdk.services.dynamodb.model.Delete;
-import software.amazon.awssdk.services.dynamodb.model.DeleteItemRequest;
-import software.amazon.awssdk.services.dynamodb.model.DeleteItemResponse;
 import software.amazon.awssdk.services.dynamodb.model.GetItemRequest;
 import software.amazon.awssdk.services.dynamodb.model.GetItemResponse;
 import software.amazon.awssdk.services.dynamodb.model.KeysAndAttributes;
 import software.amazon.awssdk.services.dynamodb.model.Put;
 import software.amazon.awssdk.services.dynamodb.model.QueryRequest;
 import software.amazon.awssdk.services.dynamodb.model.QueryResponse;
-import software.amazon.awssdk.services.dynamodb.model.ReturnValue;
 import software.amazon.awssdk.services.dynamodb.model.TransactWriteItem;
 import software.amazon.awssdk.services.dynamodb.model.TransactWriteItemsRequest;
 import software.amazon.awssdk.services.dynamodb.model.TransactionCanceledException;
@@ -459,13 +456,13 @@ public class ReviewDALImpl implements ReviewDAL {
     private Review mapItemToReview(Map<String, AttributeValue> item, Map<String, PublicUserMetadata> userMetadataMap) {
         final String accountId = getStringAttribute(item, ACCOUNT_ID_KEY);
         final String restaurantId = getStringAttribute(item, RESTAURANT_ID_KEY);
-        final String identifier = getStringAttribute(item, IDENTIFIER_KEY);
+        final String identifierWithoutPrefix = Objects.requireNonNull(getStringAttribute(item, IDENTIFIER_KEY)).replaceFirst(REVIEW_IDENTIFIER_PREFIX, "");
 
         final PublicUserMetadata userMetadata = accountId != null ? userMetadataMap.get(accountId) : null;
 
         // TODO(FRY-114): Once we standardize the Review model, we will no longer need to generate a reviewId which
         // does not exist in dyanmoDB
-        final String reviewId = restaurantId + ":" + identifier;
+        final String reviewId = restaurantId + ":" + identifierWithoutPrefix;
 
         assert restaurantId != null;
         return Review.builder()
