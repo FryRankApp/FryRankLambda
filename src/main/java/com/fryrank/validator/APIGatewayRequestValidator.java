@@ -15,6 +15,7 @@ import static com.fryrank.Constants.GET_RECENT_REVIEWS_HANDLER;
 import static com.fryrank.Constants.GET_PUBLIC_USER_METADATA_HANDLER;
 import static com.fryrank.Constants.PUT_PUBLIC_USER_METADATA_HANDLER;
 import static com.fryrank.Constants.UPSERT_PUBLIC_USER_METADATA_HANDLER;
+import static com.fryrank.Constants.UPDATE_LIKE_COUNT_HANDLER;
 
 @Log4j2
 public class APIGatewayRequestValidator {
@@ -131,6 +132,9 @@ public class APIGatewayRequestValidator {
                 validateQueryParamExists(putMetadataParams, QueryParam.USERNAME);
                 break;
             case UPSERT_PUBLIC_USER_METADATA_HANDLER:
+                validateRequestBodyExists(request);
+                break;
+            case UPDATE_LIKE_COUNT_HANDLER:
                 validateRequestBodyExists(request);
                 break;
             default:
