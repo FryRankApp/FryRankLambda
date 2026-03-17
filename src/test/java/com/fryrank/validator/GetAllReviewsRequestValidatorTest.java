@@ -10,7 +10,6 @@ import static com.fryrank.TestConstants.TEST_ISO_DATE_TIME_1;
 import static com.fryrank.TestConstants.TEST_RESTAURANT_ID;
 import static com.fryrank.validator.GetAllReviewsRequestValidator.CURSOR_REJECTION_FORMAT_REASON;
 import static com.fryrank.validator.GetAllReviewsRequestValidator.LIMIT_REJECTION_FORMAT_REASON;
-import static com.fryrank.validator.GetAllReviewsRequestValidator.LIMIT_REJECTION_REQUIRED_REASON;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -52,14 +51,6 @@ public class GetAllReviewsRequestValidatorTest {
         assertTrue(errors.hasErrors());
         assertEquals("cursor", errors.getFieldError().getField());
         assertEquals(CURSOR_REJECTION_FORMAT_REASON, errors.getFieldError().getDefaultMessage());
-    }
-
-    @Test
-    public void testValidate_nullLimit_rejected() {
-        Errors errors = validate(new GetAllReviewsRequest(TEST_RESTAURANT_ID, null, null, null));
-        assertTrue(errors.hasErrors());
-        assertEquals("limit", errors.getFieldError().getField());
-        assertEquals(LIMIT_REJECTION_REQUIRED_REASON, errors.getFieldError().getDefaultMessage());
     }
 
     @Test

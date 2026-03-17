@@ -8,6 +8,7 @@ import com.fryrank.model.GetAggregateReviewInformationOutput;
 import com.fryrank.model.GetAllReviewsOutput;
 import com.fryrank.model.PublicUserMetadata;
 import com.fryrank.model.Review;
+import com.fryrank.util.CursorUtils;
 import com.fryrank.util.DynamoDbUtils;
 import lombok.AllArgsConstructor;
 import lombok.NonNull;
@@ -75,19 +76,20 @@ public class ReviewDALImpl implements ReviewDAL {
     }
 
     @Override
-    public GetAllReviewsOutput getAllReviewsByRestaurantId(@NonNull final String restaurantId) {
+    public GetAllReviewsOutput getAllReviewsByRestaurantId(@NonNull final String restaurantId, final Integer limit, final String cursor) {
         log.info("Getting all reviews for restaurantId: {}", restaurantId);
-        return queryReviews(RESTAURANT_ID_TIME_INDEX, RESTAURANT_ID_KEY, restaurantId);
+        return queryReviews(RESTAURANT_ID_TIME_INDEX, RESTAURANT_ID_KEY, restaurantId, limit, cursor, false);
     }
 
     @Override
-    public GetAllReviewsOutput getAllReviewsByAccountId(@NonNull final String accountId) {
+    public GetAllReviewsOutput getAllReviewsByAccountId(@NonNull final String accountId, final Integer limit, final String cursor) {
         log.info("Getting all reviews for accountId: {}", accountId);
-        return queryReviews(ACCOUNT_ID_TIME_INDEX, ACCOUNT_ID_KEY, accountId);
+        return queryReviews(ACCOUNT_ID_TIME_INDEX, ACCOUNT_ID_KEY, accountId, limit, cursor, true);
     }
 
-    private GetAllReviewsOutput queryReviews(String indexName, String keyAttribute, String keyValue) {
-        final QueryRequest request = QueryRequest.builder()
+    private GetAllReviewsOutput queryReviews(String indexName, String keyAttribute, String keyValue,
+            Integer limit, String cursor, boolean includeAccountIdInStartKey) {
+        QueryRequest.Builder requestBuilder = QueryRequest.builder()
                 .tableName(RANKINGS_TABLE_NAME)
                 .indexName(indexName)
                 .keyConditionExpression("#key = :value")
@@ -99,10 +101,35 @@ public class ReviewDALImpl implements ReviewDAL {
                         ":value", AttributeValue.builder().s(keyValue).build()
                 ))
                 .scanIndexForward(false)  // Most recent first
-                .build();
+                .limit(limit);
 
-        final QueryResponse response = dynamoDb.query(request);
-        return mapItemsToReviewsWithUserMetadata(response.items());
+        if (cursor != null && !cursor.isEmpty()) {
+            CursorUtils.CompositeCursor decoded = CursorUtils.decode(cursor);
+            Map<String, AttributeValue> exclusiveStartKey = new HashMap<>();
+            exclusiveStartKey.put(RESTAURANT_ID_KEY, AttributeValue.builder().s(decoded.restaurantId()).build());
+            exclusiveStartKey.put(IDENTIFIER_KEY, AttributeValue.builder().s(decoded.identifier()).build());
+            exclusiveStartKey.put(ISO_DATE_TIME, AttributeValue.builder().s(decoded.isoDateTime()).build());
+            if (includeAccountIdInStartKey) {
+                // accountId is derivable from identifier: "REVIEW:accountId" -> strip prefix
+                String accountId = decoded.identifier().substring(REVIEW_IDENTIFIER_PREFIX.length());
+                exclusiveStartKey.put(ACCOUNT_ID_KEY, AttributeValue.builder().s(accountId).build());
+            }
+            requestBuilder.exclusiveStartKey(exclusiveStartKey);
+        }
+
+        final QueryResponse response = dynamoDb.query(requestBuilder.build());
+
+        String nextCursor = null;
+        final Map<String, AttributeValue> lastEvaluatedKey = response.lastEvaluatedKey();
+        if (lastEvaluatedKey != null && !lastEvaluatedKey.isEmpty()) {
+            nextCursor = CursorUtils.encode(
+                    lastEvaluatedKey.get(ISO_DATE_TIME).s(),
+                    lastEvaluatedKey.get(RESTAURANT_ID_KEY).s(),
+                    lastEvaluatedKey.get(IDENTIFIER_KEY).s()
+            );
+        }
+
+        return mapItemsToReviewsWithUserMetadata(response.items(), nextCursor);
     }
 
     @Override
@@ -123,7 +150,7 @@ public class ReviewDALImpl implements ReviewDAL {
                 .build();
 
         final QueryResponse response = dynamoDb.query(request);
-        return mapItemsToReviewsWithUserMetadata(response.items());
+        return mapItemsToReviewsWithUserMetadata(response.items(), null);
     }
 
     @Override
@@ -437,7 +464,7 @@ public class ReviewDALImpl implements ReviewDAL {
     /**
      * Maps DynamoDB items to Review objects with batched user metadata fetching.
      */
-    private GetAllReviewsOutput mapItemsToReviewsWithUserMetadata(List<Map<String, AttributeValue>> items) {
+    private GetAllReviewsOutput mapItemsToReviewsWithUserMetadata(List<Map<String, AttributeValue>> items, String nextCursor) {
         final List<String> accountIds = items.parallelStream()
                 .map(item -> getStringAttribute(item, ACCOUNT_ID_KEY))
                 .filter(Objects::nonNull)
@@ -450,7 +477,7 @@ public class ReviewDALImpl implements ReviewDAL {
                 .map(item -> mapItemToReview(item, userMetadataMap))
                 .collect(Collectors.toList());
 
-        return new GetAllReviewsOutput(reviews);
+        return new GetAllReviewsOutput(reviews, nextCursor);
     }
 
     /**

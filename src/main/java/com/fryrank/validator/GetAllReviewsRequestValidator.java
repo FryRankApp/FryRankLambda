@@ -7,17 +7,12 @@ import org.springframework.validation.Validator;
 
 import com.fryrank.util.CursorUtils;
 
-import java.time.OffsetDateTime;
-import java.time.format.DateTimeParseException;
-
 import static com.fryrank.Constants.REJECTION_FORMAT_CODE;
-import static com.fryrank.Constants.REJECTION_REQUIRED_CODE;
 
 public class GetAllReviewsRequestValidator implements Validator {
 
     public static final String LIMIT = "limit";
     public static final String CURSOR = "cursor";
-    public static final String LIMIT_REJECTION_REQUIRED_REASON = "The limit query parameter is required.";
     public static final String LIMIT_REJECTION_FORMAT_REASON = "Limit must be a positive integer.";
     public static final String CURSOR_REJECTION_FORMAT_REASON = "Cursor must be a valid Base64-encoded composite cursor.";
 
@@ -30,32 +25,25 @@ public class GetAllReviewsRequestValidator implements Validator {
     public void validate(@NonNull Object target, @NonNull Errors errors) {
         GetAllReviewsRequest request = (GetAllReviewsRequest) target;
 
-        // Validate limit is present
+        // Validate limit format if provided (defaults to DEFAULT_PAGE_LIMIT if absent)
         String limitStr = request.limit();
-        if (limitStr == null || limitStr.isEmpty()) {
-            errors.rejectValue(LIMIT, REJECTION_REQUIRED_CODE, LIMIT_REJECTION_REQUIRED_REASON);
-            return;
+        if (limitStr != null && !limitStr.isEmpty()) {
+            try {
+                int limit = Integer.parseInt(limitStr);
+                if (limit <= 0) {
+                    errors.rejectValue(LIMIT, REJECTION_FORMAT_CODE, LIMIT_REJECTION_FORMAT_REASON);
+                }
+            } catch (NumberFormatException e) {
+                errors.rejectValue(LIMIT, REJECTION_FORMAT_CODE, LIMIT_REJECTION_FORMAT_REASON);
+            }
         }
 
-        // Validate limit is a positive integer
-        int limit;
-        try {
-            limit = Integer.parseInt(limitStr);
-        } catch (NumberFormatException e) {
-            errors.rejectValue(LIMIT, REJECTION_FORMAT_CODE, LIMIT_REJECTION_FORMAT_REASON);
-            return;
-        }
-        if (limit <= 0) {
-            errors.rejectValue(LIMIT, REJECTION_FORMAT_CODE, LIMIT_REJECTION_FORMAT_REASON);
-        }
-
-        // Validate cursor format if present
+        // Validate cursor decodes to 3 non-empty parts
         String cursor = request.cursor();
         if (cursor != null && !cursor.isEmpty()) {
             try {
-                CursorUtils.CompositeCursor decoded = CursorUtils.decode(cursor);
-                OffsetDateTime.parse(decoded.isoDateTime());
-            } catch (IllegalArgumentException | DateTimeParseException e) {
+                CursorUtils.decode(cursor);
+            } catch (IllegalArgumentException e) {
                 errors.rejectValue(CURSOR, REJECTION_FORMAT_CODE, CURSOR_REJECTION_FORMAT_REASON);
             }
         }

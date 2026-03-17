@@ -1,5 +1,6 @@
 package com.fryrank;
 
+import com.fryrank.dal.ReviewDALImpl;
 import com.fryrank.model.Review;
 import com.fryrank.model.PublicUserMetadata;
 import com.fryrank.model.PublicUserMetadataOutput;
@@ -21,8 +22,8 @@ public class TestConstants {
     public static final String TEST_BODY_2 = "body_2";
     public static final Integer TEST_LIMIT = 10;
     public static final String TEST_ISO_DATE_TIME_1 = "1970-01-01T00:00:00Z";
-    public static final String TEST_CURSOR_1 = CursorUtils.encode(TEST_ISO_DATE_TIME_1, TEST_REVIEW_ID_1);
     public static final String TEST_ACCOUNT_ID = "test_account_id";
+    public static final String TEST_CURSOR_1 = CursorUtils.encode(TEST_ISO_DATE_TIME_1, TEST_RESTAURANT_ID, ReviewDALImpl.REVIEW_IDENTIFIER_PREFIX + TEST_ACCOUNT_ID);
     public static final String TEST_AUTHORIZED_ACCOUNT_ID = "authorized_account_id";
     public static final String TEST_USERNAME = "testflush";
     public static final String TEST_DELETE_REVIEW_ID = "abcdefg:1234567";

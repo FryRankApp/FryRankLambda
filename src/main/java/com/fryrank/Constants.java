@@ -14,6 +14,9 @@ public class Constants {
     public static final String GOOGLE_CLIENT_ID_PARAMETER_NAME_ENV_VAR = "SSM_GOOGLE_CLIENT_ID_PARAMETER_KEY";
     public static final String SSM_DISABLE_AUTH_PARAMETER_NAME_ENV_VAR = "SSM_DISABLE_AUTH_PARAMETER_KEY";
 
+    // Pagination
+    public static final int DEFAULT_PAGE_LIMIT = 10;
+
     // Input Validator
     public static final String GENERIC_VALIDATOR_ERROR_MESSAGE = "Encountered error while validating API input.";
     public static final String REVIEW_VALIDATOR_ERRORS_OBJECT_NAME = "review";
