@@ -1,11 +1,9 @@
 package com.fryrank;
 
-import com.fryrank.dal.ReviewDALImpl;
 import com.fryrank.model.Review;
 import com.fryrank.model.PublicUserMetadata;
 import com.fryrank.model.PublicUserMetadataOutput;
 import com.fryrank.model.enums.QueryParam;
-import com.fryrank.util.CursorUtils;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -23,7 +21,6 @@ public class TestConstants {
     public static final Integer TEST_LIMIT = 10;
     public static final String TEST_ISO_DATE_TIME_1 = "1970-01-01T00:00:00Z";
     public static final String TEST_ACCOUNT_ID = "test_account_id";
-    public static final String TEST_CURSOR_1 = CursorUtils.encode(TEST_ISO_DATE_TIME_1, TEST_RESTAURANT_ID, ReviewDALImpl.REVIEW_IDENTIFIER_PREFIX + TEST_ACCOUNT_ID);
     public static final String TEST_AUTHORIZED_ACCOUNT_ID = "authorized_account_id";
     public static final String TEST_USERNAME = "testflush";
     public static final String TEST_DELETE_REVIEW_ID = "abcdefg:1234567";

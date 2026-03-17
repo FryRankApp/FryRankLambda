@@ -14,9 +14,6 @@ public class Constants {
     public static final String GOOGLE_CLIENT_ID_PARAMETER_NAME_ENV_VAR = "SSM_GOOGLE_CLIENT_ID_PARAMETER_KEY";
     public static final String SSM_DISABLE_AUTH_PARAMETER_NAME_ENV_VAR = "SSM_DISABLE_AUTH_PARAMETER_KEY";
 
-    // Pagination
-    public static final int DEFAULT_PAGE_LIMIT = 10;
-
     // Input Validator
     public static final String GENERIC_VALIDATOR_ERROR_MESSAGE = "Encountered error while validating API input.";
     public static final String REVIEW_VALIDATOR_ERRORS_OBJECT_NAME = "review";
@@ -26,31 +23,16 @@ public class Constants {
     public static final String REJECTION_REQUIRED_CODE = "field.required";
     public static final String REJECTION_FORMAT_CODE = "field.invalidFormat";
 
+    // Output field names
+    public static final String USER_METADATA_OUTPUT_FIELD_NAME = "userMetadata";
+
     // MongoDB keys
     public static final String ACCOUNT_ID_KEY = "accountId";
+    public static final String PRIMARY_KEY = "_id";
 
-    // DynamoDB attribute names
-    public static final String RESTAURANT_ID_KEY = "restaurantId";
-    public static final String IDENTIFIER_KEY = "identifier";
-    public static final String ISO_DATE_TIME_KEY = "isoDateTime";
-    public static final String TOTAL_SCORE_KEY = "totalScore";
-    public static final String REVIEW_COUNT_KEY = "reviewCount";
-    public static final String AVERAGE_SCORE_KEY = "averageScore";
-    public static final String SCORE_KEY = "score";
-    public static final String TITLE_KEY = "title";
-    public static final String BODY_KEY = "body";
-    public static final String USERNAME_KEY = "username";
-    public static final String IS_REVIEW_KEY = "isReview";
-    public static final String IS_REVIEW_VALUE = "true";
-
-    // DynamoDB table names
-    public static final String RANKINGS_TABLE_NAME = "fryrank-app-rankings";
-    public static final String USER_METADATA_TABLE_NAME = "fryrank-app-user-metadata";
-
-    // DynamoDB GSI names
-    public static final String RESTAURANT_ID_TIME_INDEX = "restaurantId-time-index";
-    public static final String ACCOUNT_ID_TIME_INDEX = "accountId-time-index";
-    public static final String RECENT_REVIEWS_INDEX = "recent-reviews-index";
+    // MongoDB collection names
+    public static final String REVIEW_COLLECTION_NAME = "review";
+    public static final String PUBLIC_USER_METADATA_COLLECTION_NAME = "user-metadata";
 
     // Handler class names
     public static final String ADD_NEW_REVIEW_HANDLER = "AddNewReviewForRestaurantHandler";

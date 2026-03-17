@@ -17,7 +17,6 @@ import lombok.extern.log4j.Log4j2;
 
 import java.util.Map;
 
-import static com.fryrank.Constants.DEFAULT_PAGE_LIMIT;
 import static com.fryrank.Constants.GET_ALL_REVIEWS_REQUEST_VALIDATOR_ERRORS_OBJECT_NAME;
 import static com.fryrank.util.HeaderUtils.createCorsHeaders;
 
@@ -52,11 +51,7 @@ public class GetAllReviewsHandler implements RequestHandler<APIGatewayV2HTTPEven
 					params.get(QueryParam.CURSOR.getValue()));
 			ValidatorUtils.validateAndThrow(request, GET_ALL_REVIEWS_REQUEST_VALIDATOR_ERRORS_OBJECT_NAME, getAllReviewsRequestValidator);
 
-			final String limitParam = request.limit();
-			if (limitParam == null || limitParam.isEmpty()) {
-				log.debug("No limit provided, defaulting to {}", DEFAULT_PAGE_LIMIT);
-			}
-			final int limit = (limitParam != null && !limitParam.isEmpty()) ? Integer.parseInt(limitParam) : DEFAULT_PAGE_LIMIT;
+			final int limit = Integer.parseInt(request.limit());
 			final GetAllReviewsOutput output = reviewDomain.getAllReviews(
 					request.restaurantId(),
 					request.accountId(),
