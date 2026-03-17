@@ -15,8 +15,11 @@ import com.fryrank.validator.GetAllReviewsRequestValidator;
 import com.fryrank.validator.ValidatorUtils;
 import lombok.extern.log4j.Log4j2;
 
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
+import static com.fryrank.Constants.DEFAULT_PAGE_LIMIT;
 import static com.fryrank.Constants.GET_ALL_REVIEWS_REQUEST_VALIDATOR_ERRORS_OBJECT_NAME;
 import static com.fryrank.util.HeaderUtils.createCorsHeaders;
 
@@ -35,6 +38,13 @@ public class GetAllReviewsHandler implements RequestHandler<APIGatewayV2HTTPEven
         getAllReviewsRequestValidator = new GetAllReviewsRequestValidator();
     }
 
+    private String decodeCursor(final String cursor) {
+        if (cursor == null || cursor.isEmpty()) {
+            return cursor;
+        }
+        return URLDecoder.decode(cursor, StandardCharsets.UTF_8);
+    }
+
     @Override
     public APIGatewayV2HTTPResponse handleRequest(APIGatewayV2HTTPEvent input, Context context) {
         log.info("Handling request: {}", input);
@@ -48,10 +58,14 @@ public class GetAllReviewsHandler implements RequestHandler<APIGatewayV2HTTPEven
 					params.get(QueryParam.RESTAURANT_ID.getValue()),
 					params.get(QueryParam.ACCOUNT_ID.getValue()),
 					params.get(QueryParam.LIMIT.getValue()),
-					params.get(QueryParam.CURSOR.getValue()));
+					decodeCursor(params.get(QueryParam.CURSOR.getValue())));
 			ValidatorUtils.validateAndThrow(request, GET_ALL_REVIEWS_REQUEST_VALIDATOR_ERRORS_OBJECT_NAME, getAllReviewsRequestValidator);
 
-			final int limit = Integer.parseInt(request.limit());
+			final String limitParam = request.limit();
+			if (limitParam == null || limitParam.isEmpty()) {
+				log.debug("No limit provided, defaulting to {}", DEFAULT_PAGE_LIMIT);
+			}
+			final int limit = (limitParam != null && !limitParam.isEmpty()) ? Integer.parseInt(limitParam) : DEFAULT_PAGE_LIMIT;
 			final GetAllReviewsOutput output = reviewDomain.getAllReviews(
 					request.restaurantId(),
 					request.accountId(),

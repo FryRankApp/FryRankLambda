@@ -27,18 +27,18 @@ public class ReviewDomain {
 
     ReviewDAL reviewDAL;
 
-	public GetAllReviewsOutput getAllReviews(final String restaurantId, final String accountId, final Integer limit, final String cursorIsoDateTime) {
+	public GetAllReviewsOutput getAllReviews(final String restaurantId, final String accountId, final Integer limit, final String cursor) {
 
 		log.info("Getting paginated reviews{}{} with limit: {} and cursor: {}",
 				restaurantId != null ? " for restaurantId: " + restaurantId : "",
 				accountId != null ? " for accountId: " + accountId : "",
 				limit,
-				cursorIsoDateTime);
+				cursor);
 
 		if (restaurantId != null) {
-			return reviewDAL.getAllReviewsByRestaurantId(restaurantId, limit, cursorIsoDateTime);
+			return reviewDAL.getAllReviewsByRestaurantId(restaurantId, limit, cursor);
 		} else if (accountId != null) {
-			return reviewDAL.getAllReviewsByAccountId(accountId, limit, cursorIsoDateTime);
+			return reviewDAL.getAllReviewsByAccountId(accountId, limit, cursor);
 		} else {
 			throw new NullPointerException("At least one of restaurantId and accountId must not be null.");
 		}

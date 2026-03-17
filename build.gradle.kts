@@ -48,6 +48,9 @@ dependencies {
     // AWS SSM
     implementation("software.amazon.awssdk:ssm:2.24.0")
 
+    // AWS DynamoDB
+    implementation("software.amazon.awssdk:dynamodb:2.24.0")
+
     // Google API Client
     implementation("com.google.api-client:google-api-client:1.32.1")
     implementation("com.google.http-client:google-http-client:2.1.0")

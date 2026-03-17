@@ -56,6 +56,10 @@ public class Constants {
     public static final String ADD_NEW_REVIEW_HANDLER = "AddNewReviewForRestaurantHandler";
     public static final String DELETE_EXISTING_REVIEW_HANDLER = "DeleteReviewHandler";
     public static final String GET_ALL_REVIEWS_HANDLER = "GetAllReviewsHandler";
+
+    // Pagination
+    public static final int DEFAULT_PAGE_LIMIT = 10;
+    public static final String GET_ALL_REVIEWS_REQUEST_VALIDATOR_ERRORS_OBJECT_NAME = "GetAllReviewsRequest";
     public static final String GET_AGGREGATE_REVIEW_HANDLER = "GetAggregateReviewInformationHandler";
     public static final String GET_RECENT_REVIEWS_HANDLER = "GetRecentReviewsHandler";
     public static final String GET_PUBLIC_USER_METADATA_HANDLER = "GetPublicUserMetadataHandler";

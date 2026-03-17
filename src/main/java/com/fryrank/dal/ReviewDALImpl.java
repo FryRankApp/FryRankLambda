@@ -30,6 +30,8 @@ import software.amazon.awssdk.services.dynamodb.model.TransactionCanceledExcepti
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -86,34 +88,61 @@ public class ReviewDALImpl implements ReviewDAL {
     }
 
     @Override
-    public GetAllReviewsOutput getAllReviewsByRestaurantId(@NonNull final String restaurantId) {
-        log.info("Getting all reviews for restaurantId: {}", restaurantId);
-        return queryReviews(RESTAURANT_ID_TIME_INDEX, RESTAURANT_ID_KEY, restaurantId);
+    public GetAllReviewsOutput getAllReviewsByRestaurantId(@NonNull final String restaurantId, final Integer limit, final String cursor) {
+        log.info("Getting reviews for restaurantId: {} with limit: {} and cursor: {}", restaurantId, limit, cursor);
+        return queryReviews(RESTAURANT_ID_TIME_INDEX, RESTAURANT_ID_KEY, restaurantId, limit, cursor);
     }
 
     @Override
-    public GetAllReviewsOutput getAllReviewsByAccountId(@NonNull final String accountId) {
-        log.info("Getting all reviews for accountId: {}", accountId);
-        return queryReviews(ACCOUNT_ID_TIME_INDEX, ACCOUNT_ID_KEY, accountId);
+    public GetAllReviewsOutput getAllReviewsByAccountId(@NonNull final String accountId, final Integer limit, final String cursor) {
+        log.info("Getting reviews for accountId: {} with limit: {} and cursor: {}", accountId, limit, cursor);
+        return queryReviews(ACCOUNT_ID_TIME_INDEX, ACCOUNT_ID_KEY, accountId, limit, cursor);
     }
 
-    private GetAllReviewsOutput queryReviews(String indexName, String keyAttribute, String keyValue) {
-        final QueryRequest request = QueryRequest.builder()
+    private GetAllReviewsOutput queryReviews(String indexName, String keyAttribute, String keyValue, Integer limit, String cursor) {
+        final Map<String, String> exprAttrNames = new HashMap<>();
+        exprAttrNames.put("#key", keyAttribute);
+
+        final Map<String, AttributeValue> exprAttrValues = new HashMap<>();
+        exprAttrValues.put(":value", AttributeValue.builder().s(keyValue).build());
+
+        final String keyCondition;
+        if (cursor != null && !cursor.isEmpty()) {
+            exprAttrNames.put("#dt", ISO_DATE_TIME);
+            exprAttrValues.put(":cursor", AttributeValue.builder().s(cursor).build());
+            keyCondition = "#key = :value AND #dt < :cursor";
+        } else {
+            keyCondition = "#key = :value";
+        }
+
+        final QueryRequest.Builder requestBuilder = QueryRequest.builder()
                 .tableName(RANKINGS_TABLE_NAME)
                 .indexName(indexName)
-                .keyConditionExpression("#key = :value")
+                .keyConditionExpression(keyCondition)
                 // TODO(FRY-114): Temporary filter expression because we have not yet converted over outputs to use the
                 //  new Ranking model objects. Once we convert outputs to use Ranking objects, we can remove this
                 .filterExpression("attribute_exists(isReview)")
-                .expressionAttributeNames(Map.of("#key", keyAttribute))
-                .expressionAttributeValues(Map.of(
-                        ":value", AttributeValue.builder().s(keyValue).build()
-                ))
-                .scanIndexForward(false)  // Most recent first
-                .build();
+                .expressionAttributeNames(exprAttrNames)
+                .expressionAttributeValues(exprAttrValues)
+                .scanIndexForward(false);  // Most recent first
 
-        final QueryResponse response = dynamoDb.query(request);
-        return mapItemsToReviewsWithUserMetadata(response.items());
+        if (limit != null) {
+            requestBuilder.limit(limit);
+        }
+
+        final QueryResponse response = dynamoDb.query(requestBuilder.build());
+
+        final List<Map<String, AttributeValue>> items = response.items();
+        final Map<String, AttributeValue> lek = response.lastEvaluatedKey();
+        String nextCursor = null;
+        if (lek != null && !lek.isEmpty() && !items.isEmpty()) {
+            final AttributeValue lastDateTime = items.get(items.size() - 1).get(ISO_DATE_TIME);
+            if (lastDateTime != null) {
+                nextCursor = URLEncoder.encode(lastDateTime.s(), StandardCharsets.UTF_8);
+            }
+        }
+
+        return mapItemsToReviewsWithUserMetadata(items, nextCursor);
     }
 
     @Override
@@ -134,7 +163,7 @@ public class ReviewDALImpl implements ReviewDAL {
                 .build();
 
         final QueryResponse response = dynamoDb.query(request);
-        return mapItemsToReviewsWithUserMetadata(response.items());
+        return mapItemsToReviewsWithUserMetadata(response.items(), null);
     }
 
     @Override
@@ -448,7 +477,7 @@ public class ReviewDALImpl implements ReviewDAL {
     /**
      * Maps DynamoDB items to Review objects with batched user metadata fetching.
      */
-    private GetAllReviewsOutput mapItemsToReviewsWithUserMetadata(List<Map<String, AttributeValue>> items) {
+    private GetAllReviewsOutput mapItemsToReviewsWithUserMetadata(List<Map<String, AttributeValue>> items, String nextCursor) {
         final List<String> accountIds = items.parallelStream()
                 .map(item -> getStringAttribute(item, ACCOUNT_ID_KEY))
                 .filter(Objects::nonNull)
@@ -461,7 +490,7 @@ public class ReviewDALImpl implements ReviewDAL {
                 .map(item -> mapItemToReview(item, userMetadataMap))
                 .collect(Collectors.toList());
 
-        return new GetAllReviewsOutput(reviews);
+        return new GetAllReviewsOutput(reviews, nextCursor);
     }
 
     /**
