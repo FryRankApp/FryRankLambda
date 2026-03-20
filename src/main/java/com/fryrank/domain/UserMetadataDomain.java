@@ -9,15 +9,19 @@ import com.fryrank.validator.UserMetadataValidator;
 import com.fryrank.validator.ValidatorException;
 import com.fryrank.validator.ValidatorUtils;
 
-import lombok.AllArgsConstructor;
 import lombok.NonNull;
 import lombok.extern.log4j.Log4j2;
 
 @Log4j2
-@AllArgsConstructor
 public class UserMetadataDomain {
 
     private final UserMetadataDAL userMetadataDAL;
+    private final UserMetadataValidator userMetadataValidator;
+
+    public UserMetadataDomain(final UserMetadataDAL userMetadataDAL, final UserMetadataValidator userMetadataValidator) {
+        this.userMetadataDAL = userMetadataDAL;
+        this.userMetadataValidator = userMetadataValidator;
+    }
 
     public PublicUserMetadataOutput getPublicUserMetadata(@NonNull final String accountId) {
         log.info("Getting public user metadata for accountId: {}", accountId);
@@ -32,7 +36,7 @@ public class UserMetadataDomain {
     public PublicUserMetadataOutput upsertPublicUserMetadata(@NonNull final PublicUserMetadata userMetadata) throws ValidatorException {
         log.info("Upserting public user metadata for accountId: {}", userMetadata.getAccountId());
         
-        ValidatorUtils.validateAndThrow(userMetadata, USER_METADATA_VALIDATOR_ERRORS_OBJECT_NAME, new UserMetadataValidator());
+        ValidatorUtils.validateAndThrow(userMetadata, USER_METADATA_VALIDATOR_ERRORS_OBJECT_NAME, userMetadataValidator);
         
         return userMetadataDAL.upsertPublicUserMetadata(userMetadata);
     }

@@ -2,12 +2,14 @@ package com.fryrank.domain;
 
 import com.fryrank.dal.ReviewDAL;
 import com.fryrank.model.*;
+import com.fryrank.validator.ReviewValidator;
 import com.fryrank.validator.ValidatorException;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import static com.fryrank.TestConstants.TEST_ACCOUNT_ID;
@@ -37,6 +39,9 @@ import static com.fryrank.TestConstants.TEST_RESTAURANT_ID_2;
 public class ReviewDomainTests {
     @Mock
     ReviewDAL reviewDAL;
+
+    @Spy
+    ReviewValidator reviewValidator = new ReviewValidator();
 
     @InjectMocks
     ReviewDomain domain;

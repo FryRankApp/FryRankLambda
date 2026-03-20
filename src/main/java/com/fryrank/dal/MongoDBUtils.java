@@ -8,11 +8,19 @@ import com.mongodb.client.MongoClients;
 import org.springframework.data.mongodb.core.MongoTemplate;
 
 import java.util.concurrent.TimeUnit;
+import javax.inject.Inject;
 
 /**
  * Utility class for MongoDB operations and configuration.
  */
 public class MongoDBUtils {
+
+    private final SSMParameterStore parameterStore;
+
+    @Inject
+    public MongoDBUtils(final SSMParameterStore parameterStore) {
+        this.parameterStore = parameterStore;
+    }
 
     /**
      * Creates a MongoTemplate with standardized settings.
@@ -20,8 +28,8 @@ public class MongoDBUtils {
      * @return Configured MongoTemplate instance
      * @throws IllegalStateException if database URI cannot be retrieved
      */
-    public static MongoTemplate createMongoTemplate() {
-        String databaseUri = SSMParameterStore.getDatabaseUriFromSSM();
+    public MongoTemplate createMongoTemplate() {
+        String databaseUri = parameterStore.getDatabaseUriFromSSM();
         
         if (databaseUri == null || databaseUri.isEmpty()) {
             throw new IllegalStateException("Database URI could not be retrieved from SSM Parameter Store");

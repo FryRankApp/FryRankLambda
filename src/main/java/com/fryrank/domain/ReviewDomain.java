@@ -17,15 +17,19 @@ import com.fryrank.validator.ReviewValidator;
 import com.fryrank.validator.ValidatorException;
 import com.fryrank.validator.ValidatorUtils;
 
-import lombok.AllArgsConstructor;
 import lombok.NonNull;
 import lombok.extern.log4j.Log4j2;
 
 @Log4j2
-@AllArgsConstructor
 public class ReviewDomain {
 
-    ReviewDAL reviewDAL;
+    private final ReviewDAL reviewDAL;
+    private final ReviewValidator reviewValidator;
+
+    public ReviewDomain(final ReviewDAL reviewDAL, final ReviewValidator reviewValidator) {
+        this.reviewDAL = reviewDAL;
+        this.reviewValidator = reviewValidator;
+    }
 
     public GetAllReviewsOutput getAllReviews(final String restaurantId, final String accountId) {
 
@@ -56,7 +60,7 @@ public class ReviewDomain {
     }
 
     public Review addNewReviewForRestaurant(@NonNull final Review review) throws ValidatorException {
-        ValidatorUtils.validateAndThrow(review, REVIEW_VALIDATOR_ERRORS_OBJECT_NAME, new ReviewValidator());
+        ValidatorUtils.validateAndThrow(review, REVIEW_VALIDATOR_ERRORS_OBJECT_NAME, reviewValidator);
         return reviewDAL.addNewReview(review);
     }
 

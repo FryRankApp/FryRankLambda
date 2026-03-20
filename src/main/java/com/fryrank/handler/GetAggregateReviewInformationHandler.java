@@ -3,8 +3,7 @@ import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayV2HTTPEvent;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayV2HTTPResponse;
-import com.fryrank.dal.ReviewDAL;
-import com.fryrank.dal.ReviewDALImpl;
+import com.fryrank.dagger.Dependencies;
 import com.fryrank.domain.ReviewDomain;
 import com.fryrank.model.GetAggregateReviewInformationOutput;
 import com.fryrank.model.enums.QueryParam;
@@ -20,13 +19,12 @@ import static com.fryrank.util.HeaderUtils.createCorsHeaders;
 public class GetAggregateReviewInformationHandler implements RequestHandler<APIGatewayV2HTTPEvent, APIGatewayV2HTTPResponse> {
 
     private final ReviewDomain reviewDomain;
-    private final ReviewDAL reviewDAL;
     private final APIGatewayRequestValidator requestValidator;
 
     public GetAggregateReviewInformationHandler() {
-        reviewDAL = new ReviewDALImpl();
-        reviewDomain = new ReviewDomain(reviewDAL);
-        requestValidator = new APIGatewayRequestValidator();
+        final var component = Dependencies.appComponent();
+        reviewDomain = component.reviewDomain();
+        requestValidator = component.apiGatewayRequestValidator();
     }
 
     @Override

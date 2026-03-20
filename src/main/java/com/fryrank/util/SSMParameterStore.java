@@ -6,6 +6,8 @@ import software.amazon.awssdk.services.ssm.model.GetParameterRequest;
 import software.amazon.awssdk.services.ssm.model.GetParameterResponse;
 import software.amazon.awssdk.services.ssm.model.SsmException;
 
+import javax.inject.Inject;
+
 import static com.fryrank.Constants.DATABASE_URI_PARAMETER_NAME_ENV_VAR;
 import static com.fryrank.Constants.GOOGLE_CLIENT_ID_PARAMETER_NAME_ENV_VAR;
 import static com.fryrank.Constants.SSM_DISABLE_AUTH_PARAMETER_NAME_ENV_VAR;
@@ -13,24 +15,31 @@ import static com.fryrank.Constants.SSM_DISABLE_AUTH_PARAMETER_NAME_ENV_VAR;
 @Log4j2
 public class SSMParameterStore {
 
-    public static String getDatabaseUriFromSSM() {
+    private final SsmClient ssmClient;
+
+    @Inject
+    public SSMParameterStore(final SsmClient ssmClient) {
+        this.ssmClient = ssmClient;
+    }
+
+    public String getDatabaseUriFromSSM() {
         return getParameterFromSSM(DATABASE_URI_PARAMETER_NAME_ENV_VAR);
     }
 
-    public static String getGoogleClientIdFromSSM() {
+    public String getGoogleClientIdFromSSM() {
         return getParameterFromSSM(GOOGLE_CLIENT_ID_PARAMETER_NAME_ENV_VAR);
     }
 
-    public static String getDisableAuthFromSSM() {
+    public String getDisableAuthFromSSM() {
         return getParameterFromSSM(SSM_DISABLE_AUTH_PARAMETER_NAME_ENV_VAR);
     }
 
-    private static String getParameterFromSSM(String parameterName) {
-        try (SsmClient ssmClient = SsmClient.create()) {
+    private String getParameterFromSSM(String parameterName) {
+        try {
             final GetParameterRequest parameterRequest = GetParameterRequest.builder()
-                .name(System.getenv(parameterName))
-                .withDecryption(true)
-                .build();
+                    .name(System.getenv(parameterName))
+                    .withDecryption(true)
+                    .build();
 
             final GetParameterResponse parameterResponse = ssmClient.getParameter(parameterRequest);
             log.info("Parameter {} retrieved from SSM Parameter Store successfully", parameterName);

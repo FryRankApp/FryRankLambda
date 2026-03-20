@@ -8,8 +8,6 @@ import com.fryrank.model.GetAggregateReviewInformationOutput;
 import com.fryrank.model.GetAllReviewsOutput;
 import com.fryrank.model.PublicUserMetadata;
 import com.fryrank.model.Review;
-import com.fryrank.util.DynamoDbUtils;
-import lombok.AllArgsConstructor;
 import lombok.NonNull;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Repository;
@@ -59,7 +57,6 @@ import static com.fryrank.Constants.USER_METADATA_TABLE_NAME;
 
 @Repository
 @Log4j2
-@AllArgsConstructor
 public class ReviewDALImpl implements ReviewDAL {
     /**
      * The Rankings table combines Rankings with Aggregate data about rankings for a restaurant. This is all included
@@ -81,8 +78,8 @@ public class ReviewDALImpl implements ReviewDAL {
 
     private final DynamoDbClient dynamoDb;
 
-    public ReviewDALImpl() {
-        this.dynamoDb = DynamoDbUtils.client();
+    public ReviewDALImpl(final DynamoDbClient dynamoDb) {
+        this.dynamoDb = dynamoDb;
     }
 
     @Override

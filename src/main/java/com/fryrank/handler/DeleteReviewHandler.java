@@ -4,7 +4,7 @@ import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayV2HTTPEvent;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayV2HTTPResponse;
-import com.fryrank.dal.ReviewDALImpl;
+import com.fryrank.dagger.Dependencies;
 import com.fryrank.domain.ReviewDomain;
 import com.fryrank.model.DeleteReviewRequest;
 import com.fryrank.util.APIGatewayResponseBuilder;
@@ -18,23 +18,24 @@ import static com.fryrank.Constants.DELETE_REVIEW_REQUEST_VALIDATOR_ERRORS_OBJEC
 import static com.fryrank.util.HeaderUtils.createCorsHeaders;
 @Log4j2
 public class DeleteReviewHandler implements RequestHandler<APIGatewayV2HTTPEvent, APIGatewayV2HTTPResponse> {
-    private final ReviewDALImpl reviewDAL;
     private final ReviewDomain reviewDomain;
     private final APIGatewayRequestValidator requestValidator;
     private final DeleteReviewRequestValidator deleteReviewRequestValidator;
+    private final Gson gson;
     
     public DeleteReviewHandler() {
-        reviewDAL = new ReviewDALImpl();
-        reviewDomain = new ReviewDomain(reviewDAL);
-        requestValidator = new APIGatewayRequestValidator();
-        deleteReviewRequestValidator = new DeleteReviewRequestValidator();
+        final var component = Dependencies.appComponent();
+        reviewDomain = component.reviewDomain();
+        requestValidator = component.apiGatewayRequestValidator();
+        deleteReviewRequestValidator = component.deleteReviewRequestValidator();
+        gson = component.gson();
     }
 
-    public DeleteReviewHandler(ReviewDALImpl reviewDAL, ReviewDomain reviewDomain, APIGatewayRequestValidator requestValidator, DeleteReviewRequestValidator deleteReviewRequestValidator) {
-        this.reviewDAL = reviewDAL;
+    public DeleteReviewHandler(ReviewDomain reviewDomain, APIGatewayRequestValidator requestValidator, DeleteReviewRequestValidator deleteReviewRequestValidator) {
         this.reviewDomain = reviewDomain;
         this.requestValidator = requestValidator;
         this.deleteReviewRequestValidator = deleteReviewRequestValidator;
+        this.gson = new Gson();
     }
 
     @Override
@@ -45,7 +46,7 @@ public class DeleteReviewHandler implements RequestHandler<APIGatewayV2HTTPEvent
         return APIGatewayResponseBuilder.handleRequest(handlerName, input, () -> {
             requestValidator.validateRequest(handlerName, input);
             
-            final DeleteReviewRequest reviewId = new Gson().fromJson(input.getBody(), DeleteReviewRequest.class);
+            final DeleteReviewRequest reviewId = gson.fromJson(input.getBody(), DeleteReviewRequest.class);
             ValidatorUtils.validateAndThrow(reviewId, DELETE_REVIEW_REQUEST_VALIDATOR_ERRORS_OBJECT_NAME, deleteReviewRequestValidator);
             
             reviewDomain.deleteReview(reviewId);

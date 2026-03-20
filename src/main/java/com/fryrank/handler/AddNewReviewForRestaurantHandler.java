@@ -4,7 +4,7 @@ import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayV2HTTPEvent;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayV2HTTPResponse;
-import com.fryrank.dal.ReviewDALImpl;
+import com.fryrank.dagger.Dependencies;
 import com.fryrank.domain.ReviewDomain;
 import com.fryrank.model.Review;
 import com.fryrank.model.exceptions.AuthorizationDisabledException;
@@ -24,26 +24,27 @@ import static com.fryrank.util.HeaderUtils.createCorsHeaders;
 @Log4j2
 public class AddNewReviewForRestaurantHandler implements RequestHandler<APIGatewayV2HTTPEvent, APIGatewayV2HTTPResponse> {
 
-    private final ReviewDALImpl reviewDAL;
     private final ReviewDomain reviewDomain;
     private final APIGatewayRequestValidator requestValidator;
     private final ReviewValidator reviewValidator;
     private final Authorizer authorizer;
+    private final Gson gson;
 
     public AddNewReviewForRestaurantHandler() {
-        reviewDAL = new ReviewDALImpl();
-        reviewDomain = new ReviewDomain(reviewDAL);
-        requestValidator = new APIGatewayRequestValidator();
-        reviewValidator = new ReviewValidator();
-        authorizer = new Authorizer();
+        final var component = Dependencies.appComponent();
+        reviewDomain = component.reviewDomain();
+        requestValidator = component.apiGatewayRequestValidator();
+        reviewValidator = component.reviewValidator();
+        authorizer = component.authorizer();
+        gson = component.gson();
     }
 
-    public AddNewReviewForRestaurantHandler(ReviewDALImpl reviewDAL, ReviewDomain reviewDomain, APIGatewayRequestValidator requestValidator, ReviewValidator reviewValidator, Authorizer authorizer) {
-        this.reviewDAL = reviewDAL;
+    public AddNewReviewForRestaurantHandler(ReviewDomain reviewDomain, APIGatewayRequestValidator requestValidator, ReviewValidator reviewValidator, Authorizer authorizer) {
         this.reviewDomain = reviewDomain;
         this.requestValidator = requestValidator;
         this.reviewValidator = reviewValidator;
         this.authorizer = authorizer;
+        this.gson = new Gson();
     }
 
     @Override
@@ -54,7 +55,7 @@ public class AddNewReviewForRestaurantHandler implements RequestHandler<APIGatew
         return APIGatewayResponseBuilder.handleRequest(handlerName, input, () -> {
             requestValidator.validateRequest(handlerName, input);
 
-            final Review review = new Gson().fromJson(input.getBody(), Review.class);
+            final Review review = gson.fromJson(input.getBody(), Review.class);
 
             // Extract bearer token from authorization header and authorize
             try {

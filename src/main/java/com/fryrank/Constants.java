@@ -7,6 +7,10 @@ import java.util.Set;
  */
 public class Constants {
 
+    // AWS
+    public static final String AWS_REGION_ENV_VAR = "AWS_REGION";
+    public static final String DEFAULT_AWS_REGION = "us-west-2";
+
     public static final String ISO_DATE_TIME = "isoDateTime";
 
     // SSM Parameter Store
@@ -83,7 +87,8 @@ public class Constants {
         FRYRANK_PROD_ALT_URL,
         FRYRANK_PROD_CLOUDFRONT,
         FRYRANK_PROD_OXYSERVER,
-        FRYRANK_PROD_WWW
+        FRYRANK_PROD_WWW,
+        "https://d959r0c83rbxj.cloudfront.net"
     );
 
     // Authorization Error Messages
