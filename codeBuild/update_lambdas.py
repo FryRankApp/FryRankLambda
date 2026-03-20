@@ -20,6 +20,7 @@ from botocore.exceptions import ClientError
 
 DEFAULT_ZIP_KEY = "FryRankLambda.zip"
 DEFAULT_LOCAL_ZIP = "build/distributions/FryRankLambda.zip"
+DEFAULT_LAMBDA_ALIAS = "live"
 
 
 def get_aws_account_id(sts_client=None):
@@ -178,12 +179,37 @@ def update_lambda_functions():
     for function_name, function_info in lambda_functions.items():
         print(f"Updating Lambda function: {function_name}")
         try:
-            lambda_client.update_function_code(
+            update_resp = lambda_client.update_function_code(
                 FunctionName=function_name,
                 S3Bucket=lambda_bucket,
                 S3Key=s3_key,
                 Publish=True,
             )
+            published_version = update_resp.get("Version")
+            if not published_version:
+                raise RuntimeError(f"Publish succeeded but no Version was returned for {function_name}")
+
+            alias_name = DEFAULT_LAMBDA_ALIAS
+            try:
+                lambda_client.update_alias(
+                    FunctionName=function_name,
+                    Name=alias_name,
+                    FunctionVersion=published_version,
+                )
+                print(f"Updated alias '{alias_name}' -> version {published_version} for {function_name}")
+            except ClientError as e:
+                error_code = e.response.get("Error", {}).get("Code", "")
+                if error_code in ("ResourceNotFoundException", "ResourceNotFound"):
+                    lambda_client.create_alias(
+                        FunctionName=function_name,
+                        Name=alias_name,
+                        FunctionVersion=published_version,
+                        Description=f"Alias '{alias_name}' for SnapStart/published invocations",
+                    )
+                    print(f"Created alias '{alias_name}' -> version {published_version} for {function_name}")
+                else:
+                    raise
+
             print(f"Successfully updated {function_name}")
             success_count += 1
         except ClientError as e:
