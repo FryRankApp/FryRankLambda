@@ -116,4 +116,18 @@ public class AggregateRanking extends Ranking {
                 .averageScore(score)
                 .build();
     }
+
+    public AggregateRanking withUpdatedReview(double oldScore, double newScore) {
+        double newTotalScore = this.totalScore - oldScore + newScore;
+        double newAverageScore = this.reviewCount == 0 ? 0.0 : newTotalScore / this.reviewCount;
+
+        return AggregateRanking.builder()
+                .restaurantId(this.getRestaurantId())
+                .identifier(AGGREGATE_IDENTIFIER)
+                .isoDateTime(AGGREGATE_IDENTIFIER)
+                .totalScore(newTotalScore)
+                .reviewCount(this.reviewCount)
+                .averageScore(newAverageScore)
+                .build();
+    }
 }

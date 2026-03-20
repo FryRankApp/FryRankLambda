@@ -53,7 +53,7 @@ public class Constants {
     public static final String RECENT_REVIEWS_INDEX = "recent-reviews-index";
 
     // Handler class names
-    public static final String ADD_NEW_REVIEW_HANDLER = "AddNewReviewForRestaurantHandler";
+    public static final String PUT_REVIEW_HANDLER = "PutReviewHandler";
     public static final String DELETE_EXISTING_REVIEW_HANDLER = "DeleteReviewHandler";
     public static final String GET_ALL_REVIEWS_HANDLER = "GetAllReviewsHandler";
     public static final String GET_AGGREGATE_REVIEW_HANDLER = "GetAggregateReviewInformationHandler";
