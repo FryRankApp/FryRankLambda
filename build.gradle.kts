@@ -49,7 +49,11 @@ dependencies {
     implementation("software.amazon.awssdk:ssm:2.24.0")
 
     // AWS DynamoDB
-    implementation("software.amazon.awssdk:dynamodb:2.24.0")
+    implementation(platform("software.amazon.awssdk:bom:2.25.62"))
+    implementation("software.amazon.awssdk:dynamodb")
+    implementation("software.amazon.awssdk:regions")
+
+    implementation("com.amazonaws:aws-xray-recorder-sdk-aws-sdk-v2:2.15.0")
 
     // Google API Client
     implementation("com.google.api-client:google-api-client:1.32.1")
@@ -72,7 +76,10 @@ application {
 tasks {
     test {
         useJUnitPlatform()  // Use JUnit 5
-        
+
+        environment("PUBLIC_USER_METADATA_TABLE_NAME", "test-user-metadata")
+        environment("REVIEW_TABLE_NAME", "test-review-table")
+
         // Enable test output in console
         testLogging {
             events("passed", "skipped", "failed", "started")
