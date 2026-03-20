@@ -19,7 +19,6 @@ import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
-import static com.fryrank.Constants.DEFAULT_PAGE_LIMIT;
 import static com.fryrank.Constants.GET_ALL_REVIEWS_REQUEST_VALIDATOR_ERRORS_OBJECT_NAME;
 import static com.fryrank.util.HeaderUtils.createCorsHeaders;
 
@@ -62,10 +61,10 @@ public class GetAllReviewsHandler implements RequestHandler<APIGatewayV2HTTPEven
 			ValidatorUtils.validateAndThrow(request, GET_ALL_REVIEWS_REQUEST_VALIDATOR_ERRORS_OBJECT_NAME, getAllReviewsRequestValidator);
 
 			final String limitParam = request.limit();
-			if (limitParam == null || limitParam.isEmpty()) {
-				log.debug("No limit provided, defaulting to {}", DEFAULT_PAGE_LIMIT);
+			final Integer limit = (limitParam != null && !limitParam.isEmpty()) ? Integer.parseInt(limitParam) : null;
+			if (limit == null) {
+				log.debug("No limit provided, fetching all reviews");
 			}
-			final int limit = (limitParam != null && !limitParam.isEmpty()) ? Integer.parseInt(limitParam) : DEFAULT_PAGE_LIMIT;
 			final GetAllReviewsOutput output = reviewDomain.getAllReviews(
 					request.restaurantId(),
 					request.accountId(),
