@@ -14,7 +14,7 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import static com.fryrank.Constants.ADD_NEW_REVIEW_HANDLER;
+import static com.fryrank.Constants.PUT_REVIEW_HANDLER;
 import static com.fryrank.Constants.GET_ALL_REVIEWS_HANDLER;
 import static com.fryrank.Constants.GET_AGGREGATE_REVIEW_HANDLER;
 import static com.fryrank.Constants.GET_RECENT_REVIEWS_HANDLER;
@@ -34,36 +34,36 @@ class APIGatewayRequestValidatorTest {
     }
 
     @Test
-    void validateRequest_AddNewReviewHandler_WithValidBody_Succeeds() {
+    void validateRequest_PutReviewHandler_WithValidBody_Succeeds() {
         // Arrange
         event.setBody("{ \"valid\": \"json\" }");
 
         // Act & Assert
         assertDoesNotThrow(() -> 
-            validator.validateRequest(ADD_NEW_REVIEW_HANDLER, event)
+            validator.validateRequest(PUT_REVIEW_HANDLER, event)
         );
     }
 
     @Test
-    void validateRequest_AddNewReviewHandler_WithNullBody_ThrowsException() {
+    void validateRequest_PutReviewHandler_WithNullBody_ThrowsException() {
         // Arrange
         event.setBody(null);
 
         // Act & Assert
         IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () ->
-            validator.validateRequest(ADD_NEW_REVIEW_HANDLER, event)
+            validator.validateRequest(PUT_REVIEW_HANDLER, event)
         );
         assertTrue(exception.getMessage().contains(REQUEST_BODY_REQUIRED_ERROR_MESSAGE));
     }
 
     @Test
-    void validateRequest_AddNewReviewHandler_WithEmptyBody_ThrowsException() {
+    void validateRequest_PutReviewHandler_WithEmptyBody_ThrowsException() {
         // Arrange
         event.setBody("");
 
         // Act & Assert
         IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () ->
-            validator.validateRequest(ADD_NEW_REVIEW_HANDLER, event)
+            validator.validateRequest(PUT_REVIEW_HANDLER, event)
         );
         assertTrue(exception.getMessage().contains(REQUEST_BODY_REQUIRED_ERROR_MESSAGE));
     }

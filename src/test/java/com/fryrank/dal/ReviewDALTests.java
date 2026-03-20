@@ -75,6 +75,8 @@ public class ReviewDALTests {
     @InjectMocks
     ReviewDALImpl reviewDAL;
 
+    // ==================== Get Review Tests ====================
+
     @Test
     public void testGetAllReviewsByRestaurantId_happyPath() throws Exception {
         // Mock the query response with review items
@@ -153,8 +155,10 @@ public class ReviewDALTests {
         assertEquals(TEST_REVIEWS.size(), actualOutput.getReviews().size());
     }
 
+    // ==================== Put Review Tests ====================
+
     @Test
-    public void testAddNewReview_noExistingAggregate() throws Exception {
+    public void testPutReview_withNewReview_noExistingAggregate() throws Exception {
         // Mock getItem to return empty (no existing aggregate)
         GetItemResponse emptyAggregateResponse = GetItemResponse.builder()
                 .item(Map.of())
@@ -165,7 +169,7 @@ public class ReviewDALTests {
         when(dynamoDb.transactWriteItems(any(TransactWriteItemsRequest.class)))
                 .thenReturn(TransactWriteItemsResponse.builder().build());
 
-        final Review actualReview = reviewDAL.addNewReview(TEST_REVIEW_1);
+        final Review actualReview = reviewDAL.putReview(TEST_REVIEW_1);
 
         // Verify the review is returned correctly
         assertNotNull(actualReview);
@@ -199,7 +203,7 @@ public class ReviewDALTests {
     }
 
     @Test
-    public void testAddNewReview_withExistingAggregate() throws Exception {
+    public void testPutReview_withNewReview_existingAggregate() throws Exception {
         // Existing aggregate: totalScore=50, reviewCount=5, averageScore=10.0
         double existingTotalScore = 50.0;
         int existingReviewCount = 5;
@@ -221,7 +225,7 @@ public class ReviewDALTests {
         when(dynamoDb.transactWriteItems(any(TransactWriteItemsRequest.class)))
                 .thenReturn(TransactWriteItemsResponse.builder().build());
 
-        final Review actualReview = reviewDAL.addNewReview(TEST_REVIEW_1);
+        final Review actualReview = reviewDAL.putReview(TEST_REVIEW_1);
 
         // Verify the review is returned correctly
         assertNotNull(actualReview);
@@ -251,12 +255,12 @@ public class ReviewDALTests {
     }
 
     @Test
-    public void testAddNewReview_nullReview() {
-        assertThrows(NullPointerException.class, () -> reviewDAL.addNewReview(null));
+    public void testPutReview_nullReview() {
+        assertThrows(NullPointerException.class, () -> reviewDAL.putReview(null));
     }
 
     @Test
-    public void testAddNewReview_transactionConflict_retriesSuccessfully() throws Exception {
+    public void testPutReview_withNewReview_transactionConflict_retriesSuccessfully() throws Exception {
         // Existing aggregate
         Map<String, AttributeValue> existingAggregate = new HashMap<>();
         existingAggregate.put(RESTAURANT_ID_KEY, AttributeValue.builder().s(TEST_REVIEW_1.getRestaurantId()).build());
@@ -294,7 +298,7 @@ public class ReviewDALTests {
                         .build())
                 .thenReturn(TransactWriteItemsResponse.builder().build());
 
-        final Review actualReview = reviewDAL.addNewReview(TEST_REVIEW_1);
+        final Review actualReview = reviewDAL.putReview(TEST_REVIEW_1);
 
         assertNotNull(actualReview);
         assertEquals(TEST_REVIEW_1.getRestaurantId(), actualReview.getRestaurantId());
@@ -307,7 +311,7 @@ public class ReviewDALTests {
     }
 
     @Test
-    public void testAddNewReview_transactionConflict_exhaustsRetries() throws Exception {
+    public void testPutReview_withNewReview_transactionConflict_exhaustsRetries() throws Exception {
         // Existing aggregate
         Map<String, AttributeValue> existingAggregate = new HashMap<>();
         existingAggregate.put(RESTAURANT_ID_KEY, AttributeValue.builder().s(TEST_REVIEW_1.getRestaurantId()).build());
@@ -331,7 +335,7 @@ public class ReviewDALTests {
                         .build());
 
         RuntimeException exception = assertThrows(RuntimeException.class,
-                () -> reviewDAL.addNewReview(TEST_REVIEW_1));
+                () -> reviewDAL.putReview(TEST_REVIEW_1));
 
         assertTrue(exception.getMessage().contains("Failed to add/delete review"));
         assertTrue(exception.getMessage().contains("concurrent modifications"));
@@ -342,7 +346,7 @@ public class ReviewDALTests {
     }
 
     @Test
-    public void testAddNewReview_newAggregateConflict_retriesWithExistingAggregate() throws Exception {
+    public void testPutAggregateConflict_withNewReview_retriesWithExistingAggregate() throws Exception {
         // First read returns empty (no aggregate), second read returns existing aggregate
         // This simulates: two concurrent first reviews, one succeeds first
         GetItemResponse emptyResponse = GetItemResponse.builder().item(Map.of()).build();
@@ -370,7 +374,7 @@ public class ReviewDALTests {
                         .build())
                 .thenReturn(TransactWriteItemsResponse.builder().build());
 
-        final Review actualReview = reviewDAL.addNewReview(TEST_REVIEW_1);
+        final Review actualReview = reviewDAL.putReview(TEST_REVIEW_1);
 
         assertNotNull(actualReview);
 
@@ -393,7 +397,7 @@ public class ReviewDALTests {
     }
 
     @Test
-    public void testAddNewReview_transactionAtomicity_bothItemsInSameTransaction() throws Exception {
+    public void testPutReview_withNewReview_transactionAtomicity_bothItemsInSameTransaction() throws Exception {
         // Mock getItem to return empty (no existing aggregate)
         GetItemResponse emptyAggregateResponse = GetItemResponse.builder()
                 .item(Map.of())
@@ -404,7 +408,7 @@ public class ReviewDALTests {
         when(dynamoDb.transactWriteItems(any(TransactWriteItemsRequest.class)))
                 .thenReturn(TransactWriteItemsResponse.builder().build());
 
-        reviewDAL.addNewReview(TEST_REVIEW_1);
+        reviewDAL.putReview(TEST_REVIEW_1);
 
         // Verify that both review and aggregate are in the same transaction
         ArgumentCaptor<TransactWriteItemsRequest> transactCaptor = ArgumentCaptor.forClass(TransactWriteItemsRequest.class);
@@ -424,7 +428,7 @@ public class ReviewDALTests {
     }
 
     @Test
-    public void testAddNewReview_transactionFailure_noReviewWritten() throws Exception {
+    public void testPutReview_withNewReview_transactionFailure_noReviewWritten() throws Exception {
         // Mock getItem to return empty (no existing aggregate)
         GetItemResponse emptyAggregateResponse = GetItemResponse.builder()
                 .item(Map.of())
@@ -438,7 +442,7 @@ public class ReviewDALTests {
                         .build());
 
         // Verify exception is thrown
-        assertThrows(RuntimeException.class, () -> reviewDAL.addNewReview(TEST_REVIEW_1));
+        assertThrows(RuntimeException.class, () -> reviewDAL.putReview(TEST_REVIEW_1));
 
         // Verify no separate putItem was called - the review is never written outside the transaction
         verify(dynamoDb, times(0)).putItem(any(PutItemRequest.class));
@@ -1229,8 +1233,12 @@ public class ReviewDALTests {
 
     @Test
     public void testAddNewReview_withTags_persistsTagsAsList() throws Exception {
-        when(dynamoDb.getItem(any(GetItemRequest.class)))
-                .thenReturn(GetItemResponse.builder().item(Map.of()).build());
+        TransactGetItemsResponse emptyAggregateResponse = TransactGetItemsResponse.builder()
+                .responses(List.of(ItemResponse.builder().item(Map.of()).build()))
+                .build();
+
+        when(dynamoDb.transactGetItems(any(TransactGetItemsRequest.class)))
+                .thenReturn(emptyAggregateResponse);
         when(dynamoDb.transactWriteItems(any(TransactWriteItemsRequest.class)))
                 .thenReturn(TransactWriteItemsResponse.builder().build());
 
@@ -1243,7 +1251,7 @@ public class ReviewDALTests {
                 .tags(TEST_TAGS)
                 .build();
 
-        Review returned = reviewDAL.addNewReview(reviewWithTags);
+        Review returned = reviewDAL.putReview(reviewWithTags);
 
         ArgumentCaptor<TransactWriteItemsRequest> captor = ArgumentCaptor.forClass(TransactWriteItemsRequest.class);
         verify(dynamoDb).transactWriteItems(captor.capture());
