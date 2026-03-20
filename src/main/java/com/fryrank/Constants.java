@@ -68,6 +68,7 @@ public class Constants {
 
     // Allowed Origins
     public static final String LOCALHOST = "http://localhost:3000";
+    public static final String FRYRANK_SANDBOX_MATT = "https://d3mznj1yywvp2h.cloudfront.net";
     public static final String FRYRANK_STAGE_OXYSERVER = "https://fryrank-beta-stage.oxyserver.com";
     public static final String FRYRANK_STAGE_CLOUDFRONT = "https://d1jqnaqp1g7d1o.cloudfront.net";
     public static final String FRYRANK_BETA = "https://beta.fryrank.app";
@@ -78,7 +79,8 @@ public class Constants {
     public static final String FRYRANK_PROD_ALT_URL = "https://pure-temple-61679-98a4d5c2d04e.herokuapp.com";
     public static final String FRYRANK_PROD_CLOUDFRONT = "https://d3h6a05rzfj3y8.cloudfront.net";
     public static final Set<String> ALLOWED_ORIGINS = Set.of(
-        LOCALHOST, 
+        LOCALHOST,
+        FRYRANK_SANDBOX_MATT,
         FRYRANK_STAGE_OXYSERVER,
         FRYRANK_BETA_STAGE_ALT_URL,
         FRYRANK_BETA,
