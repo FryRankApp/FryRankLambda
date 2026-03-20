@@ -7,7 +7,7 @@ import lombok.extern.log4j.Log4j2;
 import java.util.List;
 import java.util.Map;
 
-import static com.fryrank.Constants.ADD_NEW_REVIEW_HANDLER;
+import static com.fryrank.Constants.PUT_REVIEW_HANDLER;
 import static com.fryrank.Constants.DELETE_EXISTING_REVIEW_HANDLER;
 import static com.fryrank.Constants.GET_ALL_REVIEWS_HANDLER;
 import static com.fryrank.Constants.GET_AGGREGATE_REVIEW_HANDLER;
@@ -99,7 +99,7 @@ public class APIGatewayRequestValidator {
     
             // switch on the class name to determine the validation rules
             switch (className) {
-                case ADD_NEW_REVIEW_HANDLER:
+                case PUT_REVIEW_HANDLER:
                     validateRequestBodyExists(request);
                     break;
                 case GET_ALL_REVIEWS_HANDLER:

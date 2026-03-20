@@ -18,12 +18,17 @@ import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.BatchGetItemRequest;
 import software.amazon.awssdk.services.dynamodb.model.BatchGetItemResponse;
 import software.amazon.awssdk.services.dynamodb.model.Delete;
+import software.amazon.awssdk.services.dynamodb.model.Get;
 import software.amazon.awssdk.services.dynamodb.model.GetItemRequest;
 import software.amazon.awssdk.services.dynamodb.model.GetItemResponse;
+import software.amazon.awssdk.services.dynamodb.model.ItemResponse;
 import software.amazon.awssdk.services.dynamodb.model.KeysAndAttributes;
 import software.amazon.awssdk.services.dynamodb.model.Put;
 import software.amazon.awssdk.services.dynamodb.model.QueryRequest;
 import software.amazon.awssdk.services.dynamodb.model.QueryResponse;
+import software.amazon.awssdk.services.dynamodb.model.TransactGetItem;
+import software.amazon.awssdk.services.dynamodb.model.TransactGetItemsRequest;
+import software.amazon.awssdk.services.dynamodb.model.TransactGetItemsResponse;
 import software.amazon.awssdk.services.dynamodb.model.TransactWriteItem;
 import software.amazon.awssdk.services.dynamodb.model.TransactWriteItemsRequest;
 import software.amazon.awssdk.services.dynamodb.model.TransactionCanceledException;
@@ -204,31 +209,16 @@ public class ReviewDALImpl implements ReviewDAL {
      * @return the Review object that was created.
      */
     @Override
-    public Review addNewReview(@NonNull final Review review) {
+    public Review putReview(@NonNull final Review review) {
         final String restaurantId = review.getRestaurantId();
 
-        log.info("Adding new review for restaurantId: {} and accountId: {}",
+        log.info("Putting review for restaurantId: {} and accountId: {}",
                 restaurantId, review.getAccountId());
 
         final String identifier = REVIEW_IDENTIFIER_PREFIX + review.getAccountId();
 
-        final Map<String, AttributeValue> reviewItem = new HashMap<>();
-        reviewItem.put(RESTAURANT_ID_KEY, AttributeValue.builder().s(restaurantId).build());
-        reviewItem.put(IDENTIFIER_KEY, AttributeValue.builder().s(identifier).build());
-        reviewItem.put(SCORE_KEY, AttributeValue.builder().n(review.getScore().toString()).build());
-        reviewItem.put(TITLE_KEY, AttributeValue.builder().s(review.getTitle()).build());
-        reviewItem.put(BODY_KEY, AttributeValue.builder().s(review.getBody()).build());
-        reviewItem.put(IS_REVIEW_KEY, AttributeValue.builder().s(IS_REVIEW_VALUE).build());
-
-        if (review.getIsoDateTime() != null) {
-            reviewItem.put(ISO_DATE_TIME, AttributeValue.builder().s(review.getIsoDateTime()).build());
-        }
-        if (review.getAccountId() != null) {
-            reviewItem.put(ACCOUNT_ID_KEY, AttributeValue.builder().s(review.getAccountId()).build());
-        }
-
         // Use transactional write with optimistic locking retries
-        addReviewWithTransactionalAggregate(restaurantId, reviewItem, review.getScore());
+        putReviewWithTransactionalAggregate(restaurantId, review, identifier, review.getScore());
 
         // Return the review with the generated reviewId
         final String reviewId = review.getRestaurantId() + ":" + identifier;
@@ -241,6 +231,59 @@ public class ReviewDALImpl implements ReviewDAL {
                 .isoDateTime(review.getIsoDateTime())
                 .accountId(review.getAccountId())
                 .build();
+    }
+
+    record AggregateAndReview(
+            Map<String, AttributeValue> aggregate,
+            Map<String, AttributeValue> review
+    ) {}
+
+    /**
+     * Gets the aggregate and review for a restaurant using DynamoDB transactions. This is done in order to preserve
+     * ordering of the review and aggregate items in the response.
+     * @param restaurantId
+     * @param accountId
+     * @return a tuple of the aggregate and review items, or null if neither exist.
+     */
+    AggregateAndReview getRestaurantAggregateAndExistingReview(String restaurantId, String accountId) {
+        Map<String, AttributeValue> aggregateKey = Map.of(
+                "restaurantId", AttributeValue.fromS(restaurantId),
+                "identifier", AttributeValue.fromS(AGGREGATE_IDENTIFIER)
+        );
+
+        Map<String, AttributeValue> reviewKey = Map.of(
+                "restaurantId", AttributeValue.fromS(restaurantId),
+                "identifier", AttributeValue.fromS(REVIEW_IDENTIFIER_PREFIX + accountId)
+        );
+
+        TransactGetItemsRequest request = TransactGetItemsRequest.builder()
+                .transactItems(
+                        TransactGetItem.builder()
+                                .get(Get.builder()
+                                        .tableName(RANKINGS_TABLE_NAME)
+                                        .key(aggregateKey)
+                                        .build())
+                                .build(),
+                        TransactGetItem.builder()
+                                .get(Get.builder()
+                                        .tableName(RANKINGS_TABLE_NAME)
+                                        .key(reviewKey)
+                                        .build())
+                                .build()
+                )
+                .build();
+
+        TransactGetItemsResponse response = dynamoDb.transactGetItems(request);
+
+        List<ItemResponse> items = response.responses();
+
+        Map<String, AttributeValue> aggregate =
+                !items.isEmpty() ? items.get(0).item() : null;
+
+        Map<String, AttributeValue> review =
+                items.size() > 1 ? items.get(1).item() : null;
+
+        return new AggregateAndReview(aggregate, review);
     }
 
     private Map<String, AttributeValue> getRestaurantAggregate(String restaurantId) {
@@ -279,33 +322,80 @@ public class ReviewDALImpl implements ReviewDAL {
      * Atomically writes a review and updates the aggregate using DynamoDB transactions.
      * Uses optimistic locking on the aggregate with retries for concurrent modifications.
      */
-    private void addReviewWithTransactionalAggregate(String restaurantId, Map<String, AttributeValue> reviewItem, Double newScore) {
+    private void putReviewWithTransactionalAggregate(String restaurantId, Review review, String identifier, Double newScore) {
+        final Map<String, AttributeValue> reviewItem = new HashMap<>();
+        reviewItem.put(RESTAURANT_ID_KEY, AttributeValue.builder().s(restaurantId).build());
+        reviewItem.put(IDENTIFIER_KEY, AttributeValue.builder().s(identifier).build());
+        reviewItem.put(SCORE_KEY, AttributeValue.builder().n(review.getScore().toString()).build());
+        reviewItem.put(TITLE_KEY, AttributeValue.builder().s(review.getTitle()).build());
+        reviewItem.put(BODY_KEY, AttributeValue.builder().s(review.getBody()).build());
+        reviewItem.put(IS_REVIEW_KEY, AttributeValue.builder().s(IS_REVIEW_VALUE).build());
+
+        if (review.getIsoDateTime() != null) {
+            reviewItem.put(ISO_DATE_TIME, AttributeValue.builder().s(review.getIsoDateTime()).build());
+        }
+        if (review.getAccountId() != null) {
+            reviewItem.put(ACCOUNT_ID_KEY, AttributeValue.builder().s(review.getAccountId()).build());
+        }
+
         for (int attempt = 0; attempt < MAX_AGGREGATE_UPDATE_RETRIES; attempt++) {
             try {
-                final Map<String, AttributeValue> existingAggregate = getRestaurantAggregate(restaurantId);
+                final AggregateAndReview existingAggregateAndReview =
+                        getRestaurantAggregateAndExistingReview(restaurantId, review.getAccountId());
 
-                // Build the review Put
+                final Map<String, AttributeValue> existingAggregate = existingAggregateAndReview.aggregate();
+                final Map<String, AttributeValue> existingReview = existingAggregateAndReview.review();
+
                 final Put reviewPut = Put.builder()
                         .tableName(RANKINGS_TABLE_NAME)
                         .item(reviewItem)
                         .build();
 
-                // Build the aggregate Put with condition
                 final Put aggregatePut;
+
                 if (existingAggregate == null || existingAggregate.isEmpty()) {
-                    // First review for this restaurant
+                    // No aggregate exists yet. This should only happen for the first review.
                     AggregateRanking aggregateRanking = AggregateRanking.forFirstReview(restaurantId, newScore);
+
                     aggregatePut = Put.builder()
                             .tableName(RANKINGS_TABLE_NAME)
                             .item(aggregateRanking.toMap())
-                            .conditionExpression("attribute_not_exists(#pk)")
-                            .expressionAttributeNames(Map.of("#pk", RESTAURANT_ID_KEY))
+                            .conditionExpression("attribute_not_exists(#pk) AND attribute_not_exists(#sk)")
+                            .expressionAttributeNames(Map.of(
+                                    "#pk", RESTAURANT_ID_KEY,
+                                    "#sk", IDENTIFIER_KEY
+                            ))
                             .build();
+
                     log.info("Creating new aggregate for restaurantId: {}", restaurantId);
                 } else {
-                    // Update existing aggregate
                     AggregateRanking existingAggregateRanking = AggregateRanking.fromMap(existingAggregate);
-                    AggregateRanking newAggregateRanking = existingAggregateRanking.withNewReview(newScore);
+                    AggregateRanking newAggregateRanking;
+
+                    if (existingReview != null && !existingReview.isEmpty()) {
+                        // Existing review is being edited: adjust aggregate without increasing review count.
+                        double oldScore = Double.parseDouble(existingReview.get(SCORE_KEY).n());
+                        newAggregateRanking = existingAggregateRanking.withUpdatedReview(oldScore, newScore);
+
+                        log.info(
+                                "Updating existing review for restaurantId: {} (oldScore: {}, newScore: {}, reviewCount remains: {})",
+                                restaurantId,
+                                oldScore,
+                                newScore,
+                                existingAggregateRanking.getReviewCount()
+                        );
+                    } else {
+                        // Brand new review: increment aggregate as normal.
+                        newAggregateRanking = existingAggregateRanking.withNewReview(newScore);
+
+                        log.info(
+                                "Adding new review for restaurantId: {} (reviewCount: {} -> {})",
+                                restaurantId,
+                                existingAggregateRanking.getReviewCount(),
+                                newAggregateRanking.getReviewCount()
+                        );
+                    }
+
                     aggregatePut = Put.builder()
                             .tableName(RANKINGS_TABLE_NAME)
                             .item(newAggregateRanking.toMap())
@@ -317,11 +407,8 @@ public class ReviewDALImpl implements ReviewDAL {
                                             .build()
                             ))
                             .build();
-                    log.info("Updating aggregate for restaurantId: {} (reviewCount: {} -> {})",
-                            restaurantId, existingAggregateRanking.getReviewCount(), newAggregateRanking.getReviewCount());
                 }
 
-                // Execute transaction - both writes succeed or both fail
                 TransactWriteItemsRequest transactRequest = TransactWriteItemsRequest.builder()
                         .transactItems(
                                 TransactWriteItem.builder().put(reviewPut).build(),
@@ -330,7 +417,7 @@ public class ReviewDALImpl implements ReviewDAL {
                         .build();
 
                 dynamoDb.transactWriteItems(transactRequest);
-                log.info("Successfully added review and updated aggregate for restaurantId: {}", restaurantId);
+                log.info("Successfully wrote review and updated aggregate for restaurantId: {}", restaurantId);
                 return;
 
             } catch (TransactionCanceledException e) {

@@ -22,7 +22,7 @@ import static com.fryrank.Constants.REVIEW_VALIDATOR_ERRORS_OBJECT_NAME;
 import static com.fryrank.util.HeaderUtils.createCorsHeaders;
 
 @Log4j2
-public class AddNewReviewForRestaurantHandler implements RequestHandler<APIGatewayV2HTTPEvent, APIGatewayV2HTTPResponse> {
+public class PutReviewHandler implements RequestHandler<APIGatewayV2HTTPEvent, APIGatewayV2HTTPResponse> {
 
     private final ReviewDALImpl reviewDAL;
     private final ReviewDomain reviewDomain;
@@ -30,7 +30,7 @@ public class AddNewReviewForRestaurantHandler implements RequestHandler<APIGatew
     private final ReviewValidator reviewValidator;
     private final Authorizer authorizer;
 
-    public AddNewReviewForRestaurantHandler() {
+    public PutReviewHandler() {
         reviewDAL = new ReviewDALImpl();
         reviewDomain = new ReviewDomain(reviewDAL);
         requestValidator = new APIGatewayRequestValidator();
@@ -38,7 +38,7 @@ public class AddNewReviewForRestaurantHandler implements RequestHandler<APIGatew
         authorizer = new Authorizer();
     }
 
-    public AddNewReviewForRestaurantHandler(ReviewDALImpl reviewDAL, ReviewDomain reviewDomain, APIGatewayRequestValidator requestValidator, ReviewValidator reviewValidator, Authorizer authorizer) {
+    public PutReviewHandler(ReviewDALImpl reviewDAL, ReviewDomain reviewDomain, APIGatewayRequestValidator requestValidator, ReviewValidator reviewValidator, Authorizer authorizer) {
         this.reviewDAL = reviewDAL;
         this.reviewDomain = reviewDomain;
         this.requestValidator = requestValidator;
@@ -71,7 +71,7 @@ public class AddNewReviewForRestaurantHandler implements RequestHandler<APIGatew
 
             ValidatorUtils.validateAndThrow(review, REVIEW_VALIDATOR_ERRORS_OBJECT_NAME, reviewValidator);
 
-            final Review output = reviewDomain.addNewReviewForRestaurant(review);
+            final Review output = reviewDomain.putReview(review);
 
             log.info("Request processed successfully");
             return APIGatewayResponseBuilder.buildSuccessResponse(output, createCorsHeaders(input));

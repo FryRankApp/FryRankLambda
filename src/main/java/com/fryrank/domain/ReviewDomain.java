@@ -55,9 +55,9 @@ public class ReviewDomain {
         return reviewDAL.getAggregateReviewInformationForRestaurants(parsedIDs, filter);
     }
 
-    public Review addNewReviewForRestaurant(@NonNull final Review review) throws ValidatorException {
+    public Review putReview(@NonNull final Review review) throws ValidatorException {
         ValidatorUtils.validateAndThrow(review, REVIEW_VALIDATOR_ERRORS_OBJECT_NAME, new ReviewValidator());
-        return reviewDAL.addNewReview(review);
+        return reviewDAL.putReview(review);
     }
 
     public void deleteReview(@NonNull final DeleteReviewRequest reviewIDString) throws NotFoundException {
