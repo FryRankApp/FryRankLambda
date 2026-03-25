@@ -7,13 +7,21 @@ import com.amazonaws.services.lambda.runtime.events.APIGatewayV2HTTPResponse;
 import com.fryrank.dal.ReviewDALImpl;
 import com.fryrank.domain.ReviewDomain;
 import com.fryrank.model.GetAllReviewsOutput;
+import com.fryrank.model.GetAllReviewsRequest;
 import com.fryrank.model.enums.QueryParam;
 import com.fryrank.util.APIGatewayResponseBuilder;
 import com.fryrank.validator.APIGatewayRequestValidator;
+import com.fryrank.validator.GetAllReviewsRequestValidator;
+import com.fryrank.validator.ValidatorUtils;
 import lombok.extern.log4j.Log4j2;
 
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
+import static com.fryrank.Constants.DEFAULT_PAGE_LIMIT;
+import static com.fryrank.Constants.GET_ALL_REVIEWS_REQUEST_VALIDATOR_ERRORS_OBJECT_NAME;
+import static com.fryrank.Constants.MAX_PAGE_LIMIT;
 import static com.fryrank.util.HeaderUtils.createCorsHeaders;
 
 @Log4j2
@@ -22,11 +30,20 @@ public class GetAllReviewsHandler implements RequestHandler<APIGatewayV2HTTPEven
     private final ReviewDALImpl reviewDAL;
     private final ReviewDomain reviewDomain;
     private final APIGatewayRequestValidator requestValidator;
+    private final GetAllReviewsRequestValidator getAllReviewsRequestValidator;
 
     public GetAllReviewsHandler() {
         reviewDAL = new ReviewDALImpl();
         reviewDomain = new ReviewDomain(reviewDAL);
         requestValidator = new APIGatewayRequestValidator();
+        getAllReviewsRequestValidator = new GetAllReviewsRequestValidator();
+    }
+
+    private String decodeCursor(final String cursor) {
+        if (cursor == null || cursor.isEmpty()) {
+            return cursor;
+        }
+        return URLDecoder.decode(cursor, StandardCharsets.UTF_8);
     }
 
     @Override
@@ -37,10 +54,24 @@ public class GetAllReviewsHandler implements RequestHandler<APIGatewayV2HTTPEven
         return APIGatewayResponseBuilder.handleRequest(handlerName, input, () -> {
             requestValidator.validateRequest(handlerName, input);
 
-            Map<String, String> params = input.getQueryStringParameters();
-            final GetAllReviewsOutput output = reviewDomain.getAllReviews(
-                    params.get(QueryParam.RESTAURANT_ID.getValue()),
-                    params.get(QueryParam.ACCOUNT_ID.getValue()));
+			final Map<String, String> params = input.getQueryStringParameters() != null
+					? input.getQueryStringParameters()
+					: Map.of();
+			final GetAllReviewsRequest request = new GetAllReviewsRequest(
+					params.get(QueryParam.RESTAURANT_ID.getValue()),
+					params.get(QueryParam.ACCOUNT_ID.getValue()),
+					params.get(QueryParam.LIMIT.getValue()),
+					decodeCursor(params.get(QueryParam.CURSOR.getValue())));
+			ValidatorUtils.validateAndThrow(request, GET_ALL_REVIEWS_REQUEST_VALIDATOR_ERRORS_OBJECT_NAME, getAllReviewsRequestValidator);
+
+			final String limitParam = request.limit();
+			final int limit = (limitParam != null && !limitParam.isEmpty()) ? Math.min(Integer.parseInt(limitParam), MAX_PAGE_LIMIT) : DEFAULT_PAGE_LIMIT;
+			log.debug("Using limit: {}", limit);
+			final GetAllReviewsOutput output = reviewDomain.getAllReviews(
+					request.restaurantId(),
+					request.accountId(),
+					limit,
+					request.cursor());
 
             log.info("Request processed successfully");
             return APIGatewayResponseBuilder.buildSuccessResponse(output, createCorsHeaders(input));
