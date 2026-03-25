@@ -1,6 +1,5 @@
 package com.fryrank.model;
 
-import com.google.gson.annotations.SerializedName;
 import lombok.Data;
 import lombok.NonNull;
 
@@ -12,7 +11,6 @@ public class GetAllReviewsOutput {
 	@NonNull
 	private final List<Review> reviews;
 
-	@SerializedName("next_cursor")
 	private final String nextCursor;
 
 	public GetAllReviewsOutput(@NonNull final List<Review> reviews) {

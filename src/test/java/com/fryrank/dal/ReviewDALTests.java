@@ -32,6 +32,7 @@ import java.util.List;
 import java.util.Map;
 
 import static com.fryrank.Constants.ACCOUNT_ID_KEY;
+import static com.fryrank.Constants.ACCOUNT_ID_TIME_INDEX;
 import static com.fryrank.Constants.AVERAGE_SCORE_KEY;
 import static com.fryrank.Constants.BODY_KEY;
 import static com.fryrank.Constants.IDENTIFIER_KEY;
@@ -1083,6 +1084,156 @@ public class ReviewDALTests {
         assertEquals("res456:user123", review.getReviewId());
     }
 
+
+    // ==================== Pagination / Cursor Tests ====================
+
+    @Test
+    public void testGetAllReviewsByRestaurantId_withNonEmptyLastEvaluatedKey_generatesNextCursor() throws Exception {
+        // Arrange
+        Map<String, AttributeValue> lastEvaluatedKey = Map.of(
+                RESTAURANT_ID_KEY, AttributeValue.builder().s(TEST_RESTAURANT_ID).build()
+        );
+        QueryResponse queryResponse = QueryResponse.builder()
+                .items(List.of(reviewToAttributeMap(TEST_REVIEW_1)))
+                .lastEvaluatedKey(lastEvaluatedKey)
+                .build();
+        when(dynamoDb.query(any(QueryRequest.class))).thenReturn(queryResponse);
+        mockUserMetadataLookup();
+
+        // Act
+        final GetAllReviewsOutput output = reviewDAL.getAllReviewsByRestaurantId(TEST_RESTAURANT_ID, TEST_LIMIT, null);
+
+        // Assert
+        assertNotNull(output.getNextCursor());
+        assertEquals("1970-01-01T00%3A00%3A00Z", output.getNextCursor());
+    }
+
+    @Test
+    public void testGetAllReviewsByRestaurantId_withEmptyLastEvaluatedKey_noNextCursor() throws Exception {
+        // Arrange
+        QueryResponse queryResponse = QueryResponse.builder()
+                .items(List.of(reviewToAttributeMap(TEST_REVIEW_1)))
+                .build();
+        when(dynamoDb.query(any(QueryRequest.class))).thenReturn(queryResponse);
+        mockUserMetadataLookup();
+
+        // Act
+        final GetAllReviewsOutput output = reviewDAL.getAllReviewsByRestaurantId(TEST_RESTAURANT_ID, TEST_LIMIT, null);
+
+        // Assert
+        assertNull(output.getNextCursor());
+    }
+
+    @Test
+    public void testGetAllReviewsByRestaurantId_withNonEmptyLastEvaluatedKeyButNoItems_noNextCursor() throws Exception {
+        // Arrange
+        Map<String, AttributeValue> lastEvaluatedKey = Map.of(
+                RESTAURANT_ID_KEY, AttributeValue.builder().s(TEST_RESTAURANT_ID).build()
+        );
+        QueryResponse queryResponse = QueryResponse.builder()
+                .items(List.of())
+                .lastEvaluatedKey(lastEvaluatedKey)
+                .build();
+        when(dynamoDb.query(any(QueryRequest.class))).thenReturn(queryResponse);
+
+        // Act
+        final GetAllReviewsOutput output = reviewDAL.getAllReviewsByRestaurantId(TEST_RESTAURANT_ID, TEST_LIMIT, null);
+
+        // Assert
+        assertNull(output.getNextCursor());
+        assertEquals(0, output.getReviews().size());
+    }
+
+    @Test
+    public void testGetAllReviewsByRestaurantId_withNullIsoDateTimeOnLastItem_noNextCursor() throws Exception {
+        // Arrange
+        Map<String, AttributeValue> itemWithNoDateTime = new HashMap<>();
+        itemWithNoDateTime.put(RESTAURANT_ID_KEY, AttributeValue.builder().s(TEST_RESTAURANT_ID).build());
+        itemWithNoDateTime.put(IDENTIFIER_KEY, AttributeValue.builder().s(REVIEW_IDENTIFIER_PREFIX + TEST_ACCOUNT_ID).build());
+        itemWithNoDateTime.put(SCORE_KEY, AttributeValue.builder().n("5.0").build());
+        itemWithNoDateTime.put(TITLE_KEY, AttributeValue.builder().s("title").build());
+        itemWithNoDateTime.put(BODY_KEY, AttributeValue.builder().s("body").build());
+        itemWithNoDateTime.put(ACCOUNT_ID_KEY, AttributeValue.builder().s(TEST_ACCOUNT_ID).build());
+        // ISO_DATE_TIME key intentionally omitted
+
+        Map<String, AttributeValue> lastEvaluatedKey = Map.of(
+                RESTAURANT_ID_KEY, AttributeValue.builder().s(TEST_RESTAURANT_ID).build()
+        );
+        QueryResponse queryResponse = QueryResponse.builder()
+                .items(List.of(itemWithNoDateTime))
+                .lastEvaluatedKey(lastEvaluatedKey)
+                .build();
+        when(dynamoDb.query(any(QueryRequest.class))).thenReturn(queryResponse);
+        mockUserMetadataLookup();
+
+        // Act
+        final GetAllReviewsOutput output = reviewDAL.getAllReviewsByRestaurantId(TEST_RESTAURANT_ID, TEST_LIMIT, null);
+
+        // Assert
+        assertNull(output.getNextCursor());
+    }
+
+    @Test
+    public void testGetAllReviewsByRestaurantId_withCursor_includesDatetimeConditionInQuery() throws Exception {
+        // Arrange
+        QueryResponse queryResponse = QueryResponse.builder()
+                .items(List.of())
+                .build();
+        when(dynamoDb.query(any(QueryRequest.class))).thenReturn(queryResponse);
+        ArgumentCaptor<QueryRequest> queryCaptor = ArgumentCaptor.forClass(QueryRequest.class);
+
+        // Act
+        reviewDAL.getAllReviewsByRestaurantId(TEST_RESTAURANT_ID, TEST_LIMIT, TEST_ISO_DATE_TIME_1);
+
+        // Assert
+        verify(dynamoDb).query(queryCaptor.capture());
+        QueryRequest capturedRequest = queryCaptor.getValue();
+        assertEquals("#key = :value AND #dt < :cursor", capturedRequest.keyConditionExpression());
+        assertEquals(ISO_DATE_TIME, capturedRequest.expressionAttributeNames().get("#dt"));
+        assertEquals(TEST_ISO_DATE_TIME_1, capturedRequest.expressionAttributeValues().get(":cursor").s());
+    }
+
+    @Test
+    public void testGetAllReviewsByRestaurantId_withNoCursor_doesNotIncludeDatetimeCondition() throws Exception {
+        // Arrange
+        QueryResponse queryResponse = QueryResponse.builder()
+                .items(List.of())
+                .build();
+        when(dynamoDb.query(any(QueryRequest.class))).thenReturn(queryResponse);
+        ArgumentCaptor<QueryRequest> queryCaptor = ArgumentCaptor.forClass(QueryRequest.class);
+
+        // Act
+        reviewDAL.getAllReviewsByRestaurantId(TEST_RESTAURANT_ID, TEST_LIMIT, null);
+
+        // Assert
+        verify(dynamoDb).query(queryCaptor.capture());
+        QueryRequest capturedRequest = queryCaptor.getValue();
+        assertEquals("#key = :value", capturedRequest.keyConditionExpression());
+        assertFalse(capturedRequest.expressionAttributeNames().containsKey("#dt"));
+        assertFalse(capturedRequest.expressionAttributeValues().containsKey(":cursor"));
+    }
+
+    @Test
+    public void testGetAllReviewsByAccountId_withCursor_includesDatetimeConditionInQuery() throws Exception {
+        // Arrange
+        QueryResponse queryResponse = QueryResponse.builder()
+                .items(List.of())
+                .build();
+        when(dynamoDb.query(any(QueryRequest.class))).thenReturn(queryResponse);
+        ArgumentCaptor<QueryRequest> queryCaptor = ArgumentCaptor.forClass(QueryRequest.class);
+
+        // Act
+        reviewDAL.getAllReviewsByAccountId(TEST_ACCOUNT_ID, TEST_LIMIT, TEST_ISO_DATE_TIME_1);
+
+        // Assert
+        verify(dynamoDb).query(queryCaptor.capture());
+        QueryRequest capturedRequest = queryCaptor.getValue();
+        assertEquals("#key = :value AND #dt < :cursor", capturedRequest.keyConditionExpression());
+        assertEquals(ISO_DATE_TIME, capturedRequest.expressionAttributeNames().get("#dt"));
+        assertEquals(TEST_ISO_DATE_TIME_1, capturedRequest.expressionAttributeValues().get(":cursor").s());
+        assertEquals(TEST_ACCOUNT_ID, capturedRequest.expressionAttributeValues().get(":value").s());
+        assertEquals(ACCOUNT_ID_TIME_INDEX, capturedRequest.indexName());
+    }
 
     /**
      * Helper method to convert a Review to DynamoDB attribute map

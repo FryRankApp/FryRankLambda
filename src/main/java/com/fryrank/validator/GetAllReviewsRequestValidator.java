@@ -25,7 +25,7 @@ public class GetAllReviewsRequestValidator implements Validator {
         String limitStr = request.limit();
         if (limitStr != null && !limitStr.isEmpty()) {
             try {
-                int limit = Integer.parseInt(limitStr);
+                final int limit = Integer.parseInt(limitStr);
                 if (limit <= 0) {
                     errors.rejectValue(LIMIT, REJECTION_FORMAT_CODE, LIMIT_REJECTION_FORMAT_REASON);
                 }

@@ -136,7 +136,7 @@ public class ReviewDALImpl implements ReviewDAL {
         final Map<String, AttributeValue> lek = response.lastEvaluatedKey();
         String nextCursor = null;
         if (lek != null && !lek.isEmpty() && !items.isEmpty()) {
-            final AttributeValue lastDateTime = items.get(items.size() - 1).get(ISO_DATE_TIME);
+            final AttributeValue lastDateTime = items.getLast().get(ISO_DATE_TIME);
             if (lastDateTime != null) {
                 nextCursor = URLEncoder.encode(lastDateTime.s(), StandardCharsets.UTF_8);
             }

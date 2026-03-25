@@ -59,6 +59,7 @@ public class Constants {
 
     // Pagination
     public static final int DEFAULT_PAGE_LIMIT = 10;
+    public static final int MAX_PAGE_LIMIT = 100;
     public static final String GET_ALL_REVIEWS_REQUEST_VALIDATOR_ERRORS_OBJECT_NAME = "GetAllReviewsRequest";
     public static final String GET_AGGREGATE_REVIEW_HANDLER = "GetAggregateReviewInformationHandler";
     public static final String GET_RECENT_REVIEWS_HANDLER = "GetRecentReviewsHandler";
