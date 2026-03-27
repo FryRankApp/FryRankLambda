@@ -89,7 +89,7 @@ tasks {
             showStackTraces = true
             exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
         }
-
+        
         // Generate HTML test report
         reports {
             html.required.set(true)

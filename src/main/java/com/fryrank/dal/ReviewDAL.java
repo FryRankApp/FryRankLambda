@@ -10,9 +10,9 @@ import java.util.List;
 
 public interface ReviewDAL {
 
-    GetAllReviewsOutput getAllReviewsByRestaurantId(final String restaurantId);
+		GetAllReviewsOutput getAllReviewsByRestaurantId(final String restaurantId, final Integer limit, final String cursor);
 
-    GetAllReviewsOutput getAllReviewsByAccountId(final String accountId);
+		GetAllReviewsOutput getAllReviewsByAccountId(final String accountId, final Integer limit, final String cursor);
 
     GetAllReviewsOutput getRecentReviews(final Integer count);
 
