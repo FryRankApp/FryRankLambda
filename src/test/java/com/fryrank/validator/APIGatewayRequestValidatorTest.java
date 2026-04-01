@@ -164,6 +164,19 @@ class APIGatewayRequestValidatorTest {
     }
 
     @Test
+    void validateRequest_GetAllReviewsHandler_WithNoLimitParam_Succeeds() {
+        // Arrange
+        Map<String, String> queryParams = new HashMap<>();
+        queryParams.put(QueryParam.RESTAURANT_ID.getValue(), "123");
+        event.setQueryStringParameters(queryParams);
+
+        // Act & Assert
+        assertDoesNotThrow(() ->
+            validator.validateRequest(GET_ALL_REVIEWS_HANDLER, event)
+        );
+    }
+
+    @Test
     void validateRequest_GetAllReviewsHandler_WithNoParams_ThrowsException() {
         // Arrange
         event.setQueryStringParameters(new HashMap<>());

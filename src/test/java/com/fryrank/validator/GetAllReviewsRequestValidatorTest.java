@@ -15,32 +15,6 @@ public class GetAllReviewsRequestValidatorTest {
     private final GetAllReviewsRequestValidator validator = new GetAllReviewsRequestValidator();
 
     @Test
-    public void testValidate_WithNullLimit_NoErrors() {
-        // Arrange
-        GetAllReviewsRequest request = new GetAllReviewsRequest(null, null, null, null);
-        Errors errors = new BeanPropertyBindingResult(request, "getAllReviewsRequest");
-
-        // Act
-        validator.validate(request, errors);
-
-        // Assert
-        assertFalse(errors.hasErrors());
-    }
-
-    @Test
-    public void testValidate_WithEmptyLimit_NoErrors() {
-        // Arrange
-        GetAllReviewsRequest request = new GetAllReviewsRequest(null, null, "", null);
-        Errors errors = new BeanPropertyBindingResult(request, "getAllReviewsRequest");
-
-        // Act
-        validator.validate(request, errors);
-
-        // Assert
-        assertFalse(errors.hasErrors());
-    }
-
-    @Test
     public void testValidate_WithValidPositiveLimit_NoErrors() {
         // Arrange
         GetAllReviewsRequest request = new GetAllReviewsRequest(null, null, "10", null);
