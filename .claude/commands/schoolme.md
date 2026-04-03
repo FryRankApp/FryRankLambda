@@ -1,5 +1,5 @@
 ---
-description: Export a learning summary of the current coding session to C:\Users\Matt\Documents\Claude-school\
+description: Export a learning summary of the current coding session to .claude/claude-school-outputs/ in the project root
 ---
 
 ## Your task
@@ -12,7 +12,7 @@ The user wants a "school me" export — a well-formatted learning summary of the
 - Filename format: `<Project> - <Topic>` (e.g. `Fryrank - Pagination Feature`)
 
 **Step 2: Write the file**
-- Output path: `C:\Users\Matt\Documents\Claude-school\<filename>.md`
+- Output path: `.claude/claude-school-outputs/<filename>.md` (relative to the project root)
 - Use the Markdown format defined in the SKILL.md at `.claude/claude-school/SKILL.md`
 
 **Step 3: Confirm**

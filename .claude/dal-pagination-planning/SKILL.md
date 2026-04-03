@@ -14,51 +14,7 @@ The cursor must be **URL-decoded in the handler** before use. The API Gateway te
 
 ## DynamoDB Pagination Pattern
 
-Use the **seek method**: add `isoDateTime < :cursor` to the key condition expression. Do **not** use `ExclusiveStartKey` — that would require the full item primary key (`restaurantId` + `identifier` + `isoDateTime`), which the caller doesn't have.
-
-```java
-// Build expression attribute maps (must be mutable HashMap, not Map.of())
-final Map<String, String> exprAttrNames = new HashMap<>();
-exprAttrNames.put("#key", keyAttribute);
-
-final Map<String, AttributeValue> exprAttrValues = new HashMap<>();
-exprAttrValues.put(":value", AttributeValue.builder().s(keyValue).build());
-
-final String keyCondition;
-if (cursor != null && !cursor.isEmpty()) {
-    exprAttrNames.put("#dt", ISO_DATE_TIME);
-    exprAttrValues.put(":cursor", AttributeValue.builder().s(cursor).build());
-    keyCondition = "#key = :value AND #dt < :cursor";
-} else {
-    keyCondition = "#key = :value";
-}
-
-final QueryRequest.Builder requestBuilder = QueryRequest.builder()
-        .tableName(RANKINGS_TABLE_NAME)
-        .indexName(indexName)
-        .keyConditionExpression(keyCondition)
-        .filterExpression("attribute_exists(isReview)")
-        .expressionAttributeNames(exprAttrNames)
-        .expressionAttributeValues(exprAttrValues)
-        .scanIndexForward(false);  // Most recent first
-
-requestBuilder.limit(limit);  // always set; handler clamps to MAX_PAGE_LIMIT (100) and defaults to DEFAULT_PAGE_LIMIT (10)
-
-final QueryResponse response = dynamoDb.query(requestBuilder.build());
-
-// Derive nextCursor from the last item in results
-final List<Map<String, AttributeValue>> items = response.items();
-final Map<String, AttributeValue> lek = response.lastEvaluatedKey();
-String nextCursor = null;
-if (lek != null && !lek.isEmpty() && !items.isEmpty()) {
-    final AttributeValue lastDateTime = items.getLast().get(ISO_DATE_TIME);
-    if (lastDateTime != null) {
-        nextCursor = URLEncoder.encode(lastDateTime.s(), StandardCharsets.UTF_8);
-    }
-}
-
-return mapItemsToReviewsWithUserMetadata(items, nextCursor);
-```
+The canonical implementation is `ReviewDALImpl.queryReviews(...)` in `src/main/java/com/fryrank/dal/ReviewDALImpl.java`. Read that method for the authoritative query construction, cursor injection, and `nextCursor` derivation logic — do not rely on any snapshot here.
 
 ## Key Design Decisions
 
