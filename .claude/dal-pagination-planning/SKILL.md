@@ -65,41 +65,31 @@ return mapItemsToReviewsWithUserMetadata(items, nextCursor);
 - **Seek method over ExclusiveStartKey** — `ExclusiveStartKey` requires the full item primary key, which callers don't have. The seek approach (`isoDateTime < :cursor`) only needs `isoDateTime`, which the client already has from `next_cursor` in the previous response.
 - **No cursor encoding** — The cursor is a plain `isoDateTime` string. Earlier designs used `Base64url(isoDateTime|restaurantId|identifier)`, but `restaurantId`/`accountId` are redundant (already in query params). Encoding also caused Jackson HTML-escaping issues (`=` → `\u003d`).
 - **No cursor format validation** — Do not validate the cursor string in the validator. Wrong values produce bad query results, not a security issue. Strict validation (e.g. `OffsetDateTime.parse()`) would reject valid cursors if the datetime format varies slightly.
-- **`limit` always has a value** — The handler parses `limit` as a primitive `int`: if absent it defaults to `DEFAULT_PAGE_LIMIT` (10); if provided it is clamped to `MAX_PAGE_LIMIT` (100) via `Math.min()`. The validator only checks format (positive integer); enforcing the cap is the handler's job, not the validator's.
+- **`limit` always has a value** — The handler parses `limit` as a primitive `int`: if absent or invalid format it defaults to `DEFAULT_PAGE_LIMIT` (10); if provided it is clamped to `[1, MAX_PAGE_LIMIT]` via `Math.min(Math.max(parsed, 1), MAX_PAGE_LIMIT)`. There is no limit validator — bad input silently falls back to default rather than returning a 400. This is a deliberate design choice: `limit` is optional and has a sensible default, so being forgiving is preferable to erroring on malformed input.
 - **`limit` applies before `filterExpression`** — DynamoDB counts items read, not items returned, toward the limit. The `attribute_exists(isReview)` filter (TODO FRY-114) means pages may return fewer items than requested. This resolves when FRY-114 is addressed.
 - **`getRecentReviews` unchanged** — passes `null` as `nextCursor` since it fetches a fixed snapshot, not a paginated list.
 - **Use mutable maps for expression attributes** — `Map.of()` is immutable. When conditionally adding cursor attributes, use `new HashMap<>()` so you can `put()` into it.
 
 ## Limit Enforcement
 
-- **`limit` absent → `DEFAULT_PAGE_LIMIT` (10)** — the handler always produces an `int`; no null path.
-- **`limit` present → clamped to `MAX_PAGE_LIMIT` (100)** — `Math.min(Integer.parseInt(limitParam), MAX_PAGE_LIMIT)`.
-- **Validator does not enforce `MAX_PAGE_LIMIT`** — a value of 200 passes validation; the handler silently clamps it. This keeps validator scope narrow (format only).
+- **`limit` absent or invalid format → `DEFAULT_PAGE_LIMIT` (10)** — `NumberFormatException` is caught and logged as a warning; no error is returned to the caller.
+- **`limit` present and valid → clamped to `[1, MAX_PAGE_LIMIT]`** — `Math.min(Math.max(Integer.parseInt(limitParam), 1), MAX_PAGE_LIMIT)`. Zero and negatives clamp to 1; values above 100 clamp to 100.
+- **No `GetAllReviewsRequestValidator`** — it was deleted. Limit validation is entirely the handler's responsibility via silent fallback.
 - **`DEFAULT_PAGE_LIMIT` and `MAX_PAGE_LIMIT` are both in `Constants.java`.**
 
 ## Testing Checklist
 
 **DAL pagination tests** (`ReviewDALTests`) — for each paginated query method:
 
-1. **Cursor sets key condition** — assert `KeyConditionExpression` includes `AND #dt < :cursor`; `:cursor` value equals the decoded cursor string
-2. **No cursor → base key condition only** — assert `KeyConditionExpression` is `#key = :value`; `#dt` and `:cursor` not present
-3. **nextCursor returned** — mock non-empty `lastEvaluatedKey` + non-empty items; assert `getNextCursor()` is the last item's URL-encoded `isoDateTime`
-4. **No nextCursor when LEK empty** — mock empty/absent `lastEvaluatedKey`; assert `getNextCursor()` is null
-5. **No nextCursor when items empty** — mock non-empty LEK but empty items list; assert `getNextCursor()` is null
-6. **No nextCursor when last item has no isoDateTime** — mock LEK present, item present but without `ISO_DATE_TIME` key; assert `getNextCursor()` is null
+1. **Cursor provided → returns output** — mock empty items, pass a cursor; assert output is not null, `getNextCursor()` is null, reviews is empty. Do **not** assert query shape (no `ArgumentCaptor` on `KeyConditionExpression` or attribute maps).
+2. **nextCursor returned** — mock non-empty `lastEvaluatedKey` + non-empty items; assert `getNextCursor()` is not null. Do **not** assert the exact encoded value — that belongs in a dedicated encoding test.
+3. **No nextCursor when LEK empty** — mock empty/absent `lastEvaluatedKey`; assert `getNextCursor()` is null
+4. **No nextCursor when items empty** — mock non-empty LEK but empty items list; assert `getNextCursor()` is null
+5. **No nextCursor when last item has no isoDateTime** — mock LEK present, item present but without `ISO_DATE_TIME` key; assert `getNextCursor()` is null
 
-**Validator tests** (`GetAllReviewsRequestValidatorTest`):
+> Note: There is no separate "no cursor → base key condition" test — that scenario is already covered by the existing non-pagination DAL tests which all pass `null` as the cursor.
 
-1. Null limit → no errors
-2. Empty string limit → no errors
-3. Valid positive integer → no errors
-4. `"1"` (boundary) → no errors
-5. `"0"` → error (field = `limit`)
-6. Negative → error
-7. Non-numeric string → error
-8. Decimal string → error
-9. Above `MAX_PAGE_LIMIT` (e.g. `"200"`) → **no errors** (validator does not enforce the cap)
-10. `supports(GetAllReviewsRequest.class)` → true; `supports(String.class)` → false
+**Limit tests** — none needed. Invalid or missing limit silently falls back to `DEFAULT_PAGE_LIMIT` in the handler. Limit behavior is covered implicitly by the existing `APIGatewayRequestValidatorTest` cases that include a `limit` query param.
 
 ## Manual Testing
 
