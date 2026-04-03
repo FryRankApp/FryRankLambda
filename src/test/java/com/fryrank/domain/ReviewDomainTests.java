@@ -16,6 +16,7 @@ import static com.fryrank.TestConstants.TEST_ISO_DATE_TIME_1;
 import static com.fryrank.TestConstants.TEST_RESTAURANT_ID;
 import static com.fryrank.TestConstants.TEST_REVIEWS;
 import static com.fryrank.TestConstants.TEST_REVIEW_1;
+import static com.fryrank.TestConstants.TEST_LIMIT;
 import static com.fryrank.TestConstants.TEST_REVIEW_BAD_ISO_DATETIME;
 import static com.fryrank.TestConstants.TEST_REVIEW_ID_1;
 import static com.fryrank.TestConstants.TEST_REVIEW_NULL_ACCOUNT_ID;
@@ -45,24 +46,24 @@ public class ReviewDomainTests {
     @Test
     public void testGetAllReviewsForRestaurant() throws Exception {
         final GetAllReviewsOutput expectedOutput = new GetAllReviewsOutput(TEST_REVIEWS);
-        when(reviewDAL.getAllReviewsByRestaurantId(TEST_RESTAURANT_ID)).thenReturn(expectedOutput);
+        when(reviewDAL.getAllReviewsByRestaurantId(TEST_RESTAURANT_ID, TEST_LIMIT, TEST_ISO_DATE_TIME_1)).thenReturn(expectedOutput);
 
-        final GetAllReviewsOutput actualOutput = domain.getAllReviews(TEST_RESTAURANT_ID, null);
+        final GetAllReviewsOutput actualOutput = domain.getAllReviews(TEST_RESTAURANT_ID, null, TEST_LIMIT, TEST_ISO_DATE_TIME_1);
         assertEquals(expectedOutput, actualOutput);
     }
 
     @Test
     public void testGetAllReviewsForAccount() throws Exception {
         final GetAllReviewsOutput expectedOutput = new GetAllReviewsOutput(TEST_REVIEWS);
-        when(reviewDAL.getAllReviewsByAccountId(TEST_ACCOUNT_ID)).thenReturn(expectedOutput);
+        when(reviewDAL.getAllReviewsByAccountId(TEST_ACCOUNT_ID, TEST_LIMIT, TEST_ISO_DATE_TIME_1)).thenReturn(expectedOutput);
 
-        final GetAllReviewsOutput actualOutput = domain.getAllReviews(null, TEST_ACCOUNT_ID);
+        final GetAllReviewsOutput actualOutput = domain.getAllReviews(null, TEST_ACCOUNT_ID, TEST_LIMIT, TEST_ISO_DATE_TIME_1);
         assertEquals(expectedOutput, actualOutput);
     }
 
     @Test
     public void testGetAllReviewsNoParameter() throws Exception {
-        assertThrows(NullPointerException.class, () -> domain.getAllReviews(null, null));
+        assertThrows(NullPointerException.class, () -> domain.getAllReviews(null, null, TEST_LIMIT, TEST_ISO_DATE_TIME_1));
     }
 
     @Test

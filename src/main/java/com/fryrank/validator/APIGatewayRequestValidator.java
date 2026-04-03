@@ -102,7 +102,7 @@ public class APIGatewayRequestValidator {
                 case ADD_NEW_REVIEW_HANDLER:
                     validateRequestBodyExists(request);
                     break;
-                case GET_ALL_REVIEWS_HANDLER:
+		        case GET_ALL_REVIEWS_HANDLER:
                     Map<String, String> reviewParams = getQueryParamsFromRequest(request);
                     validateAtLeastOneQueryParamExists(
                         reviewParams,

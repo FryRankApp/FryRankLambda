@@ -18,6 +18,7 @@ public class TestConstants {
     public static final String TEST_TITLE_2 = "title_2";
     public static final String TEST_BODY_1 = "body_1";
     public static final String TEST_BODY_2 = "body_2";
+    public static final Integer TEST_LIMIT = 10;
     public static final String TEST_ISO_DATE_TIME_1 = "1970-01-01T00:00:00Z";
     public static final String TEST_ACCOUNT_ID = "test_account_id";
     public static final String TEST_AUTHORIZED_ACCOUNT_ID = "authorized_account_id";
@@ -115,6 +116,7 @@ public class TestConstants {
         }
     };
 
+    // Gson omits null fields, so nextCursor is not present when null
     public static final String TEST_REVIEWS_JSON_STRING = "{\"reviews\":[{\"reviewId\":\"review_id_1\",\"restaurantId\":\"1\",\"score\":5.0,\"title\":\"title_1\",\"body\":\"body_1\",\"isoDateTime\":\"1970-01-01T00:00:00Z\",\"accountId\":\"test_account_id\"},{\"reviewId\":\"review_id_2\",\"restaurantId\":\"1\",\"score\":7.0,\"title\":\"title_2\",\"body\":\"body_2\",\"isoDateTime\":\"1970-01-01T00:00:00Z\",\"accountId\":\"test_account_id\",\"userMetadata\":{\"accountId\":\"test_account_id\",\"username\":\"testflush\"}}]}";
 
     public static final String TEST_RESTAURANT_ID_2 = "ChIJ1wHcROHNj4ARmNwmP2PcUWw";
