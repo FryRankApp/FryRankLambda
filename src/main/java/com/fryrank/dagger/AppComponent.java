@@ -16,8 +16,15 @@ import javax.inject.Named;
 import javax.inject.Singleton;
 
 @Singleton
-@Component(modules = {AwsModule.class, AppModule.class})
+@Component(modules = {AwsModule.class, AppModule.class, EnvironmentModule.class})
 public interface AppComponent {
+    @Component.Builder
+    interface Builder {
+        Builder environmentModule(EnvironmentModule environmentModule);
+
+        AppComponent build();
+    }
+
     ReviewDALImpl reviewDAL();
 
     UserMetadataDALImpl userMetadataDAL();
@@ -37,6 +44,12 @@ public interface AppComponent {
     Authorizer authorizer();
 
     Gson gson();
+
+    @Named(EnvironmentModule.NAME_LAMBDA_FUNCTION_VERSION)
+    String lambdaFunctionVersion();
+
+    @Named(EnvironmentModule.NAME_LAMBDA_INITIALIZATION_TYPE)
+    String lambdaInitializationType();
 
     @Named(AppModule.NAME_AUTH_DISABLED)
     boolean authDisabled();

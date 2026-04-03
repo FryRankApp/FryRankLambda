@@ -7,15 +7,20 @@ public final class Dependencies {
     private static final AppComponent APP_COMPONENT;
 
     static {
-        final String lambdaVersion = System.getenv("AWS_LAMBDA_FUNCTION_VERSION");
-        final String initType = System.getenv("AWS_LAMBDA_INITIALIZATION_TYPE");
-        log.info("Lambda init: AWS_LAMBDA_FUNCTION_VERSION={}, AWS_LAMBDA_INITIALIZATION_TYPE={}", lambdaVersion, initType);
-
+        final EnvironmentModule environmentModule = new EnvironmentModule();
         final long startNanos = System.nanoTime();
-        APP_COMPONENT = DaggerAppComponent.create();
+        APP_COMPONENT = DaggerAppComponent.builder()
+                .environmentModule(environmentModule)
+                .build();
 
         final long createdMillis = (System.nanoTime() - startNanos) / 1_000_000;
         log.info("Dagger graph created in {} ms", createdMillis);
+
+        log.info(
+                "Lambda init: AWS_LAMBDA_FUNCTION_VERSION={}, AWS_LAMBDA_INITIALIZATION_TYPE={}",
+                APP_COMPONENT.lambdaFunctionVersion(),
+                APP_COMPONENT.lambdaInitializationType()
+        );
 
         final long warmupStartNanos = System.nanoTime();
         Warmup.run(APP_COMPONENT);

@@ -8,17 +8,15 @@ import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.ssm.SsmClient;
 
+import javax.inject.Named;
 import javax.inject.Singleton;
-
-import static com.fryrank.Constants.AWS_REGION_ENV_VAR;
-import static com.fryrank.Constants.DEFAULT_AWS_REGION;
 
 @Module
 public class AwsModule {
     @Provides
     @Singleton
-    static Region region() {
-        return Region.of(System.getenv().getOrDefault(AWS_REGION_ENV_VAR, DEFAULT_AWS_REGION));
+    static Region region(@Named(EnvironmentModule.NAME_REGION) String region) {
+        return Region.of(region);
     }
 
     @Provides
