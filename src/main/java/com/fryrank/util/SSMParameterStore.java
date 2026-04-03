@@ -8,12 +8,14 @@ import software.amazon.awssdk.services.ssm.model.SsmException;
 
 import javax.inject.Inject;
 import javax.inject.Named;
+import javax.inject.Singleton;
 
 import static com.fryrank.dagger.EnvironmentModule.NAME_SSM_DATABASE_URI_PARAMETER_KEY;
 import static com.fryrank.dagger.EnvironmentModule.NAME_SSM_DISABLE_AUTH_PARAMETER_KEY;
 import static com.fryrank.dagger.EnvironmentModule.NAME_SSM_GOOGLE_CLIENT_ID_PARAMETER_KEY;
 
 @Log4j2
+@Singleton
 public class SSMParameterStore {
 
     private final SsmClient ssmClient;
