@@ -85,6 +85,7 @@ public class Constants {
     public static final String GET_PUBLIC_USER_METADATA_HANDLER = "GetPublicUserMetadataHandler";
     public static final String PUT_PUBLIC_USER_METADATA_HANDLER = "PutPublicUserMetadataHandler";
     public static final String UPSERT_PUBLIC_USER_METADATA_HANDLER = "UpsertPublicUserMetadataHandler";
+    public static final String TOGGLE_REACTION_HANDLER = "ToggleReactionHandler";
 
     // Allowed Origins
     public static final String LOCALHOST = "http://localhost:3000";

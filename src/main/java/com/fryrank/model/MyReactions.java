@@ -14,6 +14,10 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class MyReactions {
 
+    public static MyReactions none() {
+        return MyReactions.builder().build();
+    }
+
     @Builder.Default
     private boolean thumbsUp = false;
 

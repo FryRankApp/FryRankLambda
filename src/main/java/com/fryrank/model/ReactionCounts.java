@@ -14,6 +14,10 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class ReactionCounts {
 
+    public static ReactionCounts zero() {
+        return ReactionCounts.builder().build();
+    }
+
     @Builder.Default
     private int thumbsUp = 0;
 

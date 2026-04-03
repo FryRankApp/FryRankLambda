@@ -4,6 +4,7 @@ import static com.fryrank.Constants.REVIEW_VALIDATOR_ERRORS_OBJECT_NAME;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 import com.fryrank.dal.ReviewDAL;
@@ -13,6 +14,8 @@ import com.fryrank.model.DeleteReviewRequest;
 import com.fryrank.model.GetAggregateReviewInformationOutput;
 import com.fryrank.model.GetAllReviewsOutput;
 import com.fryrank.model.Review;
+import com.fryrank.model.ToggleReactionRequest;
+import com.fryrank.model.ToggleReactionResult;
 import com.fryrank.validator.ReviewValidator;
 import com.fryrank.validator.ValidatorException;
 import com.fryrank.validator.ValidatorUtils;
@@ -70,5 +73,16 @@ public class ReviewDomain {
         if (!reviewDAL.deleteUserReview(reviewIDString)) {
             throw new NotFoundException("Review not found in database.");
         }
+    }
+
+    /** Toggles a reaction for the authenticated viewer on the given review. */
+    public ToggleReactionResult toggleReaction(
+            @NonNull final String viewerAccountId,
+            @NonNull final ToggleReactionRequest request
+    ) {
+        Objects.requireNonNull(request.accountId(), "accountId");
+        Objects.requireNonNull(request.reviewId(), "reviewId");
+        Objects.requireNonNull(request.reactionType(), "reactionType");
+        return reviewDAL.toggleReaction(viewerAccountId, request.reviewId(), request.reactionType());
     }
 }

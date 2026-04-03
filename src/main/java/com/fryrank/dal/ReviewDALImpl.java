@@ -7,8 +7,11 @@ import com.fryrank.model.DeleteReviewRequest;
 import com.fryrank.model.GetAggregateReviewInformationOutput;
 import com.fryrank.model.GetAllReviewsOutput;
 import com.fryrank.model.PublicUserMetadata;
+import com.fryrank.model.MyReactions;
 import com.fryrank.model.ReactionCounts;
 import com.fryrank.model.Review;
+import com.fryrank.model.ToggleReactionResult;
+import com.fryrank.model.enums.ReactionType;
 import lombok.NonNull;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Repository;
@@ -21,9 +24,12 @@ import software.amazon.awssdk.services.dynamodb.model.GetItemRequest;
 import software.amazon.awssdk.services.dynamodb.model.GetItemResponse;
 import software.amazon.awssdk.services.dynamodb.model.KeysAndAttributes;
 import software.amazon.awssdk.services.dynamodb.model.Put;
+import software.amazon.awssdk.services.dynamodb.model.DeleteItemRequest;
+import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
 import software.amazon.awssdk.services.dynamodb.model.QueryRequest;
 import software.amazon.awssdk.services.dynamodb.model.QueryResponse;
 import software.amazon.awssdk.services.dynamodb.model.TransactWriteItem;
+import software.amazon.awssdk.services.dynamodb.model.UpdateItemRequest;
 import software.amazon.awssdk.services.dynamodb.model.TransactWriteItemsRequest;
 import software.amazon.awssdk.services.dynamodb.model.TransactionCanceledException;
 
@@ -49,16 +55,19 @@ import static com.fryrank.Constants.ISO_DATE_TIME;
 import static com.fryrank.Constants.IS_REVIEW_KEY;
 import static com.fryrank.Constants.IS_REVIEW_VALUE;
 import static com.fryrank.Constants.RANKINGS_TABLE_NAME;
+import static com.fryrank.Constants.REACTIONS_TABLE_NAME;
 import static com.fryrank.Constants.REACTION_COUNTS_KEY;
 import static com.fryrank.Constants.RECENT_REVIEWS_INDEX;
 import static com.fryrank.Constants.RESTAURANT_ID_KEY;
 import static com.fryrank.Constants.RESTAURANT_ID_TIME_INDEX;
 import static com.fryrank.Constants.REVIEW_COUNT_KEY;
 import static com.fryrank.Constants.REVIEW_IDENTIFIER_PREFIX;
+import static com.fryrank.Constants.REVIEW_ID_KEY;
 import static com.fryrank.Constants.SCORE_KEY;
 import static com.fryrank.Constants.THUMBS_DOWN_KEY;
 import static com.fryrank.Constants.THUMBS_UP_KEY;
 import static com.fryrank.Constants.TITLE_KEY;
+import static com.fryrank.Constants.VIEWER_ACCOUNT_ID_KEY;
 import static com.fryrank.Constants.USERNAME_KEY;
 import static com.fryrank.Constants.USER_METADATA_TABLE_NAME;
 
@@ -145,6 +154,22 @@ public class ReviewDALImpl implements ReviewDAL {
         }
 
         return mapItemsToReviewsWithUserMetadata(items, nextCursor);
+    }
+
+    @Override
+    public GetAllReviewsOutput mergeViewerReactions(final String viewerAccountId, final GetAllReviewsOutput output) {
+        if (output == null || viewerAccountId == null || viewerAccountId.isBlank()) {
+            return output;
+        }
+        final List<Review> reviews = output.getReviews();
+        if (reviews.isEmpty()) {
+            return output;
+        }
+        final Map<String, MyReactions> byReviewId = batchGetMyReactionsForViewer(viewerAccountId, reviews);
+        final List<Review> merged = reviews.stream()
+                .map(r -> withMyReactions(r, byReviewId.getOrDefault(r.getReviewId(), MyReactions.none())))
+                .collect(Collectors.toList());
+        return new GetAllReviewsOutput(merged);
     }
 
     @Override
@@ -272,7 +297,7 @@ public class ReviewDALImpl implements ReviewDAL {
                 .body(review.getBody())
                 .isoDateTime(review.getIsoDateTime())
                 .accountId(review.getAccountId())
-                .reactionCounts(ReactionCounts.builder().build())
+                .reactionCounts(ReactionCounts.zero())
                 .build();
     }
 
@@ -489,6 +514,130 @@ public class ReviewDALImpl implements ReviewDAL {
     }
 
     /**
+     * Toggles one reaction for the viewer: updates {@code reactionCounts} on the review row and
+     * {@code PutItem} / {@code DeleteItem} on {@link com.fryrank.Constants#REACTIONS_TABLE_NAME}.
+     */
+    @Override
+    public ToggleReactionResult toggleReaction(
+            @NonNull final String viewerAccountId,
+            @NonNull final String reviewId,
+            @NonNull final ReactionType reactionType
+    ) {
+        final String[] rk = splitReviewId(reviewId);
+        final String restaurantId = rk[0];
+        final String identifier = rk[1];
+
+        final Map<String, AttributeValue> reviewKey = Map.of(
+                RESTAURANT_ID_KEY, AttributeValue.builder().s(restaurantId).build(),
+                IDENTIFIER_KEY, AttributeValue.builder().s(identifier).build()
+        );
+
+        final Map<String, AttributeValue> reviewItem = dynamoDb.getItem(
+                GetItemRequest.builder().tableName(RANKINGS_TABLE_NAME).key(reviewKey).build()
+        ).item();
+
+        if (reviewItem == null || reviewItem.isEmpty()) {
+            throw new IllegalArgumentException("Review not found: " + reviewId);
+        }
+
+        final ReactionCounts counts = mapReactionCountsOrZero(reviewItem);
+
+        final Map<String, AttributeValue> reactionKey = Map.of(
+                VIEWER_ACCOUNT_ID_KEY, AttributeValue.builder().s(viewerAccountId).build(),
+                REVIEW_ID_KEY, AttributeValue.builder().s(reviewId).build()
+        );
+
+        final Map<String, AttributeValue> existingReaction = dynamoDb.getItem(
+                GetItemRequest.builder().tableName(REACTIONS_TABLE_NAME).key(reactionKey).build()
+        ).item();
+
+        final MyReactions previous = (existingReaction == null || existingReaction.isEmpty())
+                ? MyReactions.none()
+                : mapItemToMyReactions(existingReaction);
+
+        final boolean oldFlag = getReactionFlag(previous, reactionType);
+        final boolean newFlag = !oldFlag;
+        final int delta = newFlag ? 1 : -1;
+        applyCountDelta(counts, reactionType, delta); //update global reaction on the review
+
+        final MyReactions next = setReactionFlag(previous, reactionType, newFlag);
+
+        dynamoDb.updateItem(UpdateItemRequest.builder()
+                .tableName(RANKINGS_TABLE_NAME)
+                .key(reviewKey)
+                .updateExpression("SET reactionCounts = :rc")
+                .expressionAttributeValues(Map.of(":rc", reactionCountsToAttribute(counts)))
+                .build());
+
+        if (isAllReactionsOff(next)) {
+            dynamoDb.deleteItem(DeleteItemRequest.builder()
+                    .tableName(REACTIONS_TABLE_NAME)
+                    .key(reactionKey)
+                    .build());
+        } else {
+            final Map<String, AttributeValue> reactionRow = new HashMap<>();
+            reactionRow.put(VIEWER_ACCOUNT_ID_KEY, AttributeValue.builder().s(viewerAccountId).build());
+            reactionRow.put(REVIEW_ID_KEY, AttributeValue.builder().s(reviewId).build());
+            reactionRow.put(THUMBS_UP_KEY, AttributeValue.builder().bool(next.isThumbsUp()).build());
+            reactionRow.put(THUMBS_DOWN_KEY, AttributeValue.builder().bool(next.isThumbsDown()).build());
+            reactionRow.put(HEART_KEY, AttributeValue.builder().bool(next.isHeart()).build());
+            dynamoDb.putItem(PutItemRequest.builder()
+                    .tableName(REACTIONS_TABLE_NAME)
+                    .item(reactionRow)
+                    .build());
+        }
+
+        return new ToggleReactionResult(reviewId, counts, next);
+    }
+
+    private static String[] splitReviewId(String reviewId) {
+        final int idx = reviewId.indexOf(':');
+        if (idx <= 0 || idx >= reviewId.length() - 1) {
+            throw new IllegalArgumentException("Invalid reviewId: " + reviewId);
+        }
+        return new String[]{reviewId.substring(0, idx), reviewId.substring(idx + 1)};
+    }
+
+    private static boolean getReactionFlag(MyReactions r, ReactionType type) {
+        return switch (type) {
+            case THUMBS_UP -> r.isThumbsUp();
+            case THUMBS_DOWN -> r.isThumbsDown();
+            case HEART -> r.isHeart();
+        };
+    }
+
+    private static MyReactions setReactionFlag(MyReactions r, ReactionType type, boolean value) {
+        return MyReactions.builder()
+                .thumbsUp(type == ReactionType.THUMBS_UP ? value : r.isThumbsUp())
+                .thumbsDown(type == ReactionType.THUMBS_DOWN ? value : r.isThumbsDown())
+                .heart(type == ReactionType.HEART ? value : r.isHeart())
+                .build();
+    }
+
+    private static void applyCountDelta(ReactionCounts counts, ReactionType type, int delta) {
+        switch (type) {
+            case THUMBS_UP -> counts.setThumbsUp(Math.max(0, counts.getThumbsUp() + delta));
+            case THUMBS_DOWN -> counts.setThumbsDown(Math.max(0, counts.getThumbsDown() + delta));
+            case HEART -> counts.setHeart(Math.max(0, counts.getHeart() + delta));
+            default -> throw new IllegalStateException("Unexpected type: " + type);
+        }
+    }
+
+    private static boolean isAllReactionsOff(MyReactions r) {
+        return !r.isThumbsUp() && !r.isThumbsDown() && !r.isHeart();
+    }
+
+    private static AttributeValue reactionCountsToAttribute(ReactionCounts c) {
+        return AttributeValue.builder()
+                .m(Map.of(
+                        THUMBS_UP_KEY, AttributeValue.builder().n(String.valueOf(c.getThumbsUp())).build(),
+                        THUMBS_DOWN_KEY, AttributeValue.builder().n(String.valueOf(c.getThumbsDown())).build(),
+                        HEART_KEY, AttributeValue.builder().n(String.valueOf(c.getHeart())).build()
+                ))
+                .build();
+    }
+
+    /**
      * Maps DynamoDB items to Review objects with batched user metadata fetching.
      */
     private GetAllReviewsOutput mapItemsToReviewsWithUserMetadata(List<Map<String, AttributeValue>> items, String nextCursor) {
@@ -500,11 +649,73 @@ public class ReviewDALImpl implements ReviewDAL {
 
         final Map<String, PublicUserMetadata> userMetadataMap = batchFetchUserMetadata(accountIds);
 
-        final List<Review> reviews = items.parallelStream()
+        final List<Review> reviews = items.stream()
                 .map(item -> mapItemToReview(item, userMetadataMap))
                 .collect(Collectors.toList());
 
         return new GetAllReviewsOutput(reviews, nextCursor);
+    }
+
+    private static Review withMyReactions(Review review, MyReactions myReactions) {
+        return Review.builder()
+                .reviewId(review.getReviewId())
+                .restaurantId(review.getRestaurantId())
+                .score(review.getScore())
+                .title(review.getTitle())
+                .body(review.getBody())
+                .isoDateTime(review.getIsoDateTime())
+                .accountId(review.getAccountId())
+                .userMetadata(review.getUserMetadata())
+                .reactionCounts(review.getReactionCounts())
+                .myReactions(myReactions)
+                .build();
+    }
+
+    /**
+     * Batch-gets reaction rows for this viewer for the given reviews (simple prototype; chunks of 100).
+     */
+    private Map<String, MyReactions> batchGetMyReactionsForViewer(String viewerAccountId, List<Review> reviews) {
+        final List<String> reviewIds = reviews.stream().map(Review::getReviewId).collect(Collectors.toList());
+        if (reviewIds.isEmpty()) {
+            return Map.of();
+        }
+        final Map<String, MyReactions> out = new HashMap<>();
+        final int batchSize = 100;
+        for (int i = 0; i < reviewIds.size(); i += batchSize) {
+            final List<String> batch = reviewIds.subList(i, Math.min(i + batchSize, reviewIds.size()));
+            final List<Map<String, AttributeValue>> keys = batch.stream()
+                    .map(rid -> Map.of(
+                            VIEWER_ACCOUNT_ID_KEY, AttributeValue.builder().s(viewerAccountId).build(),
+                            REVIEW_ID_KEY, AttributeValue.builder().s(rid).build()
+                    ))
+                    .collect(Collectors.toList());
+
+            final BatchGetItemRequest req = BatchGetItemRequest.builder()
+                    .requestItems(Map.of(REACTIONS_TABLE_NAME, KeysAndAttributes.builder().keys(keys).build()))
+                    .build();
+            final BatchGetItemResponse resp = dynamoDb.batchGetItem(req);
+            final List<Map<String, AttributeValue>> items = resp.responses().get(REACTIONS_TABLE_NAME);
+            if (items != null) {
+                for (Map<String, AttributeValue> item : items) {
+                    final String rid = item.get(REVIEW_ID_KEY).s();
+                    out.put(rid, mapItemToMyReactions(item));
+                }
+            }
+        }
+        return out;
+    }
+
+    private static MyReactions mapItemToMyReactions(Map<String, AttributeValue> item) {
+        return MyReactions.builder()
+                .thumbsUp(boolAttr(item, THUMBS_UP_KEY))
+                .thumbsDown(boolAttr(item, THUMBS_DOWN_KEY))
+                .heart(boolAttr(item, HEART_KEY))
+                .build();
+    }
+
+    private static boolean boolAttr(Map<String, AttributeValue> item, String key) {
+        final AttributeValue v = item.get(key);
+        return v != null && Boolean.TRUE.equals(v.bool());
     }
 
     /**
@@ -513,13 +724,12 @@ public class ReviewDALImpl implements ReviewDAL {
     private Review mapItemToReview(Map<String, AttributeValue> item, Map<String, PublicUserMetadata> userMetadataMap) {
         final String accountId = getStringAttribute(item, ACCOUNT_ID_KEY);
         final String restaurantId = getStringAttribute(item, RESTAURANT_ID_KEY);
-        final String identifierWithoutPrefix = Objects.requireNonNull(getStringAttribute(item, IDENTIFIER_KEY)).replaceFirst(REVIEW_IDENTIFIER_PREFIX, "");
+        final String identifierValue = Objects.requireNonNull(getStringAttribute(item, IDENTIFIER_KEY));
 
         final PublicUserMetadata userMetadata = accountId != null ? userMetadataMap.get(accountId) : null;
 
-        // TODO(FRY-114): Once we standardize the Review model, we will no longer need to generate a reviewId which
-        // does not exist in dyanmoDB
-        final String reviewId = restaurantId + ":" + identifierWithoutPrefix;
+        // Align with addNewReview: reviewId = restaurantId + ":" + identifier (e.g. res:REVIEW:accountId)
+        final String reviewId = restaurantId + ":" + identifierValue;
 
         assert restaurantId != null;
         return Review.builder()
@@ -528,11 +738,32 @@ public class ReviewDALImpl implements ReviewDAL {
                 .score(Objects.requireNonNull(getDoubleAttribute(item, SCORE_KEY)))
                 .title(Objects.requireNonNull(getStringAttribute(item, TITLE_KEY)))
                 .body(Objects.requireNonNull(getStringAttribute(item, BODY_KEY)))
-                // TODO(FRY-108): Once we update isoDateTime to non-optional we can add a requirement here for non null.
                 .isoDateTime(getStringAttribute(item, ISO_DATE_TIME))
                 .accountId(accountId)
                 .userMetadata(userMetadata)
+                .reactionCounts(mapReactionCountsOrZero(item))
                 .build();
+    }
+
+    private ReactionCounts mapReactionCountsOrZero(Map<String, AttributeValue> item) {
+        final AttributeValue rc = item.get(REACTION_COUNTS_KEY);
+        if (rc == null || rc.m() == null) {
+            return ReactionCounts.zero();
+        }
+        final Map<String, AttributeValue> m = rc.m();
+        return ReactionCounts.builder()
+                .thumbsUp(intAttr(m, THUMBS_UP_KEY))
+                .thumbsDown(intAttr(m, THUMBS_DOWN_KEY))
+                .heart(intAttr(m, HEART_KEY))
+                .build();
+    }
+
+    private static int intAttr(Map<String, AttributeValue> m, String key) {
+        final AttributeValue v = m.get(key);
+        if (v == null || v.n() == null) {
+            return 0;
+        }
+        return (int) Double.parseDouble(v.n());
     }
 
     /**
