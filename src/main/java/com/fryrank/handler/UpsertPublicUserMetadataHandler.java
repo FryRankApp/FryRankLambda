@@ -4,8 +4,7 @@ import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayV2HTTPEvent;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayV2HTTPResponse;
-import com.fryrank.dal.UserMetadataDAL;
-import com.fryrank.dal.UserMetadataDALImpl;
+import com.fryrank.dagger.Dependencies;
 import com.fryrank.domain.UserMetadataDomain;
 import com.fryrank.model.PublicUserMetadata;
 import com.fryrank.model.PublicUserMetadataOutput;
@@ -19,14 +18,15 @@ import static com.fryrank.util.HeaderUtils.createCorsHeaders;
 @Log4j2
 public class UpsertPublicUserMetadataHandler implements RequestHandler<APIGatewayV2HTTPEvent, APIGatewayV2HTTPResponse> {
 
-    private final UserMetadataDAL userMetadataDAL;
     private final UserMetadataDomain userMetadataDomain;
     private final APIGatewayRequestValidator requestValidator;
+    private final Gson gson;
 
     public UpsertPublicUserMetadataHandler() {
-        userMetadataDAL = new UserMetadataDALImpl();
-        userMetadataDomain = new UserMetadataDomain(userMetadataDAL);
-        requestValidator = new APIGatewayRequestValidator();
+        final var component = Dependencies.appComponent();
+        userMetadataDomain = component.userMetadataDomain();
+        requestValidator = component.apiGatewayRequestValidator();
+        gson = component.gson();
     }
 
     @Override
@@ -37,7 +37,7 @@ public class UpsertPublicUserMetadataHandler implements RequestHandler<APIGatewa
         return APIGatewayResponseBuilder.handleRequest(handlerName, input, () -> {
             requestValidator.validateRequest(handlerName, input);
 
-            final PublicUserMetadata userMetadata = new Gson().fromJson(input.getBody(), PublicUserMetadata.class);
+            final PublicUserMetadata userMetadata = gson.fromJson(input.getBody(), PublicUserMetadata.class);
             final PublicUserMetadataOutput output = userMetadataDomain.upsertPublicUserMetadata(userMetadata);
 
             log.info("Request processed successfully");

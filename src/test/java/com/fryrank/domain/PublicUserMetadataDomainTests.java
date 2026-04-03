@@ -3,12 +3,14 @@ package com.fryrank.domain;
 import com.fryrank.dal.UserMetadataDAL;
 import com.fryrank.model.PublicUserMetadata;
 import com.fryrank.model.PublicUserMetadataOutput;
+import com.fryrank.validator.UserMetadataValidator;
 import com.fryrank.validator.ValidatorException;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import static com.fryrank.TestConstants.TEST_ACCOUNT_ID;
@@ -27,6 +29,9 @@ import static org.mockito.Mockito.when;
 public class PublicUserMetadataDomainTests {
     @Mock
     UserMetadataDAL userMetadataDAL;
+
+    @Spy
+    UserMetadataValidator userMetadataValidator = new UserMetadataValidator();
 
     @InjectMocks
     UserMetadataDomain domain;

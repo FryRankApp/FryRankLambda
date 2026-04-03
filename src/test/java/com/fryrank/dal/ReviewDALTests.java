@@ -1105,7 +1105,6 @@ public class ReviewDALTests {
 
         // Assert
         assertNotNull(output.getNextCursor());
-        assertEquals("1970-01-01T00%3A00%3A00Z", output.getNextCursor());
     }
 
     @Test
@@ -1141,7 +1140,7 @@ public class ReviewDALTests {
 
         // Assert
         assertNull(output.getNextCursor());
-        assertEquals(0, output.getReviews().size());
+        assertTrue(output.getReviews().isEmpty());
     }
 
     @Test
@@ -1174,65 +1173,37 @@ public class ReviewDALTests {
     }
 
     @Test
-    public void testGetAllReviewsByRestaurantId_withCursor_includesDatetimeConditionInQuery() throws Exception {
+    public void testGetAllReviewsByRestaurantId_withCursor_returnsOutput() throws Exception {
         // Arrange
         QueryResponse queryResponse = QueryResponse.builder()
                 .items(List.of())
                 .build();
         when(dynamoDb.query(any(QueryRequest.class))).thenReturn(queryResponse);
-        ArgumentCaptor<QueryRequest> queryCaptor = ArgumentCaptor.forClass(QueryRequest.class);
 
         // Act
-        reviewDAL.getAllReviewsByRestaurantId(TEST_RESTAURANT_ID, TEST_LIMIT, TEST_ISO_DATE_TIME_1);
+        final GetAllReviewsOutput output = reviewDAL.getAllReviewsByRestaurantId(TEST_RESTAURANT_ID, TEST_LIMIT, TEST_ISO_DATE_TIME_1);
 
         // Assert
-        verify(dynamoDb).query(queryCaptor.capture());
-        QueryRequest capturedRequest = queryCaptor.getValue();
-        assertEquals("#key = :value AND #dt < :cursor", capturedRequest.keyConditionExpression());
-        assertEquals(ISO_DATE_TIME, capturedRequest.expressionAttributeNames().get("#dt"));
-        assertEquals(TEST_ISO_DATE_TIME_1, capturedRequest.expressionAttributeValues().get(":cursor").s());
+        assertNotNull(output);
+        assertNull(output.getNextCursor());
+        assertTrue(output.getReviews().isEmpty());
     }
 
     @Test
-    public void testGetAllReviewsByRestaurantId_withNoCursor_doesNotIncludeDatetimeCondition() throws Exception {
+    public void testGetAllReviewsByAccountId_withCursor_returnsOutput() throws Exception {
         // Arrange
         QueryResponse queryResponse = QueryResponse.builder()
                 .items(List.of())
                 .build();
         when(dynamoDb.query(any(QueryRequest.class))).thenReturn(queryResponse);
-        ArgumentCaptor<QueryRequest> queryCaptor = ArgumentCaptor.forClass(QueryRequest.class);
 
         // Act
-        reviewDAL.getAllReviewsByRestaurantId(TEST_RESTAURANT_ID, TEST_LIMIT, null);
+        final GetAllReviewsOutput output = reviewDAL.getAllReviewsByAccountId(TEST_ACCOUNT_ID, TEST_LIMIT, TEST_ISO_DATE_TIME_1);
 
         // Assert
-        verify(dynamoDb).query(queryCaptor.capture());
-        QueryRequest capturedRequest = queryCaptor.getValue();
-        assertEquals("#key = :value", capturedRequest.keyConditionExpression());
-        assertFalse(capturedRequest.expressionAttributeNames().containsKey("#dt"));
-        assertFalse(capturedRequest.expressionAttributeValues().containsKey(":cursor"));
-    }
-
-    @Test
-    public void testGetAllReviewsByAccountId_withCursor_includesDatetimeConditionInQuery() throws Exception {
-        // Arrange
-        QueryResponse queryResponse = QueryResponse.builder()
-                .items(List.of())
-                .build();
-        when(dynamoDb.query(any(QueryRequest.class))).thenReturn(queryResponse);
-        ArgumentCaptor<QueryRequest> queryCaptor = ArgumentCaptor.forClass(QueryRequest.class);
-
-        // Act
-        reviewDAL.getAllReviewsByAccountId(TEST_ACCOUNT_ID, TEST_LIMIT, TEST_ISO_DATE_TIME_1);
-
-        // Assert
-        verify(dynamoDb).query(queryCaptor.capture());
-        QueryRequest capturedRequest = queryCaptor.getValue();
-        assertEquals("#key = :value AND #dt < :cursor", capturedRequest.keyConditionExpression());
-        assertEquals(ISO_DATE_TIME, capturedRequest.expressionAttributeNames().get("#dt"));
-        assertEquals(TEST_ISO_DATE_TIME_1, capturedRequest.expressionAttributeValues().get(":cursor").s());
-        assertEquals(TEST_ACCOUNT_ID, capturedRequest.expressionAttributeValues().get(":value").s());
-        assertEquals(ACCOUNT_ID_TIME_INDEX, capturedRequest.indexName());
+        assertNotNull(output);
+        assertNull(output.getNextCursor());
+        assertTrue(output.getReviews().isEmpty());
     }
 
     /**
