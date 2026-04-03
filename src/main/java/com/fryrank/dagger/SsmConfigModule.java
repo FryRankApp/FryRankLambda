@@ -13,7 +13,7 @@ import javax.inject.Singleton;
 /**
  * Fetches SSM-backed configuration once during init and exposes plain values to the graph.
  *
- * <p>This avoids snapshotting a "used" SSM client (with warmed HTTP connections) into a SnapStart image.</p>
+ * This avoids snapshotting a "used" SSM client (with warmed HTTP connections) into a SnapStart image.
  */
 @Module
 public final class SsmConfigModule {
