@@ -30,4 +30,12 @@ public class Review {
     private String accountId;
 
     private final PublicUserMetadata userMetadata;
+
+    /** Public totals from DynamoDB; null if not loaded or legacy rows. */
+    @Builder.Default
+    private ReactionCounts reactionCounts = null;
+
+    /** Current viewer's toggles; null if anonymous or not merged. */
+    @Builder.Default
+    private MyReactions myReactions = null;
 }

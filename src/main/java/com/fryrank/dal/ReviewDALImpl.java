@@ -7,6 +7,7 @@ import com.fryrank.model.DeleteReviewRequest;
 import com.fryrank.model.GetAggregateReviewInformationOutput;
 import com.fryrank.model.GetAllReviewsOutput;
 import com.fryrank.model.PublicUserMetadata;
+import com.fryrank.model.ReactionCounts;
 import com.fryrank.model.Review;
 import lombok.NonNull;
 import lombok.extern.log4j.Log4j2;
@@ -42,17 +43,21 @@ import static com.fryrank.Constants.ACCOUNT_ID_TIME_INDEX;
 import static com.fryrank.Constants.AGGREGATE_IDENTIFIER;
 import static com.fryrank.Constants.AVERAGE_SCORE_KEY;
 import static com.fryrank.Constants.BODY_KEY;
+import static com.fryrank.Constants.HEART_KEY;
 import static com.fryrank.Constants.IDENTIFIER_KEY;
 import static com.fryrank.Constants.ISO_DATE_TIME;
 import static com.fryrank.Constants.IS_REVIEW_KEY;
 import static com.fryrank.Constants.IS_REVIEW_VALUE;
 import static com.fryrank.Constants.RANKINGS_TABLE_NAME;
+import static com.fryrank.Constants.REACTION_COUNTS_KEY;
 import static com.fryrank.Constants.RECENT_REVIEWS_INDEX;
 import static com.fryrank.Constants.RESTAURANT_ID_KEY;
 import static com.fryrank.Constants.RESTAURANT_ID_TIME_INDEX;
 import static com.fryrank.Constants.REVIEW_COUNT_KEY;
 import static com.fryrank.Constants.REVIEW_IDENTIFIER_PREFIX;
 import static com.fryrank.Constants.SCORE_KEY;
+import static com.fryrank.Constants.THUMBS_DOWN_KEY;
+import static com.fryrank.Constants.THUMBS_UP_KEY;
 import static com.fryrank.Constants.TITLE_KEY;
 import static com.fryrank.Constants.USERNAME_KEY;
 import static com.fryrank.Constants.USER_METADATA_TABLE_NAME;
@@ -245,6 +250,7 @@ public class ReviewDALImpl implements ReviewDAL {
         reviewItem.put(TITLE_KEY, AttributeValue.builder().s(review.getTitle()).build());
         reviewItem.put(BODY_KEY, AttributeValue.builder().s(review.getBody()).build());
         reviewItem.put(IS_REVIEW_KEY, AttributeValue.builder().s(IS_REVIEW_VALUE).build());
+        reviewItem.put(REACTION_COUNTS_KEY, zeroReactionCountsAttribute());
 
         if (review.getIsoDateTime() != null) {
             reviewItem.put(ISO_DATE_TIME, AttributeValue.builder().s(review.getIsoDateTime()).build());
@@ -266,6 +272,17 @@ public class ReviewDALImpl implements ReviewDAL {
                 .body(review.getBody())
                 .isoDateTime(review.getIsoDateTime())
                 .accountId(review.getAccountId())
+                .reactionCounts(ReactionCounts.builder().build())
+                .build();
+    }
+
+    private static AttributeValue zeroReactionCountsAttribute() {
+        return AttributeValue.builder()
+                .m(Map.of(
+                        THUMBS_UP_KEY, AttributeValue.builder().n("0").build(),
+                        THUMBS_DOWN_KEY, AttributeValue.builder().n("0").build(),
+                        HEART_KEY, AttributeValue.builder().n("0").build()
+                ))
                 .build();
     }
 
