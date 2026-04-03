@@ -39,7 +39,7 @@ class APIGatewayResponseBuilderTest {
         // Assert
         assertNotNull(response);
         assertEquals(HTTP_OK, response.getStatusCode());
-        assertEquals(TEST_REVIEWS_JSON_STRING, response.getBody());
+		assertEquals(TEST_REVIEWS_JSON_STRING, response.getBody());
     }
 
     @Test

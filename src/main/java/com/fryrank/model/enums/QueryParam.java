@@ -5,8 +5,10 @@ public enum QueryParam {
     ACCOUNT_ID("accountId"),
     COUNT("count"),
     IDS("ids"),
-    INCLUDE_RATING("rating"),
-    USERNAME("defaultUsername");
+	INCLUDE_RATING("rating"),
+	USERNAME("defaultUsername"),
+	LIMIT("limit"),
+	CURSOR("cursor");
 
     private final String value;
 
