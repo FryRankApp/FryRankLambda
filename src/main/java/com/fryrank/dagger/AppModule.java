@@ -5,7 +5,6 @@ import com.fryrank.dal.UserMetadataDALImpl;
 import com.fryrank.domain.ReviewDomain;
 import com.fryrank.domain.UserMetadataDomain;
 import com.fryrank.util.Authorizer;
-import com.fryrank.util.SSMParameterStore;
 import com.fryrank.validator.APIGatewayRequestValidator;
 import com.fryrank.validator.DeleteReviewRequestValidator;
 import com.fryrank.validator.ReviewValidator;
@@ -96,13 +95,6 @@ public class AppModule {
 
     @Provides
     @Singleton
-    @Named(NAME_GOOGLE_CLIENT_ID)
-    static String googleClientId(SSMParameterStore parameterStore) {
-        return parameterStore.getGoogleClientIdFromSSM();
-    }
-
-    @Provides
-    @Singleton
     static GoogleIdTokenVerifier googleIdTokenVerifier(HttpTransport transport, JsonFactory jsonFactory, @Named(NAME_GOOGLE_CLIENT_ID) String googleClientId) {
         return new GoogleIdTokenVerifier.Builder(transport, jsonFactory)
                 .setAudience(Collections.singletonList(googleClientId))
@@ -111,8 +103,7 @@ public class AppModule {
 
     @Provides
     @Singleton
-    static Authorizer authorizer(GoogleIdTokenVerifier verifier, SSMParameterStore parameterStore) {
-        final boolean authDisabled = "true".equals(parameterStore.getDisableAuthFromSSM());
+    static Authorizer authorizer(GoogleIdTokenVerifier verifier, @Named(SsmConfigModule.NAME_AUTH_DISABLED) boolean authDisabled) {
         return new Authorizer(verifier, authDisabled);
     }
 }

@@ -7,11 +7,8 @@ public final class Dependencies {
     private static final AppComponent APP_COMPONENT;
 
     static {
-        final EnvironmentModule environmentModule = new EnvironmentModule();
         final long startNanos = System.nanoTime();
-        APP_COMPONENT = DaggerAppComponent.builder()
-                .environmentModule(environmentModule)
-                .build();
+        APP_COMPONENT = DaggerAppComponent.create();
 
         final long createdMillis = (System.nanoTime() - startNanos) / 1_000_000;
         log.info("Dagger graph created in {} ms", createdMillis);

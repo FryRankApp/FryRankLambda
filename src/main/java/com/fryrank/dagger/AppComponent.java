@@ -16,15 +16,8 @@ import javax.inject.Named;
 import javax.inject.Singleton;
 
 @Singleton
-@Component(modules = {AwsModule.class, AppModule.class, EnvironmentModule.class})
+@Component(modules = {AwsModule.class, AppModule.class, EnvironmentModule.class, SsmConfigModule.class})
 public interface AppComponent {
-    @Component.Builder
-    interface Builder {
-        Builder environmentModule(EnvironmentModule environmentModule);
-
-        AppComponent build();
-    }
-
     ReviewDALImpl reviewDAL();
 
     UserMetadataDALImpl userMetadataDAL();
