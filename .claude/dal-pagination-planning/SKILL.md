@@ -91,6 +91,12 @@ return mapItemsToReviewsWithUserMetadata(items, nextCursor);
 
 **Limit tests** — none needed. Invalid or missing limit silently falls back to `DEFAULT_PAGE_LIMIT` in the handler. Limit behavior is covered implicitly by the existing `APIGatewayRequestValidatorTest` cases that include a `limit` query param.
 
+**Handler tests** (`GetAllReviewsHandlerTests`) — add tests for these pagination-specific cases:
+
+- **Cursor decoding** — verify the handler URL-decodes the cursor before passing it to the domain/DAL. A cursor pasted from a JSON response arrives still encoded; using it as-is silently corrupts the DynamoDB comparison.
+- **Limit fallback** — missing or non-numeric `limit` → `DEFAULT_PAGE_LIMIT` (10); no error returned.
+- **Limit clamping** — valid `limit` outside `[1, MAX_PAGE_LIMIT]` is clamped, not rejected.
+
 ## Manual Testing
 
 The `next_cursor` returned by the API is already URL-encoded and can be pasted directly as the `cursor` query param in the API Gateway test console — no transformation needed.
