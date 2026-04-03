@@ -4,8 +4,7 @@ import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayV2HTTPEvent;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayV2HTTPResponse;
-import com.fryrank.dal.UserMetadataDAL;
-import com.fryrank.dal.UserMetadataDALImpl;
+import com.fryrank.dagger.Dependencies;
 import com.fryrank.domain.UserMetadataDomain;
 import com.fryrank.model.PublicUserMetadataOutput;
 import com.fryrank.model.enums.QueryParam;
@@ -18,14 +17,13 @@ import static com.fryrank.util.HeaderUtils.createCorsHeaders;
 @Log4j2
 public class GetPublicUserMetadataHandler implements RequestHandler<APIGatewayV2HTTPEvent, APIGatewayV2HTTPResponse> {
 
-    private final UserMetadataDAL userMetadataDAL;
     private final UserMetadataDomain userMetadataDomain;
     private final APIGatewayRequestValidator requestValidator;
 
     public GetPublicUserMetadataHandler() {
-        userMetadataDAL = new UserMetadataDALImpl();
-        userMetadataDomain = new UserMetadataDomain(userMetadataDAL);
-        requestValidator = new APIGatewayRequestValidator();
+        final var component = Dependencies.appComponent();
+        userMetadataDomain = component.userMetadataDomain();
+        requestValidator = component.apiGatewayRequestValidator();
     }
 
     @Override

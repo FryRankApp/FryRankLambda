@@ -26,16 +26,12 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayV2HTTPEvent;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayV2HTTPResponse;
-import com.fryrank.dal.ReviewDALImpl;
 import com.fryrank.domain.ReviewDomain;
 import com.fryrank.model.GetAllReviewsOutput;
 import com.fryrank.validator.APIGatewayRequestValidator;
 
 @ExtendWith(MockitoExtension.class)
 public class GetAllReviewsHandlerTests {
-
-    @Mock
-    private ReviewDALImpl reviewDAL;
 
     @Mock
     private ReviewDomain reviewDomain;
