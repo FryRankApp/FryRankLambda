@@ -33,8 +33,7 @@ public class GetAllReviewsHandler implements RequestHandler<APIGatewayV2HTTPEven
         requestValidator = component.apiGatewayRequestValidator();
     }
 
-    public GetAllReviewsHandler(ReviewDALImpl reviewDAL, ReviewDomain reviewDomain, APIGatewayRequestValidator requestValidator) {
-        this.reviewDAL = reviewDAL;
+    public GetAllReviewsHandler(final ReviewDomain reviewDomain, final APIGatewayRequestValidator requestValidator) {
         this.reviewDomain = reviewDomain;
         this.requestValidator = requestValidator;
     }

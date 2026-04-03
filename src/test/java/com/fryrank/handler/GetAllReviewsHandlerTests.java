@@ -19,23 +19,18 @@ import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayV2HTTPEvent;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayV2HTTPResponse;
-import com.fryrank.dal.ReviewDALImpl;
 import com.fryrank.domain.ReviewDomain;
 import com.fryrank.model.GetAllReviewsOutput;
 import com.fryrank.validator.APIGatewayRequestValidator;
 
 @ExtendWith(MockitoExtension.class)
 public class GetAllReviewsHandlerTests {
-
-    @Mock
-    private ReviewDALImpl reviewDAL;
 
     @Mock
     private ReviewDomain reviewDomain;
@@ -46,7 +41,6 @@ public class GetAllReviewsHandlerTests {
     @Mock
     private Context context;
 
-    @InjectMocks
     private GetAllReviewsHandler handler;
 
     private GetAllReviewsOutput defaultOutput;
@@ -54,6 +48,7 @@ public class GetAllReviewsHandlerTests {
     @BeforeEach
     public void setUp() {
         defaultOutput = new GetAllReviewsOutput(TEST_REVIEWS, null);
+        handler = new GetAllReviewsHandler(reviewDomain, requestValidator);
     }
 
     @Test
