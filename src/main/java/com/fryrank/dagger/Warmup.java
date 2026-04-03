@@ -18,11 +18,8 @@ public final class Warmup {
         component.userMetadataValidator();
         component.deleteReviewRequestValidator();
 
-        // If auth is enabled, prefetch SSM-backed config by constructing the Authorizer graph during init.
-        // If auth is disabled, skip to avoid an unnecessary SSM roundtrip during init.
-        if (!component.authDisabled()) {
-            component.authorizer();
-        }
+        // Prefetch SSM-backed config by constructing the Authorizer graph during init (SnapStart snapshot time).
+        component.authorizer();
 
         // Builds domains/DALs (clients are created, but AWS SDK clients don't open sockets until first request).
         component.reviewDomain();

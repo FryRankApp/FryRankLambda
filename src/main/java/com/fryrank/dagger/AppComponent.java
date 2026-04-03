@@ -51,6 +51,4 @@ public interface AppComponent {
     @Named(EnvironmentModule.NAME_LAMBDA_INITIALIZATION_TYPE)
     String lambdaInitializationType();
 
-    @Named(AppModule.NAME_AUTH_DISABLED)
-    boolean authDisabled();
 }

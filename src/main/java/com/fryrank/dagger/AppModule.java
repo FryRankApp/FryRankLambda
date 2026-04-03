@@ -27,7 +27,6 @@ import java.util.Collections;
 @Module
 public class AppModule {
     public static final String NAME_GOOGLE_CLIENT_ID = "googleClientId";
-    public static final String NAME_AUTH_DISABLED = "authDisabled";
 
     @Provides
     @Singleton
@@ -104,13 +103,6 @@ public class AppModule {
 
     @Provides
     @Singleton
-    @Named(NAME_AUTH_DISABLED)
-    static boolean authDisabled(SSMParameterStore parameterStore) {
-        return "true".equals(parameterStore.getDisableAuthFromSSM());
-    }
-
-    @Provides
-    @Singleton
     static GoogleIdTokenVerifier googleIdTokenVerifier(HttpTransport transport, JsonFactory jsonFactory, @Named(NAME_GOOGLE_CLIENT_ID) String googleClientId) {
         return new GoogleIdTokenVerifier.Builder(transport, jsonFactory)
                 .setAudience(Collections.singletonList(googleClientId))
@@ -119,7 +111,8 @@ public class AppModule {
 
     @Provides
     @Singleton
-    static Authorizer authorizer(GoogleIdTokenVerifier verifier, @Named(NAME_AUTH_DISABLED) boolean authDisabled) {
+    static Authorizer authorizer(GoogleIdTokenVerifier verifier, SSMParameterStore parameterStore) {
+        final boolean authDisabled = "true".equals(parameterStore.getDisableAuthFromSSM());
         return new Authorizer(verifier, authDisabled);
     }
 }
