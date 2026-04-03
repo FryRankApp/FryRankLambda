@@ -541,5 +541,31 @@ public class ReviewDALImpl implements ReviewDAL {
         AttributeValue attr = item.get(key);
         return (attr != null && attr.n() != null) ? Double.parseDouble(attr.n()) : null;
     }
+
+    public String getReviewOwnerAccountId(@NonNull final String reviewId) {
+
+        String[] keyParts = reviewId.split(":");
+        String restaurantId = keyParts[0];
+        String identifier = REVIEW_IDENTIFIER_PREFIX + keyParts[1];
+
+        final Map<String, AttributeValue> reviewKey = Map.of(
+            RESTAURANT_ID_KEY, AttributeValue.builder().s(restaurantId).build(),
+            IDENTIFIER_KEY, AttributeValue.builder().s(identifier).build()
+        );
+
+        final GetItemRequest getReviewRequest = GetItemRequest.builder()
+            .tableName(RANKINGS_TABLE_NAME)
+            .key(reviewKey)
+            .build();
+
+        final GetItemResponse reviewResponse = dynamoDb.getItem(getReviewRequest);
+        final Map<String, AttributeValue> existingReview = reviewResponse.item();
+        if (existingReview == null || existingReview.isEmpty()) {
+            return null;
+        }
+
+        final String ownerAccountId = getStringAttribute(existingReview, ACCOUNT_ID_KEY);
+        return ownerAccountId;
+    }
 }
 

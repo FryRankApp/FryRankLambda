@@ -22,9 +22,12 @@ import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.fryrank.model.exceptions.AuthorizationDisabledException;
+import com.fryrank.model.exceptions.ForbiddenException;
 import com.fryrank.model.exceptions.NotAuthorizedException;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
+import com.fryrank.util.auth.DeleteReviewContext;
+import com.fryrank.util.auth.Operation;
 
 @ExtendWith(MockitoExtension.class)
 public class AuthorizerTests {
@@ -110,5 +113,43 @@ public class AuthorizerTests {
             () -> disabledAuthorizer.authorizeAndGetAccountId("any-token")
         );
         assertEquals("Authorization is disabled", exception.getMessage());
+    }
+
+    @Test
+    public void testAuthorize_DeleteReview_WhenCallerOwnsReview_ReturnsTrue() throws Exception {
+        // Arrange
+        final String validToken = TEST_VALID_TOKEN;
+        doReturn(idToken).when(verifier).verify(validToken);
+        doReturn(payload).when(idToken).getPayload();
+        doReturn(TEST_ACCOUNT_ID).when(payload).getSubject();
+
+        // Act
+        final boolean authorized = authorizer.authorize(
+            Operation.DELETE_REVIEW,
+            () -> validToken,
+            () -> new DeleteReviewContext(TEST_ACCOUNT_ID)
+        );
+
+        // Assert
+        assertEquals(true, authorized);
+    }
+
+    @Test
+    public void testAuthorize_DeleteReview_WhenCallerDoesNotOwnReview_ThrowsForbidden() throws Exception {
+        // Arrange
+        final String validToken = TEST_VALID_TOKEN;
+        doReturn(idToken).when(verifier).verify(validToken);
+        doReturn(payload).when(idToken).getPayload();
+        doReturn(TEST_ACCOUNT_ID).when(payload).getSubject();
+
+        // Act & Assert
+        assertThrows(
+            ForbiddenException.class,
+            () -> authorizer.authorize(
+                Operation.DELETE_REVIEW,
+                () -> validToken,
+                () -> new DeleteReviewContext("different-account-id")
+            )
+        );
     }
 }

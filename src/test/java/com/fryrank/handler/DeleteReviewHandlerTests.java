@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 
@@ -19,11 +20,16 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayV2HTTPEvent;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayV2HTTPResponse;
+import static com.fryrank.TestConstants.TEST_ACCOUNT_ID;
 import static com.fryrank.TestConstants.TEST_DELETE_REVIEW_ID;
 import com.fryrank.dal.ReviewDALImpl;
 import com.fryrank.domain.ReviewDomain;
 import com.fryrank.model.DeleteReviewRequest;
+import com.fryrank.model.exceptions.ForbiddenException;
 import com.fryrank.model.exceptions.NotFoundException;
+import com.fryrank.model.exceptions.NotAuthorizedException;
+import com.fryrank.util.Authorizer;
+import com.fryrank.util.auth.Operation;
 import com.fryrank.validator.APIGatewayRequestValidator;
 import com.fryrank.validator.DeleteReviewRequestValidator;
 import com.google.gson.Gson;
@@ -46,6 +52,9 @@ public class DeleteReviewHandlerTests {
     @Mock
     private Context context;
 
+    @Mock
+    private Authorizer authorizer;
+
     @InjectMocks
     private DeleteReviewHandler handler;
 
@@ -63,6 +72,7 @@ public class DeleteReviewHandlerTests {
         final APIGatewayV2HTTPEvent event = createTestEvent(gson.toJson(deleteRequest));
 
         // Setup mocks
+        doReturn(true).when(authorizer).authorize(eq(Operation.DELETE_REVIEW), any(), any());
         doNothing().when(requestValidator).validateRequest(any(), any());
         doNothing().when(reviewDomain).deleteReview(any(DeleteReviewRequest.class));
 
@@ -83,6 +93,7 @@ public class DeleteReviewHandlerTests {
         final String errorMessage = "Review not found in database.";
 
         // Setup mocks
+        doReturn(true).when(authorizer).authorize(eq(Operation.DELETE_REVIEW), any(), any());
         doNothing().when(requestValidator).validateRequest(any(), any());
         doThrow(new NotFoundException(errorMessage)).when(reviewDomain).deleteReview(any(DeleteReviewRequest.class));
 
@@ -114,10 +125,46 @@ public class DeleteReviewHandlerTests {
         verify(requestValidator).validateRequest(eq("DeleteReviewHandler"), any());
     }
 
+    @Test
+    public void testHandleRequest_WhenNotAuthorized_Returns401() throws Exception {
+        // Arrange
+        final DeleteReviewRequest deleteRequest = new DeleteReviewRequest(TEST_DELETE_REVIEW_ID);
+        final APIGatewayV2HTTPEvent event = createTestEvent(gson.toJson(deleteRequest));
+
+        // Setup mocks
+        doNothing().when(requestValidator).validateRequest(any(), any());
+        doThrow(new NotAuthorizedException("Unauthorized: Invalid token"))
+            .when(authorizer).authorize(eq(Operation.DELETE_REVIEW), any(), any());
+
+        // Act
+        final APIGatewayV2HTTPResponse response = handler.handleRequest(event, context);
+
+        // Assert
+        assertEquals(401, response.getStatusCode());
+    }
+
+    @Test
+    public void testHandleRequest_WhenForbidden_Returns403() throws Exception {
+        // Arrange
+        final DeleteReviewRequest deleteRequest = new DeleteReviewRequest(TEST_DELETE_REVIEW_ID);
+        final APIGatewayV2HTTPEvent event = createTestEvent(gson.toJson(deleteRequest));
+
+        // Setup mocks
+        doNothing().when(requestValidator).validateRequest(any(), any());
+        doThrow(new ForbiddenException("Forbidden: Not authorized to delete this review"))
+            .when(authorizer).authorize(eq(Operation.DELETE_REVIEW), any(), any());
+
+        // Act
+        final APIGatewayV2HTTPResponse response = handler.handleRequest(event, context);
+
+        // Assert
+        assertEquals(403, response.getStatusCode());
+    }
+
     private APIGatewayV2HTTPEvent createTestEvent(String body) {
         final APIGatewayV2HTTPEvent event = new APIGatewayV2HTTPEvent();
         event.setBody(body);
-        event.setHeaders(new HashMap<>());
+        event.setHeaders(new HashMap<>(java.util.Map.of("Authorization", "Bearer test-token")));
         return event;
     }
 }

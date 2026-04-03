@@ -2,6 +2,7 @@ package com.fryrank.util;
 
 import com.amazonaws.services.lambda.runtime.events.APIGatewayV2HTTPEvent;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayV2HTTPResponse;
+import com.fryrank.model.exceptions.ForbiddenException;
 import com.fryrank.model.exceptions.NotFoundException;
 import com.fryrank.validator.ValidatorException;
 import com.google.gson.Gson;
@@ -83,6 +84,9 @@ public class APIGatewayResponseBuilder {
         } catch (NotFoundException e) {
             log.error("NotFoundException caught in handler: {}", handlerName, e);
             return buildErrorResponse(404, e.getMessage(), corsHeaders);
+        } catch (ForbiddenException e) {
+            log.error("ForbiddenException caught in handler: {}", handlerName, e);
+            return buildErrorResponse(403, e.getMessage(), corsHeaders);
         } catch (Exception e) {
             log.error("Exception caught in handler: {}", handlerName, e);
             return buildErrorResponse(500, "Internal Server Error: " + e.getMessage(), corsHeaders);
