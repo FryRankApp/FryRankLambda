@@ -34,6 +34,12 @@ public class GetAllReviewsHandler implements RequestHandler<APIGatewayV2HTTPEven
         requestValidator = new APIGatewayRequestValidator();
     }
 
+    public GetAllReviewsHandler(ReviewDALImpl reviewDAL, ReviewDomain reviewDomain, APIGatewayRequestValidator requestValidator) {
+        this.reviewDAL = reviewDAL;
+        this.reviewDomain = reviewDomain;
+        this.requestValidator = requestValidator;
+    }
+
     private String decodeCursor(final String cursor) {
         if (cursor == null || cursor.isEmpty()) {
             return cursor;
