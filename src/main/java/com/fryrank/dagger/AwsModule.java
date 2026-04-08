@@ -1,0 +1,42 @@
+package com.fryrank.dagger;
+
+import com.amazonaws.xray.interceptors.TracingInterceptor;
+import dagger.Module;
+import dagger.Provides;
+import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
+import software.amazon.awssdk.services.ssm.SsmClient;
+
+import javax.inject.Named;
+import javax.inject.Singleton;
+
+@Module
+public class AwsModule {
+    @Provides
+    @Singleton
+    static Region region(@Named(EnvironmentModule.NAME_REGION) String region) {
+        return Region.of(region);
+    }
+
+    @Provides
+    @Singleton
+    static DynamoDbClient dynamoDbClient(Region region) {
+        return DynamoDbClient.builder()
+                .region(region)
+                .overrideConfiguration(
+                        ClientOverrideConfiguration.builder()
+                                .addExecutionInterceptor(new TracingInterceptor())
+                                .build()
+                )
+                .build();
+    }
+
+    @Provides
+    @Singleton
+    static SsmClient ssmClient(Region region) {
+        return SsmClient.builder()
+                .region(region)
+                .build();
+    }
+}

@@ -59,6 +59,21 @@ dependencies {
     implementation("software.amazon.awssdk:regions")
 
     implementation("com.amazonaws:aws-xray-recorder-sdk-aws-sdk-v2:2.15.0")
+
+    // Dagger (compile-time dependency injection)
+    implementation("com.google.dagger:dagger:2.59.2")
+    annotationProcessor("com.google.dagger:dagger-compiler:2.59.2")
+}
+
+// Spring Boot's dependency management pins Kotlin to 1.9.x, but recent Dagger compilers use Kotlin 2.2.x internally.
+// We only need Kotlin on the annotation processor classpath, so keep this override scoped to annotation processing.
+configurations.named("annotationProcessor") {
+    resolutionStrategy.eachDependency {
+        if (requested.group == "org.jetbrains.kotlin") {
+            useVersion("2.2.20")
+            because("Dagger compiler requires Kotlin 2.2.x (avoids missing kotlin.coroutines.jvm.internal.SpillingKt)")
+        }
+    }
 }
 
 // Apply a specific Java toolchain to ease working on different environments.

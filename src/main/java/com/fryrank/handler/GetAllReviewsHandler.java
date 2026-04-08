@@ -4,7 +4,7 @@ import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayV2HTTPEvent;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayV2HTTPResponse;
-import com.fryrank.dal.ReviewDALImpl;
+import com.fryrank.dagger.Dependencies;
 import com.fryrank.domain.ReviewDomain;
 import com.fryrank.model.GetAllReviewsOutput;
 import com.fryrank.model.GetAllReviewsRequest;
@@ -24,14 +24,25 @@ import static com.fryrank.util.HeaderUtils.createCorsHeaders;
 @Log4j2
 public class GetAllReviewsHandler implements RequestHandler<APIGatewayV2HTTPEvent, APIGatewayV2HTTPResponse> {
 
-    private final ReviewDALImpl reviewDAL;
     private final ReviewDomain reviewDomain;
     private final APIGatewayRequestValidator requestValidator;
 
     public GetAllReviewsHandler() {
-        reviewDAL = new ReviewDALImpl();
-        reviewDomain = new ReviewDomain(reviewDAL);
-        requestValidator = new APIGatewayRequestValidator();
+        final var component = Dependencies.appComponent();
+        reviewDomain = component.reviewDomain();
+        requestValidator = component.apiGatewayRequestValidator();
+    }
+
+    public GetAllReviewsHandler(final ReviewDomain reviewDomain, final APIGatewayRequestValidator requestValidator) {
+        this.reviewDomain = reviewDomain;
+        this.requestValidator = requestValidator;
+    }
+
+    private String decodeCursor(final String cursor) {
+        if (cursor == null || cursor.isEmpty()) {
+            return cursor;
+        }
+        return URLDecoder.decode(cursor, StandardCharsets.UTF_8);
     }
 
     public GetAllReviewsHandler(ReviewDALImpl reviewDAL, ReviewDomain reviewDomain, APIGatewayRequestValidator requestValidator) {

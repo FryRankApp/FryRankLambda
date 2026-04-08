@@ -2,8 +2,6 @@ package com.fryrank.dal;
 
 import com.fryrank.model.PublicUserMetadata;
 import com.fryrank.model.PublicUserMetadataOutput;
-import com.fryrank.util.DynamoDbUtils;
-import lombok.AllArgsConstructor;
 import lombok.NonNull;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Repository;
@@ -20,15 +18,14 @@ import static com.fryrank.Constants.USER_METADATA_TABLE_NAME;
 
 @Repository
 @Log4j2
-@AllArgsConstructor
 public class UserMetadataDALImpl implements UserMetadataDAL {
 
     private static final String USERNAME_KEY = "username";
 
     private final DynamoDbClient dynamoDb;
 
-    public UserMetadataDALImpl() {
-        this.dynamoDb = DynamoDbUtils.client();
+    public UserMetadataDALImpl(final DynamoDbClient dynamoDb) {
+        this.dynamoDb = dynamoDb;
     }
 
     // TODO(FRY-137): Consolidate into 1 function
