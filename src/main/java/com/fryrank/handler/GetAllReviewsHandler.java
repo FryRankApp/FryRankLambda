@@ -45,19 +45,6 @@ public class GetAllReviewsHandler implements RequestHandler<APIGatewayV2HTTPEven
         return URLDecoder.decode(cursor, StandardCharsets.UTF_8);
     }
 
-    public GetAllReviewsHandler(ReviewDALImpl reviewDAL, ReviewDomain reviewDomain, APIGatewayRequestValidator requestValidator) {
-        this.reviewDAL = reviewDAL;
-        this.reviewDomain = reviewDomain;
-        this.requestValidator = requestValidator;
-    }
-
-    private String decodeCursor(final String cursor) {
-        if (cursor == null || cursor.isEmpty()) {
-            return cursor;
-        }
-        return URLDecoder.decode(cursor, StandardCharsets.UTF_8);
-    }
-
     @Override
     public APIGatewayV2HTTPResponse handleRequest(APIGatewayV2HTTPEvent input, Context context) {
         log.info("Handling request: {}", input);
