@@ -10,16 +10,7 @@ public enum ReactionType {
     THUMBS_DOWN(Constants.THUMBS_DOWN_KEY),
     HEART(Constants.HEART_KEY);
 
-    private final String dynamoAttributeName;
-
-    ReactionType(String dynamoAttributeName) {
-        this.dynamoAttributeName = dynamoAttributeName;
+    ReactionType(@SuppressWarnings("unused") String dynamoAttributeName) {
     }
 
-    /**
-     * Key used in the {@code reactionCounts} map and on per-viewer reaction items.
-     */
-    public String getDynamoAttributeName() {
-        return dynamoAttributeName;
-    }
 }
