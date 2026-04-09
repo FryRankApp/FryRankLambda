@@ -750,16 +750,16 @@ public class ReviewDALImpl implements ReviewDAL {
         if (rc == null || rc.m() == null) {
             return ReactionCounts.zero();
         }
-        final Map<String, AttributeValue> m = rc.m();
+        final Map<String, AttributeValue> reactionCountsByKey = rc.m();
         return ReactionCounts.builder()
-                .thumbsUp(intAttr(m, THUMBS_UP_KEY))
-                .thumbsDown(intAttr(m, THUMBS_DOWN_KEY))
-                .heart(intAttr(m, HEART_KEY))
+                .thumbsUp(intAttr(reactionCountsByKey, THUMBS_UP_KEY))
+                .thumbsDown(intAttr(reactionCountsByKey, THUMBS_DOWN_KEY))
+                .heart(intAttr(reactionCountsByKey, HEART_KEY))
                 .build();
     }
 
-    private static int intAttr(Map<String, AttributeValue> m, String key) {
-        final AttributeValue v = m.get(key);
+    private static int intAttr(Map<String, AttributeValue> countAttributes, String key) {
+        final AttributeValue v = countAttributes.get(key);
         if (v == null || v.n() == null) {
             return 0;
         }
