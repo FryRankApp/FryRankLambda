@@ -166,7 +166,7 @@ public class ReviewDALImpl implements ReviewDAL {
             return output;
         }
         final Map<String, MyReactions> byReviewId = batchGetMyReactionsForViewer(viewerAccountId, reviews);
-        final List<Review> merged = reviews.stream()
+        final List<Review> merged = reviews.parallelStream()
                 .map(r -> withMyReactions(r, byReviewId.getOrDefault(r.getReviewId(), MyReactions.none())))
                 .collect(Collectors.toList());
         return new GetAllReviewsOutput(merged);
