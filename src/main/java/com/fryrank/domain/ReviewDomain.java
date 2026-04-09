@@ -45,23 +45,13 @@ public class ReviewDomain {
             final String cursor,
             final String viewerAccountId
     ) {
-
 		log.info("Getting paginated reviews{}{} with limit: {} and cursor: {}",
 				restaurantId != null ? " for restaurantId: " + restaurantId : "",
 				accountId != null ? " for accountId: " + accountId : "",
 				limit,
 				cursor);
-
-		final GetAllReviewsOutput raw;
-		if (restaurantId != null) {
-			raw = reviewDAL.getAllReviewsByRestaurantId(restaurantId, limit, cursor);
-		} else if (accountId != null) {
-			raw = reviewDAL.getAllReviewsByAccountId(accountId, limit, cursor);
-		} else {
-			throw new NullPointerException("At least one of restaurantId and accountId must not be null.");
-		}
-        return reviewDAL.mergeViewerReactions(viewerAccountId, raw);
-	}
+        return reviewDAL.mergeViewerReactions(restaurantId, accountId, viewerAccountId);
+    }
 
     public GetAllReviewsOutput getRecentReviews(final Integer count) {
         return reviewDAL.getRecentReviews(count);

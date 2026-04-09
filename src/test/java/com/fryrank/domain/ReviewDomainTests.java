@@ -28,6 +28,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
@@ -53,7 +54,7 @@ public class ReviewDomainTests {
     @Test
     public void testGetAllReviewsForRestaurant() throws Exception {
         final GetAllReviewsOutput expectedOutput = new GetAllReviewsOutput(TEST_REVIEWS);
-        when(reviewDAL.getAllReviewsByRestaurantId(TEST_RESTAURANT_ID, TEST_LIMIT, TEST_ISO_DATE_TIME_1)).thenReturn(expectedOutput);
+        when(reviewDAL.mergeViewerReactions(eq(TEST_RESTAURANT_ID), isNull(), isNull())).thenReturn(expectedOutput);
 
         final GetAllReviewsOutput actualOutput = domain.getAllReviews(TEST_RESTAURANT_ID, null, TEST_LIMIT, TEST_ISO_DATE_TIME_1);
         assertEquals(expectedOutput, actualOutput);
@@ -62,7 +63,7 @@ public class ReviewDomainTests {
     @Test
     public void testGetAllReviewsForAccount() throws Exception {
         final GetAllReviewsOutput expectedOutput = new GetAllReviewsOutput(TEST_REVIEWS);
-        when(reviewDAL.getAllReviewsByAccountId(TEST_ACCOUNT_ID, TEST_LIMIT, TEST_ISO_DATE_TIME_1)).thenReturn(expectedOutput);
+        when(reviewDAL.mergeViewerReactions(isNull(), eq(TEST_ACCOUNT_ID), isNull())).thenReturn(expectedOutput);
 
         final GetAllReviewsOutput actualOutput = domain.getAllReviews(null, TEST_ACCOUNT_ID, TEST_LIMIT, TEST_ISO_DATE_TIME_1);
         assertEquals(expectedOutput, actualOutput);
@@ -70,6 +71,7 @@ public class ReviewDomainTests {
 
     @Test
     public void testGetAllReviewsNoParameter() throws Exception {
+        doThrow(new NullPointerException()).when(reviewDAL).mergeViewerReactions(isNull(), isNull(), isNull());
         assertThrows(NullPointerException.class, () -> domain.getAllReviews(null, null, TEST_LIMIT, TEST_ISO_DATE_TIME_1));
     }
 

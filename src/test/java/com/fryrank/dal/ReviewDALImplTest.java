@@ -20,6 +20,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static com.fryrank.Constants.ACCOUNT_ID_KEY;
 import static com.fryrank.Constants.BODY_KEY;
 import static com.fryrank.Constants.HEART_KEY;
 import static com.fryrank.Constants.IDENTIFIER_KEY;
@@ -32,15 +33,15 @@ import static com.fryrank.Constants.SCORE_KEY;
 import static com.fryrank.Constants.THUMBS_DOWN_KEY;
 import static com.fryrank.Constants.THUMBS_UP_KEY;
 import static com.fryrank.Constants.TITLE_KEY;
+import static com.fryrank.Constants.USER_METADATA_TABLE_NAME;
 import static com.fryrank.Constants.VIEWER_ACCOUNT_ID_KEY;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -60,22 +61,24 @@ class ReviewDALImplTest {
     }
 
     @Test
-    void mergeViewerReactions_nullViewer_returnsSameOutputWithoutCallingDynamo() {
-        Review review = baseReviewBuilder().build();
-        GetAllReviewsOutput input = new GetAllReviewsOutput(List.of(review));
+    void mergeViewerReactions_nullViewer_queriesReviewsAndSkipsReactionBatchGetWhenNoViewer() {
+        when(dynamoDb.query(any(QueryRequest.class))).thenReturn(
+                QueryResponse.builder().items(List.of()).build());
 
-        GetAllReviewsOutput out = dal.mergeViewerReactions(null, input);
+        GetAllReviewsOutput out = dal.mergeViewerReactions("rest1", null, null);
 
-        assertSame(input, out);
-        verifyNoInteractions(dynamoDb);
+        assertTrue(out.getReviews().isEmpty());
+        verify(dynamoDb).query(any(QueryRequest.class));
+        verify(dynamoDb, never()).batchGetItem(any(BatchGetItemRequest.class));
     }
 
     @Test
-    void mergeViewerReactions_withViewer_batchGetsReactionsAndSetsMyReactions() {
-        // Merge copies reactionCounts from the list query unchanged; set card totals like the rankings row after a toggle.
-        ReactionCounts countsOnCard = ReactionCounts.builder().thumbsUp(1).thumbsDown(0).heart(0).build();
-        Review review = baseReviewBuilder().reactionCounts(countsOnCard).build();
-        GetAllReviewsOutput input = new GetAllReviewsOutput(List.of(review));
+    void mergeViewerReactions_withViewer_queriesReviewsThenBatchGetsReactionsAndSetsMyReactions() {
+        Map<String, AttributeValue> reviewRow = rankingReviewRowWithReactionTotals(1, 0, 0);
+        reviewRow.put(ACCOUNT_ID_KEY, AttributeValue.builder().s("author1").build());
+
+        when(dynamoDb.query(any(QueryRequest.class))).thenReturn(
+                QueryResponse.builder().items(List.of(reviewRow)).build());
 
         Map<String, AttributeValue> reactionItem = new HashMap<>();
         reactionItem.put(VIEWER_ACCOUNT_ID_KEY, AttributeValue.builder().s(VIEWER).build());
@@ -84,24 +87,33 @@ class ReviewDALImplTest {
         reactionItem.put(THUMBS_DOWN_KEY, AttributeValue.builder().bool(false).build());
         reactionItem.put(HEART_KEY, AttributeValue.builder().bool(false).build());
 
-        when(dynamoDb.batchGetItem(any(BatchGetItemRequest.class))).thenReturn(
-                BatchGetItemResponse.builder()
+        when(dynamoDb.batchGetItem(any(BatchGetItemRequest.class))).thenAnswer(invocation -> {
+            BatchGetItemRequest req = invocation.getArgument(0);
+            if (req.requestItems().containsKey(REACTIONS_TABLE_NAME)) {
+                return BatchGetItemResponse.builder()
                         .responses(Map.of(REACTIONS_TABLE_NAME, List.of(reactionItem)))
-                        .build()
-        );
+                        .build();
+            }
+            if (req.requestItems().containsKey(USER_METADATA_TABLE_NAME)) {
+                return BatchGetItemResponse.builder()
+                        .responses(Map.of(USER_METADATA_TABLE_NAME, List.of()))
+                        .build();
+            }
+            return BatchGetItemResponse.builder().build();
+        });
 
-        GetAllReviewsOutput out = dal.mergeViewerReactions(VIEWER, input);
+        GetAllReviewsOutput out = dal.mergeViewerReactions("rest1", null, VIEWER);
 
         assertEquals(1, out.getReviews().size());
+        ReactionCounts counts = out.getReviews().get(0).getReactionCounts();
+        assertEquals(1, totalPublicReactions(counts), "card should show exactly one total reaction");
         MyReactions mine = out.getReviews().get(0).getMyReactions();
+        assertEquals(1, togglesOn(mine),
+                "when total public reaction is 1, the viewer must have exactly one reaction toggle on");
         assertTrue(mine.isThumbsUp());
-        assertFalse(mine.isThumbsDown());
-        assertFalse(mine.isHeart());
-        assertEquals(1, out.getReviews().get(0).getReactionCounts().getThumbsUp());
 
-        ArgumentCaptor<BatchGetItemRequest> batchCap = ArgumentCaptor.forClass(BatchGetItemRequest.class);
-        verify(dynamoDb).batchGetItem(batchCap.capture());
-        assertEquals(REACTIONS_TABLE_NAME, batchCap.getValue().requestItems().keySet().iterator().next());
+        verify(dynamoDb).query(any(QueryRequest.class));
+        verify(dynamoDb, atLeastOnce()).batchGetItem(any(BatchGetItemRequest.class));
     }
 
     @Test
@@ -141,6 +153,14 @@ class ReviewDALImplTest {
         assertTrue(putCap.getValue().item().get(THUMBS_UP_KEY).bool());
     }
 
+    private static int totalPublicReactions(ReactionCounts c) {
+        return c.getThumbsUp() + c.getThumbsDown() + c.getHeart();
+    }
+
+    private static int togglesOn(MyReactions m) {
+        return (m.isThumbsUp() ? 1 : 0) + (m.isThumbsDown() ? 1 : 0) + (m.isHeart() ? 1 : 0);
+    }
+
     private static Review.ReviewBuilder baseReviewBuilder() {
         return Review.builder()
                 .reviewId(REVIEW_ID)
@@ -154,10 +174,15 @@ class ReviewDALImplTest {
     }
 
     private static Map<String, AttributeValue> rankingReviewRowWithZeroCounts() {
+        return rankingReviewRowWithReactionTotals(0, 0, 0);
+    }
+
+    /** Same base row as {@link #rankingReviewRowWithZeroCounts()} but with explicit public reaction totals on the card. */
+    private static Map<String, AttributeValue> rankingReviewRowWithReactionTotals(int thumbsUp, int thumbsDown, int heart) {
         Map<String, AttributeValue> rc = Map.of(
-                THUMBS_UP_KEY, AttributeValue.builder().n("0").build(),
-                THUMBS_DOWN_KEY, AttributeValue.builder().n("0").build(),
-                HEART_KEY, AttributeValue.builder().n("0").build()
+                THUMBS_UP_KEY, AttributeValue.builder().n(String.valueOf(thumbsUp)).build(),
+                THUMBS_DOWN_KEY, AttributeValue.builder().n(String.valueOf(thumbsDown)).build(),
+                HEART_KEY, AttributeValue.builder().n(String.valueOf(heart)).build()
         );
         Map<String, AttributeValue> row = new HashMap<>();
         row.put(RESTAURANT_ID_KEY, AttributeValue.builder().s("rest1").build());

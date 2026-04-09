@@ -157,13 +157,23 @@ public class ReviewDALImpl implements ReviewDAL {
     }
 
     @Override
-    public GetAllReviewsOutput mergeViewerReactions(final String viewerAccountId, final GetAllReviewsOutput output) {
-        if (output == null || viewerAccountId == null || viewerAccountId.isBlank()) {
-            return output;
+    public GetAllReviewsOutput mergeViewerReactions(final String restaurantId, final String accountId, final String viewerAccountId) {
+
+        final GetAllReviewsOutput reviewsOutput;
+        if (restaurantId != null) {
+            reviewsOutput = getAllReviewsByRestaurantId(restaurantId);
+        } else if (accountId != null) {
+            reviewsOutput = getAllReviewsByAccountId(accountId);
+        } else {
+            throw new NullPointerException("At least one of restaurantId and accountId must not be null.");
         }
-        final List<Review> reviews = output.getReviews();
+        if (reviewsOutput == null || viewerAccountId == null || viewerAccountId.isBlank()) {
+            return reviewsOutput;
+        }
+
+        final List<Review> reviews = reviewsOutput.getReviews();
         if (reviews.isEmpty()) {
-            return output;
+            return reviewsOutput;
         }
         final Map<String, MyReactions> byReviewId = batchGetMyReactionsForViewer(viewerAccountId, reviews);
         final List<Review> merged = reviews.parallelStream()
