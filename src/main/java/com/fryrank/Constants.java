@@ -23,6 +23,7 @@ public class Constants {
     public static final String REVIEW_VALIDATOR_ERRORS_OBJECT_NAME = "review";
     public static final String DELETE_REVIEW_REQUEST_VALIDATOR_ERRORS_OBJECT_NAME = "DeleteReviewRequest";
     public static final String USER_METADATA_VALIDATOR_ERRORS_OBJECT_NAME = "userMetadata";
+    public static final String TOGGLE_REACTION_REQUEST_VALIDATOR_ERRORS_OBJECT_NAME = "toggleReactionRequest";
     public static final String REJECTION_REQUIRED_CODE = "field.required";
     public static final String REJECTION_FORMAT_CODE = "field.invalidFormat";
 

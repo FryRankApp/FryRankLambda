@@ -1,10 +1,10 @@
 package com.fryrank.domain;
 
 import static com.fryrank.Constants.REVIEW_VALIDATOR_ERRORS_OBJECT_NAME;
+import static com.fryrank.Constants.TOGGLE_REACTION_REQUEST_VALIDATOR_ERRORS_OBJECT_NAME;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.Objects;
 import java.util.stream.Collectors;
 
 import com.fryrank.dal.ReviewDAL;
@@ -17,6 +17,7 @@ import com.fryrank.model.Review;
 import com.fryrank.model.ToggleReactionRequest;
 import com.fryrank.model.ToggleReactionResult;
 import com.fryrank.validator.ReviewValidator;
+import com.fryrank.validator.ToggleReactionRequestValidator;
 import com.fryrank.validator.ValidatorException;
 import com.fryrank.validator.ValidatorUtils;
 
@@ -81,10 +82,11 @@ public class ReviewDomain {
     public ToggleReactionResult toggleReaction(
             @NonNull final String viewerAccountId,
             @NonNull final ToggleReactionRequest request
-    ) {
-        Objects.requireNonNull(request.accountId(), "accountId");
-        Objects.requireNonNull(request.reviewId(), "reviewId");
-        Objects.requireNonNull(request.reactionType(), "reactionType");
+    ) throws ValidatorException {
+        ValidatorUtils.validateAndThrow(
+                request,
+                TOGGLE_REACTION_REQUEST_VALIDATOR_ERRORS_OBJECT_NAME,
+                new ToggleReactionRequestValidator());
         return reviewDAL.toggleReaction(viewerAccountId, request.reviewId(), request.reactionType());
     }
 }
