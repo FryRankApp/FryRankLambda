@@ -659,7 +659,7 @@ public class ReviewDALImpl implements ReviewDAL {
 
         final Map<String, PublicUserMetadata> userMetadataMap = batchFetchUserMetadata(accountIds);
 
-        final List<Review> reviews = items.stream()
+        final List<Review> reviews = items.parallelStream()
                 .map(item -> mapItemToReview(item, userMetadataMap))
                 .collect(Collectors.toList());
 
@@ -667,25 +667,15 @@ public class ReviewDALImpl implements ReviewDAL {
     }
 
     private static Review withMyReactions(Review review, MyReactions myReactions) {
-        return Review.builder()
-                .reviewId(review.getReviewId())
-                .restaurantId(review.getRestaurantId())
-                .score(review.getScore())
-                .title(review.getTitle())
-                .body(review.getBody())
-                .isoDateTime(review.getIsoDateTime())
-                .accountId(review.getAccountId())
-                .userMetadata(review.getUserMetadata())
-                .reactionCounts(review.getReactionCounts())
-                .myReactions(myReactions)
-                .build();
+        review.setMyReactions(myReactions);
+        return review;
     }
 
     /**
      * Batch-gets reaction rows for this viewer for the given reviews (simple prototype; chunks of 100).
      */
     private Map<String, MyReactions> batchGetMyReactionsForViewer(String viewerAccountId, List<Review> reviews) {
-        final List<String> reviewIds = reviews.stream().map(Review::getReviewId).collect(Collectors.toList());
+        final List<String> reviewIds = reviews.parallelStream().map(Review::getReviewId).collect(Collectors.toList());
         if (reviewIds.isEmpty()) {
             return Map.of();
         }
