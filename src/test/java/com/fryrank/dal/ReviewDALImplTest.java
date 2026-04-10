@@ -6,6 +6,7 @@ import com.fryrank.model.PublicUserMetadata;
 import com.fryrank.model.ReactionCounts;
 import com.fryrank.model.Review;
 import com.fryrank.model.ToggleReactionResult;
+import com.fryrank.model.enums.ReactionAction;
 import com.fryrank.model.enums.ReactionType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -133,7 +134,7 @@ class ReviewDALImplTest {
         when(dynamoDb.updateItem(any(UpdateItemRequest.class))).thenReturn(UpdateItemResponse.builder().build());
         when(dynamoDb.putItem(any(PutItemRequest.class))).thenReturn(PutItemResponse.builder().build());
 
-        ToggleReactionResult result = dal.toggleReaction(VIEWER, REVIEW_ID, ReactionType.THUMBS_UP);
+        ToggleReactionResult result = dal.toggleReaction(VIEWER, REVIEW_ID, ReactionType.THUMBS_UP, ReactionAction.ADD);
 
         assertEquals(REVIEW_ID, result.reviewId());
         assertTrue(result.myReactions().isThumbsUp());

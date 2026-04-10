@@ -1,6 +1,7 @@
 package com.fryrank.validator;
 
 import com.fryrank.model.ToggleReactionRequest;
+import com.fryrank.model.enums.ReactionAction;
 import com.fryrank.model.enums.ReactionType;
 import org.junit.jupiter.api.Test;
 import org.springframework.validation.BeanPropertyBindingResult;
@@ -15,7 +16,8 @@ class ToggleReactionRequestValidatorTest {
 
     @Test
     void validate_allFieldsPresent_noErrors() {
-        ToggleReactionRequest req = new ToggleReactionRequest("acc", "rest:REVIEW:acc", ReactionType.THUMBS_UP);
+        ToggleReactionRequest req = new ToggleReactionRequest(
+                "acc", "rest:REVIEW:acc", ReactionType.THUMBS_UP, ReactionAction.ADD);
         Errors errors = new BeanPropertyBindingResult(req, "toggleReactionRequest");
 
         validator.validate(req, errors);
@@ -25,7 +27,7 @@ class ToggleReactionRequestValidatorTest {
 
     @Test
     void validate_nullAccountId_rejects() {
-        ToggleReactionRequest req = new ToggleReactionRequest(null, "r:REVIEW:a", ReactionType.HEART);
+        ToggleReactionRequest req = new ToggleReactionRequest(null, "r:REVIEW:a", ReactionType.HEART, ReactionAction.REMOVE);
         Errors errors = new BeanPropertyBindingResult(req, "toggleReactionRequest");
 
         validator.validate(req, errors);
@@ -35,7 +37,7 @@ class ToggleReactionRequestValidatorTest {
 
     @Test
     void validate_blankReviewId_rejects() {
-        ToggleReactionRequest req = new ToggleReactionRequest("acc", "  ", ReactionType.THUMBS_DOWN);
+        ToggleReactionRequest req = new ToggleReactionRequest("acc", "  ", ReactionType.THUMBS_DOWN, ReactionAction.ADD);
         Errors errors = new BeanPropertyBindingResult(req, "toggleReactionRequest");
 
         validator.validate(req, errors);
@@ -45,11 +47,21 @@ class ToggleReactionRequestValidatorTest {
 
     @Test
     void validate_nullReactionType_rejects() {
-        ToggleReactionRequest req = new ToggleReactionRequest("acc", "r:REVIEW:a", null);
+        ToggleReactionRequest req = new ToggleReactionRequest("acc", "r:REVIEW:a", null, ReactionAction.ADD);
         Errors errors = new BeanPropertyBindingResult(req, "toggleReactionRequest");
 
         validator.validate(req, errors);
 
         assertTrue(errors.hasFieldErrors(ToggleReactionRequestValidator.REACTION_TYPE));
+    }
+
+    @Test
+    void validate_nullAction_rejects() {
+        ToggleReactionRequest req = new ToggleReactionRequest("acc", "r:REVIEW:a", ReactionType.THUMBS_UP, null);
+        Errors errors = new BeanPropertyBindingResult(req, "toggleReactionRequest");
+
+        validator.validate(req, errors);
+
+        assertTrue(errors.hasFieldErrors(ToggleReactionRequestValidator.ACTION));
     }
 }

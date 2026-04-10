@@ -6,6 +6,7 @@ import com.fryrank.model.GetAggregateReviewInformationOutput;
 import com.fryrank.model.GetAllReviewsOutput;
 import com.fryrank.model.Review;
 import com.fryrank.model.ToggleReactionResult;
+import com.fryrank.model.enums.ReactionAction;
 import com.fryrank.model.enums.ReactionType;
 
 import java.util.List;
@@ -30,5 +31,10 @@ public interface ReviewDAL {
 
     boolean deleteUserReview(final DeleteReviewRequest delReviewRequest);
 
-    ToggleReactionResult toggleReaction(final String viewerAccountId, final String reviewId, final ReactionType reactionType);
+    ToggleReactionResult toggleReaction(
+            final String viewerAccountId,
+            final String reviewId,
+            final ReactionType reactionType,
+            final ReactionAction action
+    );
 }

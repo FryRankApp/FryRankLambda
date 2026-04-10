@@ -15,10 +15,12 @@ public class ToggleReactionRequestValidator implements Validator {
     public static final String ACCOUNT_ID = "accountId";
     public static final String REVIEW_ID = "reviewId";
     public static final String REACTION_TYPE = "reactionType";
+    public static final String ACTION = "action";
 
     public static final String ACCOUNT_ID_REQUIRED = "The account ID is required.";
     public static final String REVIEW_ID_REQUIRED = "The review ID is required.";
     public static final String REACTION_TYPE_REQUIRED = "The reaction type is required.";
+    public static final String ACTION_REQUIRED = "The reaction action (ADD or REMOVE) is required.";
 
     @Override
     public boolean supports(@NonNull Class<?> clazz) {
@@ -37,6 +39,9 @@ public class ToggleReactionRequestValidator implements Validator {
         }
         if (req.reactionType() == null) {
             errors.rejectValue(REACTION_TYPE, REJECTION_REQUIRED_CODE, REACTION_TYPE_REQUIRED);
+        }
+        if (req.action() == null) {
+            errors.rejectValue(ACTION, REJECTION_REQUIRED_CODE, ACTION_REQUIRED);
         }
     }
 }

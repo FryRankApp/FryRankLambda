@@ -87,6 +87,10 @@ public class ReviewDomain {
                 request,
                 TOGGLE_REACTION_REQUEST_VALIDATOR_ERRORS_OBJECT_NAME,
                 new ToggleReactionRequestValidator());
-        return reviewDAL.toggleReaction(viewerAccountId, request.reviewId(), request.reactionType());
+        return reviewDAL.toggleReaction(
+                viewerAccountId,
+                request.reviewId(),
+                request.reactionType(),
+                request.action());
     }
 }

@@ -11,6 +11,7 @@ import com.fryrank.model.MyReactions;
 import com.fryrank.model.ReactionCounts;
 import com.fryrank.model.Review;
 import com.fryrank.model.ToggleReactionResult;
+import com.fryrank.model.enums.ReactionAction;
 import com.fryrank.model.enums.ReactionType;
 import lombok.NonNull;
 import lombok.extern.log4j.Log4j2;
@@ -32,6 +33,7 @@ import software.amazon.awssdk.services.dynamodb.model.TransactWriteItem;
 import software.amazon.awssdk.services.dynamodb.model.UpdateItemRequest;
 import software.amazon.awssdk.services.dynamodb.model.TransactWriteItemsRequest;
 import software.amazon.awssdk.services.dynamodb.model.TransactionCanceledException;
+import software.amazon.awssdk.services.dynamodb.model.ConditionalCheckFailedException;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -91,6 +93,8 @@ public class ReviewDALImpl implements ReviewDAL {
      */
 
     private static final int MAX_AGGREGATE_UPDATE_RETRIES = 3;
+
+    private static final int MAX_TOGGLE_REACTION_RETRIES = 5;
 
     private final DynamoDbClient dynamoDb;
 
@@ -524,14 +528,50 @@ public class ReviewDALImpl implements ReviewDAL {
     }
 
     /**
-     * Toggles one reaction for the viewer: updates {@code reactionCounts} on the review row and
+     * Adds or removes one reaction for the viewer: updates {@code reactionCounts} on the review row and
      * {@code PutItem} / {@code DeleteItem} on {@link com.fryrank.Constants#REACTIONS_TABLE_NAME}.
+     * If the viewer already matches the requested state, returns without writing (idempotent).
+     * <p>
+     * Uses {@link UpdateItemRequest#conditionExpression()} on {@code reactionCounts} so concurrent updates
+     * do not overwrite each other; retries with backoff on {@link ConditionalCheckFailedException}.
      */
     @Override
     public ToggleReactionResult toggleReaction(
             @NonNull final String viewerAccountId,
             @NonNull final String reviewId,
-            @NonNull final ReactionType reactionType
+            @NonNull final ReactionType reactionType,
+            @NonNull final ReactionAction action
+    ) {
+        ConditionalCheckFailedException lastConflict = null;
+        // Retry: another request may have changed reactionCounts between our read and write (optimistic lock miss).
+        for (int attempt = 0; attempt < MAX_TOGGLE_REACTION_RETRIES; attempt++) {
+            try {
+                return toggleReactionOnce(viewerAccountId, reviewId, reactionType, action);
+            } catch (ConditionalCheckFailedException e) {
+                lastConflict = e;
+                log.warn("toggleReaction optimistic lock failed for review {} (attempt {}/{})",
+                        reviewId, attempt + 1, MAX_TOGGLE_REACTION_RETRIES);
+                if (attempt < MAX_TOGGLE_REACTION_RETRIES - 1) {
+                    try {
+                        // Exponential backoff before re-reading the item and trying again.
+                        Thread.sleep((long) (Math.pow(2, attempt) * 10L));
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        throw new RuntimeException("Interrupted during toggle reaction retry", ie);
+                    }
+                }
+            }
+        }
+        throw new IllegalStateException(
+                "Could not update reactionCounts for review " + reviewId + " after concurrent modifications",
+                lastConflict);
+    }
+
+    private ToggleReactionResult toggleReactionOnce(
+            @NonNull final String viewerAccountId,
+            @NonNull final String reviewId,
+            @NonNull final ReactionType reactionType,
+            @NonNull final ReactionAction action
     ) {
         final String[] rk = splitReviewId(reviewId);
         final String restaurantId = rk[0];
@@ -565,20 +605,53 @@ public class ReviewDALImpl implements ReviewDAL {
                 ? MyReactions.none()
                 : mapItemToMyReactions(existingReaction);
 
-        final boolean oldFlag = getReactionFlag(previous, reactionType);
-        final boolean newFlag = !oldFlag;
-        final int delta = newFlag ? 1 : -1;
-        applyCountDelta(counts, reactionType, delta); //update global reaction on the review
+        final boolean currentlyOn = reactionFlag(previous, reactionType);
+        final boolean requestedOn = (action == ReactionAction.ADD);
+        if (currentlyOn == requestedOn) {
+            return new ToggleReactionResult(reviewId, counts, previous);
+        }
 
-        final MyReactions next = setReactionFlag(previous, reactionType, newFlag);
+        // Snapshot of public totals before this request (used to detect concurrent writers via ConditionExpression).
+        final int snapshotThumbsUp = counts.getThumbsUp();
+        final int snapshotThumbsDown = counts.getThumbsDown();
+        final int snapshotHeart = counts.getHeart();
+        final boolean reactionCountsMissingOnItem = !reviewItem.containsKey(REACTION_COUNTS_KEY);
 
-        dynamoDb.updateItem(UpdateItemRequest.builder()
+        applyActionToPublicCounts(counts, reactionType, action);
+
+        final MyReactions next = setReactionFlag(previous, reactionType, requestedOn);
+
+        final Map<String, AttributeValue> updateValues = new HashMap<>();
+        updateValues.put(":rc", reactionCountsToAttribute(counts));
+        updateValues.put(":etu", AttributeValue.builder().n(String.valueOf(snapshotThumbsUp)).build());
+        updateValues.put(":etd", AttributeValue.builder().n(String.valueOf(snapshotThumbsDown)).build());
+        updateValues.put(":eh", AttributeValue.builder().n(String.valueOf(snapshotHeart)).build());
+
+        final UpdateItemRequest.Builder updateBuilder = UpdateItemRequest.builder()
                 .tableName(RANKINGS_TABLE_NAME)
                 .key(reviewKey)
                 .updateExpression("SET reactionCounts = :rc")
-                .expressionAttributeValues(Map.of(":rc", reactionCountsToAttribute(counts)))
-                .build());
+                .expressionAttributeValues(updateValues);
 
+        final boolean snapshotWasAllZeros =
+                snapshotThumbsUp == 0 && snapshotThumbsDown == 0 && snapshotHeart == 0;
+        // First write of reactionCounts on this item: only succeed if the attribute still does not exist.
+        if (reactionCountsMissingOnItem && snapshotWasAllZeros) {
+            updateBuilder.conditionExpression("attribute_not_exists(reactionCounts)");
+        } else {
+            // Compare-and-set: apply new totals only if the three public counts still match what we read (no lost updates).
+            updateBuilder
+                    .conditionExpression(
+                            "reactionCounts.#tu = :etu AND reactionCounts.#td = :etd AND reactionCounts.#h = :eh")
+                    .expressionAttributeNames(Map.of(
+                            "#tu", THUMBS_UP_KEY,
+                            "#td", THUMBS_DOWN_KEY,
+                            "#h", HEART_KEY));
+        }
+
+        dynamoDb.updateItem(updateBuilder.build());
+
+        // Per-viewer reaction row (separate item); rankings update above must succeed first.
         if (isAllReactionsOff(next)) {
             dynamoDb.deleteItem(DeleteItemRequest.builder()
                     .tableName(REACTIONS_TABLE_NAME)
@@ -608,7 +681,8 @@ public class ReviewDALImpl implements ReviewDAL {
         return new String[]{reviewId.substring(0, idx), reviewId.substring(idx + 1)};
     }
 
-    private static boolean getReactionFlag(MyReactions r, ReactionType type) {
+    /** Whether the viewer currently has this reaction type turned on. */
+    private static boolean reactionFlag(MyReactions r, ReactionType type) {
         return switch (type) {
             case THUMBS_UP -> r.isThumbsUp();
             case THUMBS_DOWN -> r.isThumbsDown();
@@ -624,12 +698,23 @@ public class ReviewDALImpl implements ReviewDAL {
                 .build();
     }
 
-    private static void applyCountDelta(ReactionCounts counts, ReactionType type, int delta) {
-        switch (type) {
-            case THUMBS_UP -> counts.setThumbsUp(Math.max(0, counts.getThumbsUp() + delta));
-            case THUMBS_DOWN -> counts.setThumbsDown(Math.max(0, counts.getThumbsDown() + delta));
-            case HEART -> counts.setHeart(Math.max(0, counts.getHeart() + delta));
-            default -> throw new IllegalStateException("Unexpected type: " + type);
+    /** Adjusts public totals for the review row: ADD increments, REMOVE decrements (call only when viewer state changes). */
+    private static void applyActionToPublicCounts(ReactionCounts counts, ReactionType type, ReactionAction action) {
+        switch (action) {
+            case ADD -> {
+                switch (type) {
+                    case THUMBS_UP -> counts.setThumbsUp(counts.getThumbsUp() + 1);
+                    case THUMBS_DOWN -> counts.setThumbsDown(counts.getThumbsDown() + 1);
+                    case HEART -> counts.setHeart(counts.getHeart() + 1);
+                }
+            }
+            case REMOVE -> {
+                switch (type) {
+                    case THUMBS_UP -> counts.setThumbsUp(Math.max(0, counts.getThumbsUp() - 1));
+                    case THUMBS_DOWN -> counts.setThumbsDown(Math.max(0, counts.getThumbsDown() - 1));
+                    case HEART -> counts.setHeart(Math.max(0, counts.getHeart() - 1));
+                }
+            }
         }
     }
 
