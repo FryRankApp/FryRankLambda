@@ -3,6 +3,7 @@ package com.fryrank.handler;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayV2HTTPEvent;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayV2HTTPResponse;
+import com.fryrank.dagger.AppComponent;
 import com.fryrank.domain.ReviewDomain;
 import com.fryrank.domain.UserMetadataDomain;
 import com.fryrank.model.GetAllReviewsOutput;
@@ -38,6 +39,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -71,15 +73,17 @@ public class ServiceRequestHandlerTests {
     @BeforeEach
     void setUp() {
         gson = new Gson();
-        handler = new ServiceRequestHandler(
-                reviewDomain,
-                userMetadataDomain,
-                requestValidator,
-                reviewValidator,
-                deleteReviewRequestValidator,
-                authorizer,
-                gson
-        );
+
+        final AppComponent component = mock(AppComponent.class);
+        when(component.reviewDomain()).thenReturn(reviewDomain);
+        when(component.userMetadataDomain()).thenReturn(userMetadataDomain);
+        when(component.apiGatewayRequestValidator()).thenReturn(requestValidator);
+        when(component.reviewValidator()).thenReturn(reviewValidator);
+        when(component.deleteReviewRequestValidator()).thenReturn(deleteReviewRequestValidator);
+        when(component.authorizer()).thenReturn(authorizer);
+        when(component.gson()).thenReturn(gson);
+
+        handler = new ServiceRequestHandler(component);
     }
 
     @Test

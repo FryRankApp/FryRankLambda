@@ -4,6 +4,7 @@ import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayV2HTTPEvent;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayV2HTTPResponse;
+import com.fryrank.dagger.AppComponent;
 import com.fryrank.dagger.Dependencies;
 import com.fryrank.domain.ReviewDomain;
 import com.fryrank.domain.UserMetadataDomain;
@@ -75,7 +76,10 @@ public class ServiceRequestHandler implements RequestHandler<Map<String, Object>
     private final Gson gson;
 
     public ServiceRequestHandler() {
-        final var component = Dependencies.appComponent();
+        this(Dependencies.appComponent());
+    }
+
+    ServiceRequestHandler(final AppComponent component) {
         reviewDomain = component.reviewDomain();
         userMetadataDomain = component.userMetadataDomain();
         requestValidator = component.apiGatewayRequestValidator();
@@ -83,24 +87,6 @@ public class ServiceRequestHandler implements RequestHandler<Map<String, Object>
         deleteReviewRequestValidator = component.deleteReviewRequestValidator();
         authorizer = component.authorizer();
         gson = component.gson();
-    }
-
-    public ServiceRequestHandler(
-            final ReviewDomain reviewDomain,
-            final UserMetadataDomain userMetadataDomain,
-            final APIGatewayRequestValidator requestValidator,
-            final ReviewValidator reviewValidator,
-            final DeleteReviewRequestValidator deleteReviewRequestValidator,
-            final Authorizer authorizer,
-            final Gson gson
-    ) {
-        this.reviewDomain = reviewDomain;
-        this.userMetadataDomain = userMetadataDomain;
-        this.requestValidator = requestValidator;
-        this.reviewValidator = reviewValidator;
-        this.deleteReviewRequestValidator = deleteReviewRequestValidator;
-        this.authorizer = authorizer;
-        this.gson = gson;
     }
 
     private record ResolvedRoute(String method, String path) {}
@@ -347,7 +333,6 @@ public class ServiceRequestHandler implements RequestHandler<Map<String, Object>
         return event;
     }
 
-    @SuppressWarnings("unchecked")
     private Map<String, String> castStringMap(final Object obj) {
         if (!(obj instanceof Map<?, ?> rawMap)) {
             return new HashMap<>();
