@@ -100,9 +100,9 @@ public class ServiceRequestHandler implements RequestHandler<Map<String, Object>
         final ResolvedRoute route = resolveRoute(rawInput);
         log.info("Resolved route method={} path={} routeKey={}", route.method, route.path, rawInput == null ? null : rawInput.get("routeKey"));
 
-        // Handle CORS preflight early.
-        if ("OPTIONS".equals(route.method)) {
-            return APIGatewayResponseBuilder.buildSuccessNoContentResponse(createCorsHeaders(input));
+        final APIGatewayV2HTTPResponse preflight = maybeHandleCorsPreflight(route, input);
+        if (preflight != null) {
+            return preflight;
         }
 
         final String handlerName = getClass().getSimpleName();
@@ -112,119 +112,172 @@ public class ServiceRequestHandler implements RequestHandler<Map<String, Object>
             final String canonicalPath = canonicalizePath(route.path);
             final String routingKey = route.method + " " + canonicalPath;
 
-            return switch (routingKey) {
-                case "GET " + PATH_API_REVIEWS -> {
-                    requestValidator.validateRequest(GET_ALL_REVIEWS_HANDLER, input);
-
-                    final Map<String, String> params = input.getQueryStringParameters() != null
-                            ? input.getQueryStringParameters()
-                            : Map.of();
-                    final GetAllReviewsRequest request = new GetAllReviewsRequest(
-                            params.get(QueryParam.RESTAURANT_ID.getValue()),
-                            params.get(QueryParam.ACCOUNT_ID.getValue()),
-                            params.get(QueryParam.LIMIT.getValue()),
-                            decodeCursor(params.get(QueryParam.CURSOR.getValue())));
-
-                    final String limitParam = request.limit();
-                    int limit = DEFAULT_PAGE_LIMIT;
-                    if (limitParam != null && !limitParam.isEmpty()) {
-                        try {
-                            limit = Math.min(Math.max(Integer.parseInt(limitParam), 1), MAX_PAGE_LIMIT);
-                        } catch (NumberFormatException e) {
-                            log.warn("Invalid limit param '{}', using default: {}", limitParam, DEFAULT_PAGE_LIMIT);
-                        }
-                    }
-                    log.debug("Using limit: {}", limit);
-
-                    final GetAllReviewsOutput output = reviewDomain.getAllReviews(
-                            request.restaurantId(),
-                            request.accountId(),
-                            limit,
-                            request.cursor());
-                    yield APIGatewayResponseBuilder.buildSuccessResponse(output, corsHeaders);
-                }
-                case "POST " + PATH_API_REVIEWS -> {
-                    requestValidator.validateRequest(ADD_NEW_REVIEW_HANDLER, input);
-
-                    final Review review = gson.fromJson(input.getBody(), Review.class);
-
-                    try {
-                        final String token = HeaderUtils.extractBearerToken(input);
-                        final String authorizedAccountId = authorizer.authorizeAndGetAccountId(token);
-                        review.setAccountId(authorizedAccountId);
-                    } catch (NotAuthorizedException e) {
-                        yield APIGatewayResponseBuilder.buildErrorResponse(401, e.getMessage(), corsHeaders);
-                    } catch (AuthorizationDisabledException e) {
-                        log.info("Authorization disabled, using accountId from request body");
-                    }
-
-                    review.setIsoDateTime(Instant.now().toString());
-                    ValidatorUtils.validateAndThrow(review, REVIEW_VALIDATOR_ERRORS_OBJECT_NAME, reviewValidator);
-
-                    final Review output = reviewDomain.addNewReviewForRestaurant(review);
-                    yield APIGatewayResponseBuilder.buildSuccessResponse(output, corsHeaders);
-                }
-                case "DELETE " + PATH_API_REVIEWS -> {
-                    requestValidator.validateRequest(DELETE_EXISTING_REVIEW_HANDLER, input);
-
-                    final DeleteReviewRequest deleteRequest = gson.fromJson(input.getBody(), DeleteReviewRequest.class);
-                    ValidatorUtils.validateAndThrow(
-                            deleteRequest,
-                            DELETE_REVIEW_REQUEST_VALIDATOR_ERRORS_OBJECT_NAME,
-                            deleteReviewRequestValidator);
-
-                    reviewDomain.deleteReview(deleteRequest);
-                    yield APIGatewayResponseBuilder.buildSuccessNoContentResponse(corsHeaders);
-                }
-                case "GET " + PATH_API_REVIEWS_AGGREGATE -> {
-                    requestValidator.validateRequest(GET_AGGREGATE_REVIEW_HANDLER, input);
-
-                    final Map<String, String> params = input.getQueryStringParameters();
-                    final GetAggregateReviewInformationOutput output = reviewDomain.getAggregateReviewInformationForRestaurants(
-                            params.get(QueryParam.IDS.getValue()),
-                            Boolean.parseBoolean(params.getOrDefault(QueryParam.INCLUDE_RATING.getValue(), "false")));
-                    yield APIGatewayResponseBuilder.buildSuccessResponse(output, corsHeaders);
-                }
-                case "GET " + PATH_API_REVIEWS_RECENT, "GET " + PATH_API_REVIEWS_RECENT_REVIEWS -> {
-                    requestValidator.validateRequest(GET_RECENT_REVIEWS_HANDLER, input);
-
-                    final String countParam = input.getQueryStringParameters().get(QueryParam.COUNT.getValue());
-                    final int count;
-                    try {
-                        count = Integer.parseInt(countParam);
-                    } catch (NumberFormatException e) {
-                        throw new IllegalArgumentException("Invalid count: " + countParam);
-                    }
-
-                    final GetAllReviewsOutput output = reviewDomain.getRecentReviews(count);
-                    yield APIGatewayResponseBuilder.buildSuccessResponse(output, corsHeaders);
-                }
-                case "GET " + PATH_API_PUBLIC_USER_METADATA, "GET " + PATH_API_USER_METADATA -> {
-                    requestValidator.validateRequest(GET_PUBLIC_USER_METADATA_HANDLER, input);
-
-                    final PublicUserMetadataOutput output = userMetadataDomain.getPublicUserMetadata(
-                            input.getQueryStringParameters().getOrDefault(QueryParam.ACCOUNT_ID.getValue(), null));
-                    yield APIGatewayResponseBuilder.buildSuccessResponse(output, corsHeaders);
-                }
-                case "PUT " + PATH_API_PUBLIC_USER_METADATA, "PUT " + PATH_API_USER_METADATA -> {
-                    requestValidator.validateRequest(PUT_PUBLIC_USER_METADATA_HANDLER, input);
-
-                    final Map<String, String> params = input.getQueryStringParameters();
-                    final PublicUserMetadataOutput output = userMetadataDomain.putPublicUserMetadata(
-                            params.get(QueryParam.ACCOUNT_ID.getValue()),
-                            params.get(QueryParam.USERNAME.getValue()));
-                    yield APIGatewayResponseBuilder.buildSuccessResponse(output, corsHeaders);
-                }
-                case "POST " + PATH_API_PUBLIC_USER_METADATA, "POST " + PATH_API_USER_METADATA -> {
-                    requestValidator.validateRequest(UPSERT_PUBLIC_USER_METADATA_HANDLER, input);
-
-                    final PublicUserMetadata userMetadata = gson.fromJson(input.getBody(), PublicUserMetadata.class);
-                    final PublicUserMetadataOutput output = userMetadataDomain.upsertPublicUserMetadata(userMetadata);
-                    yield APIGatewayResponseBuilder.buildSuccessResponse(output, corsHeaders);
-                }
-                default -> APIGatewayResponseBuilder.buildErrorResponse(404, "Not Found", corsHeaders);
-            };
+            return dispatch(routingKey, input, corsHeaders);
         });
+    }
+
+    private APIGatewayV2HTTPResponse maybeHandleCorsPreflight(final ResolvedRoute route, final APIGatewayV2HTTPEvent input) {
+        if (route == null || route.method == null) {
+            return null;
+        }
+        if ("OPTIONS".equals(route.method)) {
+            return APIGatewayResponseBuilder.buildSuccessNoContentResponse(createCorsHeaders(input));
+        }
+        return null;
+    }
+
+    private APIGatewayV2HTTPResponse dispatch(
+            final String routingKey,
+            final APIGatewayV2HTTPEvent input,
+            final Map<String, String> corsHeaders) throws Exception {
+        return switch (routingKey) {
+            case "GET " + PATH_API_REVIEWS -> handleGetAllReviews(input, corsHeaders);
+            case "POST " + PATH_API_REVIEWS -> handleAddNewReview(input, corsHeaders);
+            case "DELETE " + PATH_API_REVIEWS -> handleDeleteReview(input, corsHeaders);
+            case "GET " + PATH_API_REVIEWS_AGGREGATE -> handleGetAggregateReviewInformation(input, corsHeaders);
+            case "GET " + PATH_API_REVIEWS_RECENT, "GET " + PATH_API_REVIEWS_RECENT_REVIEWS -> handleGetRecentReviews(input, corsHeaders);
+            case "GET " + PATH_API_PUBLIC_USER_METADATA, "GET " + PATH_API_USER_METADATA -> handleGetPublicUserMetadata(input, corsHeaders);
+            case "PUT " + PATH_API_PUBLIC_USER_METADATA, "PUT " + PATH_API_USER_METADATA -> handlePutPublicUserMetadata(input, corsHeaders);
+            case "POST " + PATH_API_PUBLIC_USER_METADATA, "POST " + PATH_API_USER_METADATA -> handleUpsertPublicUserMetadata(input, corsHeaders);
+            default -> APIGatewayResponseBuilder.buildErrorResponse(404, "Not Found", corsHeaders);
+        };
+    }
+
+    private APIGatewayV2HTTPResponse handleGetAllReviews(final APIGatewayV2HTTPEvent input, final Map<String, String> corsHeaders) throws Exception {
+        requestValidator.validateRequest(GET_ALL_REVIEWS_HANDLER, input);
+
+        final Map<String, String> params = safeQueryParams(input);
+        final GetAllReviewsRequest request = new GetAllReviewsRequest(
+                params.get(QueryParam.RESTAURANT_ID.getValue()),
+                params.get(QueryParam.ACCOUNT_ID.getValue()),
+                params.get(QueryParam.LIMIT.getValue()),
+                decodeCursor(params.get(QueryParam.CURSOR.getValue())));
+
+        final int limit = parseLimitOrDefault(request.limit());
+        log.debug("Using limit: {}", limit);
+
+        final GetAllReviewsOutput output = reviewDomain.getAllReviews(
+                request.restaurantId(),
+                request.accountId(),
+                limit,
+                request.cursor());
+        return APIGatewayResponseBuilder.buildSuccessResponse(output, corsHeaders);
+    }
+
+    private APIGatewayV2HTTPResponse handleAddNewReview(final APIGatewayV2HTTPEvent input, final Map<String, String> corsHeaders) throws Exception {
+        requestValidator.validateRequest(ADD_NEW_REVIEW_HANDLER, input);
+
+        final Review review = gson.fromJson(input.getBody(), Review.class);
+
+        final APIGatewayV2HTTPResponse unauthorizedResponse = maybeAuthorizeAndSetAccountId(review, input, corsHeaders);
+        if (unauthorizedResponse != null) {
+            return unauthorizedResponse;
+        }
+
+        review.setIsoDateTime(Instant.now().toString());
+        ValidatorUtils.validateAndThrow(review, REVIEW_VALIDATOR_ERRORS_OBJECT_NAME, reviewValidator);
+
+        final Review output = reviewDomain.addNewReviewForRestaurant(review);
+        return APIGatewayResponseBuilder.buildSuccessResponse(output, corsHeaders);
+    }
+
+    private APIGatewayV2HTTPResponse maybeAuthorizeAndSetAccountId(
+            final Review review,
+            final APIGatewayV2HTTPEvent input,
+            final Map<String, String> corsHeaders) {
+        try {
+            final String token = HeaderUtils.extractBearerToken(input);
+            final String authorizedAccountId = authorizer.authorizeAndGetAccountId(token);
+            review.setAccountId(authorizedAccountId);
+            return null;
+        } catch (NotAuthorizedException e) {
+            return APIGatewayResponseBuilder.buildErrorResponse(401, e.getMessage(), corsHeaders);
+        } catch (AuthorizationDisabledException e) {
+            log.info("Authorization disabled, using accountId from request body");
+            return null;
+        }
+    }
+
+    private APIGatewayV2HTTPResponse handleDeleteReview(final APIGatewayV2HTTPEvent input, final Map<String, String> corsHeaders) throws Exception {
+        requestValidator.validateRequest(DELETE_EXISTING_REVIEW_HANDLER, input);
+
+        final DeleteReviewRequest deleteRequest = gson.fromJson(input.getBody(), DeleteReviewRequest.class);
+        ValidatorUtils.validateAndThrow(
+                deleteRequest,
+                DELETE_REVIEW_REQUEST_VALIDATOR_ERRORS_OBJECT_NAME,
+                deleteReviewRequestValidator);
+
+        reviewDomain.deleteReview(deleteRequest);
+        return APIGatewayResponseBuilder.buildSuccessNoContentResponse(corsHeaders);
+    }
+
+    private APIGatewayV2HTTPResponse handleGetAggregateReviewInformation(final APIGatewayV2HTTPEvent input, final Map<String, String> corsHeaders) throws Exception {
+        requestValidator.validateRequest(GET_AGGREGATE_REVIEW_HANDLER, input);
+
+        final Map<String, String> params = safeQueryParams(input);
+        final GetAggregateReviewInformationOutput output = reviewDomain.getAggregateReviewInformationForRestaurants(
+                params.get(QueryParam.IDS.getValue()),
+                Boolean.parseBoolean(params.getOrDefault(QueryParam.INCLUDE_RATING.getValue(), "false")));
+        return APIGatewayResponseBuilder.buildSuccessResponse(output, corsHeaders);
+    }
+
+    private APIGatewayV2HTTPResponse handleGetRecentReviews(final APIGatewayV2HTTPEvent input, final Map<String, String> corsHeaders) throws Exception {
+        requestValidator.validateRequest(GET_RECENT_REVIEWS_HANDLER, input);
+
+        final Map<String, String> params = safeQueryParams(input);
+        final String countParam = params.get(QueryParam.COUNT.getValue());
+        final int count;
+        try {
+            count = Integer.parseInt(countParam);
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("Invalid count: " + countParam);
+        }
+
+        final GetAllReviewsOutput output = reviewDomain.getRecentReviews(count);
+        return APIGatewayResponseBuilder.buildSuccessResponse(output, corsHeaders);
+    }
+
+    private APIGatewayV2HTTPResponse handleGetPublicUserMetadata(final APIGatewayV2HTTPEvent input, final Map<String, String> corsHeaders) throws Exception {
+        requestValidator.validateRequest(GET_PUBLIC_USER_METADATA_HANDLER, input);
+
+        final Map<String, String> params = safeQueryParams(input);
+        final PublicUserMetadataOutput output = userMetadataDomain.getPublicUserMetadata(
+                params.getOrDefault(QueryParam.ACCOUNT_ID.getValue(), null));
+        return APIGatewayResponseBuilder.buildSuccessResponse(output, corsHeaders);
+    }
+
+    private APIGatewayV2HTTPResponse handlePutPublicUserMetadata(final APIGatewayV2HTTPEvent input, final Map<String, String> corsHeaders) throws Exception {
+        requestValidator.validateRequest(PUT_PUBLIC_USER_METADATA_HANDLER, input);
+
+        final Map<String, String> params = safeQueryParams(input);
+        final PublicUserMetadataOutput output = userMetadataDomain.putPublicUserMetadata(
+                params.get(QueryParam.ACCOUNT_ID.getValue()),
+                params.get(QueryParam.USERNAME.getValue()));
+        return APIGatewayResponseBuilder.buildSuccessResponse(output, corsHeaders);
+    }
+
+    private APIGatewayV2HTTPResponse handleUpsertPublicUserMetadata(final APIGatewayV2HTTPEvent input, final Map<String, String> corsHeaders) throws Exception {
+        requestValidator.validateRequest(UPSERT_PUBLIC_USER_METADATA_HANDLER, input);
+
+        final PublicUserMetadata userMetadata = gson.fromJson(input.getBody(), PublicUserMetadata.class);
+        final PublicUserMetadataOutput output = userMetadataDomain.upsertPublicUserMetadata(userMetadata);
+        return APIGatewayResponseBuilder.buildSuccessResponse(output, corsHeaders);
+    }
+
+    private Map<String, String> safeQueryParams(final APIGatewayV2HTTPEvent input) {
+        return input.getQueryStringParameters() != null ? input.getQueryStringParameters() : Map.of();
+    }
+
+    private int parseLimitOrDefault(final String limitParam) {
+        int limit = DEFAULT_PAGE_LIMIT;
+        if (limitParam != null && !limitParam.isEmpty()) {
+            try {
+                limit = Math.min(Math.max(Integer.parseInt(limitParam), 1), MAX_PAGE_LIMIT);
+            } catch (NumberFormatException e) {
+                log.warn("Invalid limit param '{}', using default: {}", limitParam, DEFAULT_PAGE_LIMIT);
+            }
+        }
+        return limit;
     }
 
     private ResolvedRoute resolveRoute(final Map<String, Object> event) {
