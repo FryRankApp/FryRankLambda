@@ -4,7 +4,7 @@ import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayV2HTTPEvent;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayV2HTTPResponse;
-import com.fryrank.dal.ReviewDALImpl;
+import com.fryrank.dagger.Dependencies;
 import com.fryrank.domain.ReviewDomain;
 import com.fryrank.model.ToggleReactionRequest;
 import com.fryrank.model.ToggleReactionResult;
@@ -22,25 +22,22 @@ import static com.fryrank.util.HeaderUtils.createCorsHeaders;
 @Log4j2
 public class ToggleReactionHandler implements RequestHandler<APIGatewayV2HTTPEvent, APIGatewayV2HTTPResponse> {
 
-    private final ReviewDALImpl reviewDAL;
     private final ReviewDomain reviewDomain;
     private final APIGatewayRequestValidator requestValidator;
     private final Authorizer authorizer;
 
     public ToggleReactionHandler() {
-        reviewDAL = new ReviewDALImpl();
-        reviewDomain = new ReviewDomain(reviewDAL);
-        requestValidator = new APIGatewayRequestValidator();
-        authorizer = new Authorizer();
+        final var component = Dependencies.appComponent();
+        reviewDomain = component.reviewDomain();
+        requestValidator = component.apiGatewayRequestValidator();
+        authorizer = component.authorizer();
     }
 
     public ToggleReactionHandler(
-            ReviewDALImpl reviewDAL,
             ReviewDomain reviewDomain,
             APIGatewayRequestValidator requestValidator,
             Authorizer authorizer
     ) {
-        this.reviewDAL = reviewDAL;
         this.reviewDomain = reviewDomain;
         this.requestValidator = requestValidator;
         this.authorizer = authorizer;

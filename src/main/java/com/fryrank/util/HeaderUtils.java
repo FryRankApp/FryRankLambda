@@ -6,7 +6,6 @@ import lombok.extern.log4j.Log4j2;
 
 import java.util.HashMap;
 import java.util.Map;
-
 import static com.fryrank.Constants.*;
 
 /**
@@ -32,9 +31,16 @@ public class HeaderUtils {
         // CORS headers are given to us in lowercase from API Gateway
         String origin = headers.get(ORIGIN);
         log.info("Found origin: " + origin);
-        
-        if (origin != null && Constants.ALLOWED_ORIGINS.contains(origin)) {
-            return origin;
+
+        if (origin == null) {
+            return null;
+        }
+
+        final String normalizedIncoming = normalizeOrigin(origin);
+        for (String allowed : Constants.ALLOWED_ORIGINS) {
+            if (normalizeOrigin(allowed).equals(normalizedIncoming)) {
+                return allowed;
+            }
         }
 
         return null;
@@ -49,13 +55,13 @@ public class HeaderUtils {
     public static Map<String, String> createCorsHeaders(APIGatewayV2HTTPEvent event) {
         Map<String, String> corsHeaders = new HashMap<>(Map.of(
                 HEADER_ACCESS_CONTROL_ALLOW_METHODS, ALLOWED_METHODS,
-                HEADER_ACCESS_CONTROL_ALLOW_HEADERS, CONTENT_TYPE
+                HEADER_ACCESS_CONTROL_ALLOW_HEADERS, CORS_ALLOW_REQUEST_HEADERS
         ));
 
 
         String allowedOrigin = getAllowedOrigin(event);
-        if(allowedOrigin != null) {
-            corsHeaders.put(HEADER_ACCESS_CONTROL_ALLOW_ORIGIN, getAllowedOrigin(event));
+        if (allowedOrigin != null) {
+            corsHeaders.put(HEADER_ACCESS_CONTROL_ALLOW_ORIGIN, allowedOrigin);
         }
 
         return corsHeaders;
@@ -81,13 +87,23 @@ public class HeaderUtils {
             // Convert key to lowercase
             String lowerCaseKey = (key != null) ? key.toLowerCase() : null;
 
-            // Convert value to lowercase
-            String lowerCaseValue = (value != null) ? value.toLowerCase() : null;
-
-            lowerCaseMap.put(lowerCaseKey, lowerCaseValue);
+            // Preserve original value casing to avoid mutating header semantics.
+            lowerCaseMap.put(lowerCaseKey, value);
         }
 
         return lowerCaseMap;
+    }
+
+    private static String normalizeOrigin(String origin) {
+        if (origin == null) {
+            return null;
+        }
+
+        final String trimmed = origin.trim().toLowerCase();
+        if (trimmed.endsWith("/")) {
+            return trimmed.substring(0, trimmed.length() - 1);
+        }
+        return trimmed;
     }
 
     /**

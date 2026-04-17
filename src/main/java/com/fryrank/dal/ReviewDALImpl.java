@@ -165,9 +165,9 @@ public class ReviewDALImpl implements ReviewDAL {
 
         final GetAllReviewsOutput reviewsOutput;
         if (restaurantId != null) {
-            reviewsOutput = getAllReviewsByRestaurantId(restaurantId);
+            reviewsOutput = getAllReviewsByRestaurantId(restaurantId, null, null);
         } else if (accountId != null) {
-            reviewsOutput = getAllReviewsByAccountId(accountId);
+            reviewsOutput = getAllReviewsByAccountId(accountId, null, null);
         } else {
             throw new NullPointerException("At least one of restaurantId and accountId must not be null.");
         }
