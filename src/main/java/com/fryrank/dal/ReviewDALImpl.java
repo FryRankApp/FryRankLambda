@@ -623,15 +623,11 @@ public class ReviewDALImpl implements ReviewDAL {
 
         final Map<String, AttributeValue> updateValues = new HashMap<>();
         updateValues.put(":rc", reactionCountsToAttribute(counts));
-        updateValues.put(":etu", AttributeValue.builder().n(String.valueOf(snapshotThumbsUp)).build());
-        updateValues.put(":etd", AttributeValue.builder().n(String.valueOf(snapshotThumbsDown)).build());
-        updateValues.put(":eh", AttributeValue.builder().n(String.valueOf(snapshotHeart)).build());
 
         final UpdateItemRequest.Builder updateBuilder = UpdateItemRequest.builder()
                 .tableName(RANKINGS_TABLE_NAME)
                 .key(reviewKey)
-                .updateExpression("SET reactionCounts = :rc")
-                .expressionAttributeValues(updateValues);
+                .updateExpression("SET reactionCounts = :rc");
 
         final boolean snapshotWasAllZeros =
                 snapshotThumbsUp == 0 && snapshotThumbsDown == 0 && snapshotHeart == 0;
@@ -640,6 +636,9 @@ public class ReviewDALImpl implements ReviewDAL {
             updateBuilder.conditionExpression("attribute_not_exists(reactionCounts)");
         } else {
             // Compare-and-set: apply new totals only if the three public counts still match what we read (no lost updates).
+            updateValues.put(":etu", AttributeValue.builder().n(String.valueOf(snapshotThumbsUp)).build());
+            updateValues.put(":etd", AttributeValue.builder().n(String.valueOf(snapshotThumbsDown)).build());
+            updateValues.put(":eh", AttributeValue.builder().n(String.valueOf(snapshotHeart)).build());
             updateBuilder
                     .conditionExpression(
                             "reactionCounts.#tu = :etu AND reactionCounts.#td = :etd AND reactionCounts.#h = :eh")
@@ -649,6 +648,7 @@ public class ReviewDALImpl implements ReviewDAL {
                             "#h", HEART_KEY));
         }
 
+        updateBuilder.expressionAttributeValues(updateValues);
         dynamoDb.updateItem(updateBuilder.build());
 
         // Per-viewer reaction row (separate item); rankings update above must succeed first.

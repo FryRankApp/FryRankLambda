@@ -184,6 +184,38 @@ class ReviewDALImplTest {
     }
 
     /**
+     * Older review rows may lack {@code reactionCounts}. First like must use {@code attribute_not_exists}
+     * and must not pass unused ExpressionAttributeValues (DynamoDB rejects with ValidationException).
+     */
+    @Test
+    void toggleReaction_whenReactionCountsAttributeMissing_usesExistsConditionAndOnlyRcInValues() {
+        Map<String, AttributeValue> reviewRow = rankingReviewLegacyRowWithoutReactionCounts();
+
+        when(dynamoDb.getItem(any(GetItemRequest.class))).thenAnswer(invocation -> {
+            GetItemRequest req = invocation.getArgument(0);
+            if (RANKINGS_TABLE_NAME.equals(req.tableName())) {
+                return GetItemResponse.builder().item(reviewRow).build();
+            }
+            if (REACTIONS_TABLE_NAME.equals(req.tableName())) {
+                return GetItemResponse.builder().build();
+            }
+            return GetItemResponse.builder().build();
+        });
+        when(dynamoDb.updateItem(any(UpdateItemRequest.class))).thenReturn(UpdateItemResponse.builder().build());
+        when(dynamoDb.putItem(any(PutItemRequest.class))).thenReturn(PutItemResponse.builder().build());
+
+        dal.toggleReaction(VIEWER, REVIEW_ID, ReactionType.HEART, ReactionAction.ADD);
+
+        ArgumentCaptor<UpdateItemRequest> updateCap = ArgumentCaptor.forClass(UpdateItemRequest.class);
+        verify(dynamoDb).updateItem(updateCap.capture());
+        UpdateItemRequest upd = updateCap.getValue();
+        assertEquals("attribute_not_exists(reactionCounts)", upd.conditionExpression());
+        assertEquals(1, upd.expressionAttributeValues().size());
+        assertTrue(upd.expressionAttributeValues().containsKey(":rc"));
+        assertFalse(upd.expressionAttributeValues().containsKey(":etu"));
+    }
+
+    /**
      * End-to-end style sequence: first call persists a like (put reaction row + bump public count);
      * second call reads that state and unlikes (delete reaction row + decrement count).
      * Mocks advance {@code getItem} order to mimic what Dynamo would return after the first write.
@@ -350,6 +382,17 @@ class ReviewDALImplTest {
 
     private static Map<String, AttributeValue> rankingReviewRowWithZeroCounts() {
         return rankingReviewRowWithReactionTotals(0, 0, 0);
+    }
+
+    /** Pre-reactionCounts schema: item has no {@code reactionCounts} map (treated as zeros when read). */
+    private static Map<String, AttributeValue> rankingReviewLegacyRowWithoutReactionCounts() {
+        Map<String, AttributeValue> row = new HashMap<>();
+        row.put(RESTAURANT_ID_KEY, AttributeValue.builder().s("rest1").build());
+        row.put(IDENTIFIER_KEY, AttributeValue.builder().s("REVIEW:author1").build());
+        row.put(SCORE_KEY, AttributeValue.builder().n("5").build());
+        row.put(TITLE_KEY, AttributeValue.builder().s("t").build());
+        row.put(BODY_KEY, AttributeValue.builder().s("b").build());
+        return row;
     }
 
     /** Same base row as {@link #rankingReviewRowWithZeroCounts()} but with explicit public reaction totals on the card. */
