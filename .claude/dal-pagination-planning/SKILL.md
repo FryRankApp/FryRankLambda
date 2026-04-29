@@ -55,6 +55,6 @@ The canonical implementation is `ReviewDALImpl.queryReviews(...)` in `src/main/j
 
 ## Manual Testing
 
-The `next_cursor` returned by the API is already URL-encoded and can be pasted directly as the `cursor` query param in the API Gateway test console — no transformation needed.
+The `nextCursor` returned by the API is already URL-encoded and can be pasted directly as the `cursor` query param in the API Gateway test console — no transformation needed.
 
 For the **first** page, just omit the `cursor` param entirely. The default limit of 10 applies unless you specify `limit`.

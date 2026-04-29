@@ -73,16 +73,13 @@ DynamoDB counts *items read* toward the limit, not *items returned after filteri
 
 | File | What It Does |
 |------|--------------|
-| `util/DynamoDbUtils.java` | Simple factory: calls `DynamoDbClient.create()`, picks up region from `AWS_REGION` env var and credentials from IAM role |
-| `util/CursorUtils.java` | URL-encodes and URL-decodes the `isoDateTime` cursor string |
-| `dal/ReviewDALImpl.java` | `queryReviews()` applies `limit`, injects `isoDateTime < :cursor` condition when cursor is present, returns URL-encoded `isoDateTime` of last item as `nextCursor` (or `null` if `LastEvaluatedKey` is empty) |
+| `dal/ReviewDALImpl.java` | `queryReviews()` applies `limit`, injects `isoDateTime < :cursor` condition when cursor is present, URL-encodes the `isoDateTime` of the last item inline via `URLEncoder.encode()`, returns it as `nextCursor` (or `null` if `LastEvaluatedKey` is empty or items is empty) |
 | `model/GetAllReviewsOutput.java` | `nextCursor` field — no `@SerializedName`, serializes as camelCase |
-| `handler/GetAllReviewsHandler.java` | Parses `limit` with fallback to `DEFAULT_PAGE_LIMIT`; clamps via `Math.min/max`; URL-decodes incoming cursor before passing downstream |
+| `handler/GetAllReviewsHandler.java` | Parses `limit` with fallback to `DEFAULT_PAGE_LIMIT`; clamps via `Math.min/max`; URL-decodes incoming cursor via `decodeCursor()` helper before passing downstream |
 | `Constants.java` | `DEFAULT_PAGE_LIMIT = 10`, `MAX_PAGE_LIMIT = 100` |
-| `python/scripts/generate_cursor.py` | Helper script to manually generate cursor values for API Gateway console testing |
 | `dal/ReviewDALTests.java` | Pagination tests: cursor generates correctly, no cursor when LEK empty or items empty or last item lacks `isoDateTime`; cursor condition injected into `KeyConditionExpression` for both query paths |
 
 ## Testing Approach
 
 - **Unit tests (Mockito):** Mocked `DynamoDbClient`, verified `QueryRequest` had correct `limit` and key condition, and that `nextCursor` was encoded/null based on `LastEvaluatedKey` state.
-- **Manual API testing:** Used `generate_cursor.py` to craft a cursor for a known review timestamp, pasted it as the `cursor` query param in the API Gateway console, verified the next page started at the correct item.
+- **Manual API testing:** Fetched the first page from the API Gateway console, copied the `nextCursor` value from the JSON response, and passed it directly as the `cursor` query param — no transformation needed since the returned value is already URL-encoded.

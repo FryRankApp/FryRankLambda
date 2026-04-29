@@ -1,34 +1,57 @@
 # Fryrank - CORS Fix CloudFront Origin
 
-## What We Built
-Added a missing CloudFront distribution URL to the Lambda's `ALLOWED_ORIGINS` set so that the production frontend could successfully call the API. The missing origin was causing a silent CORS failure that crashed the Redux root saga, taking down all data fetching including the Google Map.
+## Context
 
-## How It Works
-When a browser makes a cross-origin request, the Lambda reads the `Origin` request header and checks it against `ALLOWED_ORIGINS` in `Constants.java`. If the origin is present, the Lambda includes `Access-Control-Allow-Origin: <origin>` in the response headers via `HeaderUtils.createCorsHeaders()`. If it's absent, the header is omitted entirely — the Lambda still returns its normal HTTP response (200 or 500), but the browser blocks the response client-side with a CORS error.
+This document describes a common class of bug that can surface whenever a new deployment environment is added to this project — a CORS failure caused by a frontend origin not being listed in the Lambda's allowed origins. It's written as a concrete example of what went wrong and how to diagnose it, so that future contributors recognize the pattern quickly.
 
-The specific origin `https://d3mznj1yywvp2h.cloudfront.net` was not in the allowed list, so every Lambda call from the production frontend was being blocked. The catch block in the frontend Redux saga tried to access `err.response.data.error.message` — but since `err.response` is `undefined` when the browser blocks a response (no axios response object is created), the catch itself threw a `TypeError`, killing **all** `takeEvery` saga watchers including `GET_RESTAURANTS_FOR_QUERY_REQUEST` and `GET_RESTAURANTS_FOR_IDS_REQUEST`. This is why the Google Map never loaded.
+## How CORS Works in This Project
 
-## Key Design Decisions & Trade-offs
+Every response from FryRankLambda goes through `APIGatewayResponseBuilder`, which attaches an `Access-Control-Allow-Origin` header if and only if the request's `Origin` header matches an entry in `ALLOWED_ORIGINS` (defined in `Constants.java`). If the origin is present, the browser accepts the response. If it's absent, the header is omitted and the browser blocks the response entirely — even if the HTTP status code is 200.
 
-- **Added a second CloudFront constant** (`FRYRANK_PROD_CLOUDFRONT_2`) rather than replacing the existing one — the original `d3h6a05rzfj3y8` distribution still exists and must remain allowed.
-- **Lambda deploys take 1-3 minutes** — the 500 errors seen immediately after deploying were the old Lambda version still serving traffic. Once the deployment propagated, the fix took effect.
-- **CORS headers are attached even on error responses** — `APIGatewayResponseBuilder.handleRequest()` computes `corsHeaders` before entering the try block, so 400/404/500 responses all include the CORS header as long as the origin is in the allowed list. A 500 with no CORS header means the origin wasn't recognized, not that the error path is broken.
+This means: **server logs will show a successful response while the browser shows a CORS error.** The Lambda did its job; the browser is what blocks it.
+
+`ALLOWED_ORIGINS` currently contains the known CloudFront distribution URLs for each deployed environment (staging, production, etc.). Any new environment — a new CloudFront distribution, a new dev sandbox, a preview deploy — must have its origin added here before the frontend can call the API.
+
+## What Goes Wrong (and Why It's Hard to Spot)
+
+When an origin is missing from `ALLOWED_ORIGINS`:
+
+1. The Lambda returns a normal HTTP response (200 or 500), but without the `Access-Control-Allow-Origin` header.
+2. The browser silently drops the response. No response body, no status code visible to JavaScript.
+3. In Axios, this means `err.response` is `undefined` — Axios only sets `err.response` when the browser actually delivers a response.
+4. If the frontend catch block assumes `err.response` exists and tries to access a nested property (e.g. `err.response.data.error.message`), the catch itself throws a `TypeError`.
+5. In Redux-Saga, an unhandled throw inside a `takeEvery` worker permanently kills that watcher for the session — meaning *all* saga-driven data fetching stops, not just the failing request.
+
+This is why a single missing CORS origin can cause seemingly unrelated UI failures (like the Google Map not loading) with no obvious error in the network tab.
+
+## How to Fix It
+
+Add the missing origin to `ALLOWED_ORIGINS` in `Constants.java`:
+
+```java
+// Constants.java
+public static final Set<String> ALLOWED_ORIGINS = Set.of(
+    "https://your-existing-origin.cloudfront.net",
+    "https://your-new-origin.cloudfront.net"   // <-- add the new environment here
+);
+```
+
+After deploying, wait 1-3 minutes for Lambda propagation before testing. The old Lambda version continues serving traffic during the rollout window, so errors immediately after deploy do not indicate the fix failed.
+
+## Key Design Notes
+
+- **CORS headers are attached even on error responses.** `APIGatewayResponseBuilder.handleRequest()` computes `corsHeaders` before entering the try block, so 400/404/500 responses all carry the CORS header as long as the origin is recognized. A 500 with no CORS header almost always means the origin wasn't in `ALLOWED_ORIGINS`, not that an error path is broken.
+- **Never use a wildcard origin (`*`)** — write operations require Google OAuth, and `Access-Control-Allow-Origin: *` is incompatible with credentialed requests.
+- **No unit test changes are needed** for origin additions. CORS is an integration-level concern; correctness is verified end-to-end in the browser.
 
 ## Concepts to Remember
 
-- **CORS (Cross-Origin Resource Sharing)**: A browser security mechanism. The server must opt-in to cross-origin access by returning `Access-Control-Allow-Origin`. If the header is missing, the browser blocks the response regardless of HTTP status code.
-- **CORS is enforced client-side**: The Lambda still returns a full response. The browser is what blocks it — so server logs show success (200/500) while the browser shows a CORS error.
-- **Saga crash from unsafe error access**: If a Redux saga catch block accesses a property that doesn't exist on the error object (e.g. `err.response.data` when `err.response` is undefined), the catch itself throws. In redux-saga, an unhandled throw inside a `takeEvery` worker kills that watcher permanently for the session.
-- **`err.response` is undefined for network/CORS errors**: Axios only populates `err.response` when the server sends a response that the browser accepts. A CORS-blocked response means `err.response` is never set.
+- **CORS is enforced client-side.** The server returns a full response regardless. It is the browser that blocks it when the expected header is missing.
+- **`err.response` is `undefined` for CORS/network errors in Axios.** Always guard against this in catch blocks (`err.response?.data`).
+- **A saga worker that throws kills its own `takeEvery` watcher.** Unsafe property access in a catch block can silently take down multiple unrelated data-fetching flows.
 
-## Files Changed
+## Files to Change
 
-| File | What Changed |
-|------|--------------|
-| `src/main/java/com/fryrank/Constants.java` | Added `FRYRANK_PROD_CLOUDFRONT_2 = "https://d3mznj1yywvp2h.cloudfront.net"` constant and added it to `ALLOWED_ORIGINS` set |
-
-## Testing Approach
-
-- Deployed via `deploy.bat` and waited ~2 minutes for propagation
-- Verified in browser console — CORS error resolved, map loaded, reviews populated
-- No unit test changes needed (CORS is an integration-level concern tested end-to-end)
+| File | What to Change |
+|------|----------------|
+| `src/main/java/com/fryrank/Constants.java` | Add the new CloudFront origin to `ALLOWED_ORIGINS` |
