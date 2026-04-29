@@ -1,4 +1,4 @@
 pymongo==4.6.3
 boto3==1.28.69
-python-dotenv==1.0.0
+python-dotenv==1.2.2
 dnspython==2.6.1
