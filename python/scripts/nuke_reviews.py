@@ -1,4 +1,6 @@
 """
+WARNING: This is destructive and irreversible.
+
 nuke_reviews.py - Delete all reviews (and optionally the AGGREGATE row) for a restaurant ID.
 
 Usage:
@@ -6,8 +8,6 @@ Usage:
 
 Queries all items under the given restaurantId and batch-deletes every REVIEW: item.
 Also deletes the AGGREGATE row unless --keep-aggregate is passed.
-
-WARNING: This is destructive and irreversible.
 """
 
 import argparse
