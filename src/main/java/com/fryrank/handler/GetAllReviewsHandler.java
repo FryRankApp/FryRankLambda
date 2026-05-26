@@ -107,6 +107,9 @@ public class GetAllReviewsHandler implements RequestHandler<APIGatewayV2HTTPEven
      */
     private String resolveViewerAccountIdFromAuthorizationHeader(APIGatewayV2HTTPEvent input) throws NotAuthorizedException {
         final String token = HeaderUtils.extractBearerToken(input);
+        if (token == null || token.isBlank()) {
+            return null;
+        }
         try {
             return authorizer.authorizeAndGetAccountId(token);
         } catch (AuthorizationDisabledException e) {
