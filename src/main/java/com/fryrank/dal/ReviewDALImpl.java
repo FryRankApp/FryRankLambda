@@ -10,7 +10,7 @@ import com.fryrank.model.PublicUserMetadata;
 import com.fryrank.model.MyReactions;
 import com.fryrank.model.ReactionCounts;
 import com.fryrank.model.Review;
-import com.fryrank.model.ToggleReactionResult;
+import com.fryrank.model.PutReactionResult;
 import com.fryrank.model.enums.ReactionAction;
 import com.fryrank.model.enums.ReactionType;
 import lombok.NonNull;
@@ -94,7 +94,7 @@ public class ReviewDALImpl implements ReviewDAL {
 
     private static final int MAX_AGGREGATE_UPDATE_RETRIES = 3;
 
-    private static final int MAX_TOGGLE_REACTION_RETRIES = 5;
+    private static final int MAX_PUT_REACTION_RETRIES = 5;
 
     private final DynamoDbClient dynamoDb;
 
@@ -536,28 +536,29 @@ public class ReviewDALImpl implements ReviewDAL {
      * do not overwrite each other; retries with backoff on {@link ConditionalCheckFailedException}.
      */
     @Override
-    public ToggleReactionResult toggleReaction(
+    public PutReactionResult putReaction(
             @NonNull final String viewerAccountId,
             @NonNull final String reviewId,
             @NonNull final ReactionType reactionType,
             @NonNull final ReactionAction action
     ) {
         ConditionalCheckFailedException lastConflict = null;
+
         // Retry: another request may have changed reactionCounts between our read and write (optimistic lock miss).
-        for (int attempt = 0; attempt < MAX_TOGGLE_REACTION_RETRIES; attempt++) {
+        for (int attempt = 0; attempt < MAX_PUT_REACTION_RETRIES; attempt++) {
             try {
-                return toggleReactionOnce(viewerAccountId, reviewId, reactionType, action);
+                return putReactionOnce(viewerAccountId, reviewId, reactionType, action);
             } catch (ConditionalCheckFailedException e) {
                 lastConflict = e;
-                log.warn("toggleReaction optimistic lock failed for review {} (attempt {}/{})",
-                        reviewId, attempt + 1, MAX_TOGGLE_REACTION_RETRIES);
-                if (attempt < MAX_TOGGLE_REACTION_RETRIES - 1) {
+                log.warn("putReaction optimistic lock failed for review {} (attempt {}/{})",
+                        reviewId, attempt + 1, MAX_PUT_REACTION_RETRIES);
+                if (attempt < MAX_PUT_REACTION_RETRIES - 1) {
                     try {
                         // Exponential backoff before re-reading the item and trying again.
                         Thread.sleep((long) (Math.pow(2, attempt) * 10L));
                     } catch (InterruptedException ie) {
                         Thread.currentThread().interrupt();
-                        throw new RuntimeException("Interrupted during toggle reaction retry", ie);
+                        throw new RuntimeException("Interrupted during put reaction retry", ie);
                     }
                 }
             }
@@ -567,78 +568,123 @@ public class ReviewDALImpl implements ReviewDAL {
                 lastConflict);
     }
 
-    private ToggleReactionResult toggleReactionOnce(
+    private PutReactionResult putReactionOnce(
             @NonNull final String viewerAccountId,
             @NonNull final String reviewId,
             @NonNull final ReactionType reactionType,
             @NonNull final ReactionAction action
     ) {
-        final String[] rk = splitReviewId(reviewId);
-        final String restaurantId = rk[0];
-        final String identifier = rk[1];
-
-        final Map<String, AttributeValue> reviewKey = Map.of(
-                RESTAURANT_ID_KEY, AttributeValue.builder().s(restaurantId).build(),
-                IDENTIFIER_KEY, AttributeValue.builder().s(identifier).build()
-        );
-
-        final Map<String, AttributeValue> reviewItem = dynamoDb.getItem(
-                GetItemRequest.builder().tableName(RANKINGS_TABLE_NAME).key(reviewKey).build()
-        ).item();
-
-        if (reviewItem == null || reviewItem.isEmpty()) {
-            throw new IllegalArgumentException("Review not found: " + reviewId);
-        }
-
+        final Map<String, AttributeValue> reviewKey = buildRankingsKeyForReviewId(reviewId);
+        final Map<String, AttributeValue> reviewItem = getReviewItemOrThrow(reviewKey, reviewId);
         final ReactionCounts counts = mapReactionCountsOrZero(reviewItem);
 
-        final Map<String, AttributeValue> reactionKey = Map.of(
+        final Map<String, AttributeValue> reactionKey = buildReactionKey(viewerAccountId, reviewId);
+        final MyReactions previous = loadViewerMyReactions(reactionKey);
+
+        if (isAlreadyInRequestedState(previous, reactionType, action)) {
+            return new PutReactionResult(reviewId, counts, previous);
+        }
+
+        final ReactionCountsSnapshot snapshot = ReactionCountsSnapshot.from(reviewItem, counts);
+        final boolean requestedOn = action == ReactionAction.ADD;
+        applyActionToPublicCounts(counts, reactionType, action);
+        final MyReactions next = setReactionFlag(previous, reactionType, requestedOn);
+
+        updateReviewReactionCounts(reviewKey, counts, snapshot);
+        syncViewerReactionRow(reactionKey, viewerAccountId, reviewId, next);
+
+        return new PutReactionResult(reviewId, counts, next);
+    }
+
+    private Map<String, AttributeValue> buildRankingsKeyForReviewId(String reviewId) {
+        final String[] rk = splitReviewId(reviewId);
+        return Map.of(
+                RESTAURANT_ID_KEY, AttributeValue.builder().s(rk[0]).build(),
+                IDENTIFIER_KEY, AttributeValue.builder().s(rk[1]).build()
+        );
+    }
+
+    private Map<String, AttributeValue> buildReactionKey(String viewerAccountId, String reviewId) {
+        return Map.of(
                 VIEWER_ACCOUNT_ID_KEY, AttributeValue.builder().s(viewerAccountId).build(),
                 REVIEW_ID_KEY, AttributeValue.builder().s(reviewId).build()
         );
+    }
 
+    private Map<String, AttributeValue> getReviewItemOrThrow(
+            Map<String, AttributeValue> reviewKey,
+            String reviewId
+    ) {
+        final Map<String, AttributeValue> reviewItem = dynamoDb.getItem(
+                GetItemRequest.builder().tableName(RANKINGS_TABLE_NAME).key(reviewKey).build()
+        ).item();
+        if (reviewItem == null || reviewItem.isEmpty()) {
+            throw new IllegalArgumentException("Review not found: " + reviewId);
+        }
+        return reviewItem;
+    }
+
+    private MyReactions loadViewerMyReactions(Map<String, AttributeValue> reactionKey) {
         final Map<String, AttributeValue> existingReaction = dynamoDb.getItem(
                 GetItemRequest.builder().tableName(REACTIONS_TABLE_NAME).key(reactionKey).build()
         ).item();
+        if (existingReaction == null || existingReaction.isEmpty()) {
+            return MyReactions.none();
+        }
+        return mapItemToMyReactions(existingReaction);
+    }
 
-        final MyReactions previous = (existingReaction == null || existingReaction.isEmpty())
-                ? MyReactions.none()
-                : mapItemToMyReactions(existingReaction);
+    private static boolean isAlreadyInRequestedState(
+            MyReactions previous,
+            ReactionType reactionType,
+            ReactionAction action
+    ) {
+        final boolean requestedOn = action == ReactionAction.ADD;
+        return reactionFlag(previous, reactionType) == requestedOn;
+    }
 
-        final boolean currentlyOn = reactionFlag(previous, reactionType);
-        final boolean requestedOn = (action == ReactionAction.ADD);
-        if (currentlyOn == requestedOn) {
-            return new ToggleReactionResult(reviewId, counts, previous);
+    /**
+     * Public totals on the review row before applying this toggle (used for optimistic locking).
+     */
+    private record ReactionCountsSnapshot(
+            int thumbsUp,
+            int thumbsDown,
+            int heart,
+            boolean reactionCountsMissingOnItem
+    ) {
+        static ReactionCountsSnapshot from(Map<String, AttributeValue> reviewItem, ReactionCounts counts) {
+            return new ReactionCountsSnapshot(
+                    counts.getThumbsUp(),
+                    counts.getThumbsDown(),
+                    counts.getHeart(),
+                    !reviewItem.containsKey(REACTION_COUNTS_KEY)
+            );
         }
 
-        // Snapshot of public totals before this request (used to detect concurrent writers via ConditionExpression).
-        final int snapshotThumbsUp = counts.getThumbsUp();
-        final int snapshotThumbsDown = counts.getThumbsDown();
-        final int snapshotHeart = counts.getHeart();
-        final boolean reactionCountsMissingOnItem = !reviewItem.containsKey(REACTION_COUNTS_KEY);
+        boolean wasAllZeros() {
+            return thumbsUp == 0 && thumbsDown == 0 && heart == 0;
+        }
+    }
 
-        applyActionToPublicCounts(counts, reactionType, action);
-
-        final MyReactions next = setReactionFlag(previous, reactionType, requestedOn);
-
+    private void updateReviewReactionCounts(
+            Map<String, AttributeValue> reviewKey,
+            ReactionCounts updatedCounts,
+            ReactionCountsSnapshot snapshot
+    ) {
         final Map<String, AttributeValue> updateValues = new HashMap<>();
-        updateValues.put(":rc", reactionCountsToAttribute(counts));
+        updateValues.put(":rc", reactionCountsToAttribute(updatedCounts));
 
         final UpdateItemRequest.Builder updateBuilder = UpdateItemRequest.builder()
                 .tableName(RANKINGS_TABLE_NAME)
                 .key(reviewKey)
                 .updateExpression("SET reactionCounts = :rc");
 
-        final boolean snapshotWasAllZeros =
-                snapshotThumbsUp == 0 && snapshotThumbsDown == 0 && snapshotHeart == 0;
-        // First write of reactionCounts on this item: only succeed if the attribute still does not exist.
-        if (reactionCountsMissingOnItem && snapshotWasAllZeros) {
+        if (snapshot.reactionCountsMissingOnItem() && snapshot.wasAllZeros()) {
             updateBuilder.conditionExpression("attribute_not_exists(reactionCounts)");
         } else {
-            // Compare-and-set: apply new totals only if the three public counts still match what we read (no lost updates).
-            updateValues.put(":etu", AttributeValue.builder().n(String.valueOf(snapshotThumbsUp)).build());
-            updateValues.put(":etd", AttributeValue.builder().n(String.valueOf(snapshotThumbsDown)).build());
-            updateValues.put(":eh", AttributeValue.builder().n(String.valueOf(snapshotHeart)).build());
+            updateValues.put(":etu", AttributeValue.builder().n(String.valueOf(snapshot.thumbsUp())).build());
+            updateValues.put(":etd", AttributeValue.builder().n(String.valueOf(snapshot.thumbsDown())).build());
+            updateValues.put(":eh", AttributeValue.builder().n(String.valueOf(snapshot.heart())).build());
             updateBuilder
                     .conditionExpression(
                             "reactionCounts.#tu = :etu AND reactionCounts.#td = :etd AND reactionCounts.#h = :eh")
@@ -650,27 +696,33 @@ public class ReviewDALImpl implements ReviewDAL {
 
         updateBuilder.expressionAttributeValues(updateValues);
         dynamoDb.updateItem(updateBuilder.build());
+    }
 
-        // Per-viewer reaction row (separate item); rankings update above must succeed first.
+    /** Per-viewer reaction row; rankings update must succeed before this runs. */
+    private void syncViewerReactionRow(
+            Map<String, AttributeValue> reactionKey,
+            String viewerAccountId,
+            String reviewId,
+            MyReactions next
+    ) {
         if (isAllReactionsOff(next)) {
             dynamoDb.deleteItem(DeleteItemRequest.builder()
                     .tableName(REACTIONS_TABLE_NAME)
                     .key(reactionKey)
                     .build());
-        } else {
-            final Map<String, AttributeValue> reactionRow = new HashMap<>();
-            reactionRow.put(VIEWER_ACCOUNT_ID_KEY, AttributeValue.builder().s(viewerAccountId).build());
-            reactionRow.put(REVIEW_ID_KEY, AttributeValue.builder().s(reviewId).build());
-            reactionRow.put(THUMBS_UP_KEY, AttributeValue.builder().bool(next.isThumbsUp()).build());
-            reactionRow.put(THUMBS_DOWN_KEY, AttributeValue.builder().bool(next.isThumbsDown()).build());
-            reactionRow.put(HEART_KEY, AttributeValue.builder().bool(next.isHeart()).build());
-            dynamoDb.putItem(PutItemRequest.builder()
-                    .tableName(REACTIONS_TABLE_NAME)
-                    .item(reactionRow)
-                    .build());
+            return;
         }
-
-        return new ToggleReactionResult(reviewId, counts, next);
+        final Map<String, AttributeValue> reactionRow = Map.of(
+                VIEWER_ACCOUNT_ID_KEY, AttributeValue.builder().s(viewerAccountId).build(),
+                REVIEW_ID_KEY, AttributeValue.builder().s(reviewId).build(),
+                THUMBS_UP_KEY, AttributeValue.builder().bool(next.isThumbsUp()).build(),
+                THUMBS_DOWN_KEY, AttributeValue.builder().bool(next.isThumbsDown()).build(),
+                HEART_KEY, AttributeValue.builder().bool(next.isHeart()).build()
+        );
+        dynamoDb.putItem(PutItemRequest.builder()
+                .tableName(REACTIONS_TABLE_NAME)
+                .item(reactionRow)
+                .build());
     }
 
     private static String[] splitReviewId(String reviewId) {

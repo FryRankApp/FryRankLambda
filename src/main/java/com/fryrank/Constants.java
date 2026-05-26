@@ -23,7 +23,7 @@ public class Constants {
     public static final String REVIEW_VALIDATOR_ERRORS_OBJECT_NAME = "review";
     public static final String DELETE_REVIEW_REQUEST_VALIDATOR_ERRORS_OBJECT_NAME = "DeleteReviewRequest";
     public static final String USER_METADATA_VALIDATOR_ERRORS_OBJECT_NAME = "userMetadata";
-    public static final String TOGGLE_REACTION_REQUEST_VALIDATOR_ERRORS_OBJECT_NAME = "toggleReactionRequest";
+    public static final String PUT_REACTION_REQUEST_VALIDATOR_ERRORS_OBJECT_NAME = "putReactionRequest";
     public static final String REJECTION_REQUIRED_CODE = "field.required";
     public static final String REJECTION_FORMAT_CODE = "field.invalidFormat";
 
@@ -86,7 +86,7 @@ public class Constants {
     public static final String GET_PUBLIC_USER_METADATA_HANDLER = "GetPublicUserMetadataHandler";
     public static final String PUT_PUBLIC_USER_METADATA_HANDLER = "PutPublicUserMetadataHandler";
     public static final String UPSERT_PUBLIC_USER_METADATA_HANDLER = "UpsertPublicUserMetadataHandler";
-    public static final String TOGGLE_REACTION_HANDLER = "ToggleReactionHandler";
+    public static final String PUT_REACTION_HANDLER = "PutReactionHandler";
 
     // Allowed Origins
     public static final String LOCALHOST = "http://localhost:3000";

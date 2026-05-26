@@ -6,8 +6,8 @@ import com.amazonaws.services.lambda.runtime.events.APIGatewayV2HTTPEvent;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayV2HTTPResponse;
 import com.fryrank.dagger.Dependencies;
 import com.fryrank.domain.ReviewDomain;
-import com.fryrank.model.ToggleReactionRequest;
-import com.fryrank.model.ToggleReactionResult;
+import com.fryrank.model.PutReactionRequest;
+import com.fryrank.model.PutReactionResult;
 import com.fryrank.model.exceptions.AuthorizationDisabledException;
 import com.fryrank.model.exceptions.NotAuthorizedException;
 import com.fryrank.util.APIGatewayResponseBuilder;
@@ -20,20 +20,20 @@ import lombok.extern.log4j.Log4j2;
 import static com.fryrank.util.HeaderUtils.createCorsHeaders;
 
 @Log4j2
-public class ToggleReactionHandler implements RequestHandler<APIGatewayV2HTTPEvent, APIGatewayV2HTTPResponse> {
+public class PutReactionHandler implements RequestHandler<APIGatewayV2HTTPEvent, APIGatewayV2HTTPResponse> {
 
     private final ReviewDomain reviewDomain;
     private final APIGatewayRequestValidator requestValidator;
     private final Authorizer authorizer;
 
-    public ToggleReactionHandler() {
+    public PutReactionHandler() {
         final var component = Dependencies.appComponent();
         reviewDomain = component.reviewDomain();
         requestValidator = component.apiGatewayRequestValidator();
         authorizer = component.authorizer();
     }
 
-    public ToggleReactionHandler(
+    public PutReactionHandler(
             ReviewDomain reviewDomain,
             APIGatewayRequestValidator requestValidator,
             Authorizer authorizer
@@ -51,7 +51,7 @@ public class ToggleReactionHandler implements RequestHandler<APIGatewayV2HTTPEve
         return APIGatewayResponseBuilder.handleRequest(handlerName, input, () -> {
             requestValidator.validateRequest(handlerName, input);
 
-            final ToggleReactionRequest request = new Gson().fromJson(input.getBody(), ToggleReactionRequest.class);
+            final PutReactionRequest request = new Gson().fromJson(input.getBody(), PutReactionRequest.class);
             String viewerAccountId = null;
             try {
                 final String token = HeaderUtils.extractBearerToken(input);
@@ -64,7 +64,7 @@ public class ToggleReactionHandler implements RequestHandler<APIGatewayV2HTTPEve
                 log.info("Authorization disabled; using request accountId as viewer accountId");
             }
 
-            final ToggleReactionResult output = reviewDomain.toggleReaction(viewerAccountId, request);
+            final PutReactionResult output = reviewDomain.putReaction(viewerAccountId, request);
 
             log.info("Request processed successfully");
             return APIGatewayResponseBuilder.buildSuccessResponse(output, createCorsHeaders(input));

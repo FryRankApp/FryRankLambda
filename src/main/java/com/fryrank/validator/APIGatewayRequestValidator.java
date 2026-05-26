@@ -14,7 +14,7 @@ import static com.fryrank.Constants.GET_AGGREGATE_REVIEW_HANDLER;
 import static com.fryrank.Constants.GET_RECENT_REVIEWS_HANDLER;
 import static com.fryrank.Constants.GET_PUBLIC_USER_METADATA_HANDLER;
 import static com.fryrank.Constants.PUT_PUBLIC_USER_METADATA_HANDLER;
-import static com.fryrank.Constants.TOGGLE_REACTION_HANDLER;
+import static com.fryrank.Constants.PUT_REACTION_HANDLER;
 import static com.fryrank.Constants.UPSERT_PUBLIC_USER_METADATA_HANDLER;
 
 @Log4j2
@@ -134,7 +134,7 @@ public class APIGatewayRequestValidator {
             case UPSERT_PUBLIC_USER_METADATA_HANDLER:
                 validateRequestBodyExists(request);
                 break;
-            case TOGGLE_REACTION_HANDLER:
+            case PUT_REACTION_HANDLER:
                 validateRequestBodyExists(request);
                 break;
             default:

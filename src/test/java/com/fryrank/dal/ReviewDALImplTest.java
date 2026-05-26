@@ -3,7 +3,7 @@ package com.fryrank.dal;
 import com.fryrank.model.GetAllReviewsOutput;
 import com.fryrank.model.MyReactions;
 import com.fryrank.model.ReactionCounts;
-import com.fryrank.model.ToggleReactionResult;
+import com.fryrank.model.PutReactionResult;
 import com.fryrank.model.enums.ReactionAction;
 import com.fryrank.model.enums.ReactionType;
 import org.junit.jupiter.api.BeforeEach;
@@ -147,7 +147,7 @@ class ReviewDALImplTest {
     }
 
     @Test
-    void toggleReaction_firstThumbsUp_updatesRankingsAndPutReactionRow() {
+    void putReaction_firstThumbsUp_updatesRankingsAndPutReactionRow() {
         Map<String, AttributeValue> reviewRow = rankingReviewRowWithZeroCounts();
 
         when(dynamoDb.getItem(any(GetItemRequest.class))).thenAnswer(invocation -> {
@@ -163,7 +163,7 @@ class ReviewDALImplTest {
         when(dynamoDb.updateItem(any(UpdateItemRequest.class))).thenReturn(UpdateItemResponse.builder().build());
         when(dynamoDb.putItem(any(PutItemRequest.class))).thenReturn(PutItemResponse.builder().build());
 
-        ToggleReactionResult result = dal.toggleReaction(VIEWER, REVIEW_ID, ReactionType.THUMBS_UP, ReactionAction.ADD);
+        PutReactionResult result = dal.putReaction(VIEWER, REVIEW_ID, ReactionType.THUMBS_UP, ReactionAction.ADD);
 
         assertEquals(REVIEW_ID, result.reviewId());
         assertTrue(result.myReactions().isThumbsUp());
@@ -188,7 +188,7 @@ class ReviewDALImplTest {
      * and must not pass unused ExpressionAttributeValues (DynamoDB rejects with ValidationException).
      */
     @Test
-    void toggleReaction_whenReactionCountsAttributeMissing_usesExistsConditionAndOnlyRcInValues() {
+    void putReaction_whenReactionCountsAttributeMissing_usesExistsConditionAndOnlyRcInValues() {
         Map<String, AttributeValue> reviewRow = rankingReviewLegacyRowWithoutReactionCounts();
 
         when(dynamoDb.getItem(any(GetItemRequest.class))).thenAnswer(invocation -> {
@@ -204,7 +204,7 @@ class ReviewDALImplTest {
         when(dynamoDb.updateItem(any(UpdateItemRequest.class))).thenReturn(UpdateItemResponse.builder().build());
         when(dynamoDb.putItem(any(PutItemRequest.class))).thenReturn(PutItemResponse.builder().build());
 
-        dal.toggleReaction(VIEWER, REVIEW_ID, ReactionType.HEART, ReactionAction.ADD);
+        dal.putReaction(VIEWER, REVIEW_ID, ReactionType.HEART, ReactionAction.ADD);
 
         ArgumentCaptor<UpdateItemRequest> updateCap = ArgumentCaptor.forClass(UpdateItemRequest.class);
         verify(dynamoDb).updateItem(updateCap.capture());
@@ -221,7 +221,7 @@ class ReviewDALImplTest {
      * Mocks advance {@code getItem} order to mimic what Dynamo would return after the first write.
      */
     @Test
-    void toggleReaction_addThumbsUp_thenRemove_inSequence() {
+    void putReaction_addThumbsUp_thenRemove_inSequence() {
         Map<String, AttributeValue> reviewZero = rankingReviewRowWithZeroCounts();
         Map<String, AttributeValue> reviewOne = rankingReviewRowWithReactionTotals(1, 0, 0);
         Map<String, AttributeValue> reactionLiked = reactionRowWithThumbsUpOnly();
@@ -230,7 +230,7 @@ class ReviewDALImplTest {
         when(dynamoDb.getItem(any(GetItemRequest.class))).thenAnswer(invocation -> {
             GetItemRequest req = invocation.getArgument(0);
             int n = getItemCall.getAndIncrement();
-            // Per toggleReactionOnce: rankings GetItem, then reactions GetItem.
+            // Per putReactionOnce: rankings GetItem, then reactions GetItem.
             if (RANKINGS_TABLE_NAME.equals(req.tableName())) {
                 if (n == 0) {
                     return GetItemResponse.builder().item(reviewZero).build();
@@ -253,11 +253,11 @@ class ReviewDALImplTest {
         when(dynamoDb.putItem(any(PutItemRequest.class))).thenReturn(PutItemResponse.builder().build());
         when(dynamoDb.deleteItem(any(DeleteItemRequest.class))).thenReturn(DeleteItemResponse.builder().build());
 
-        ToggleReactionResult afterAdd = dal.toggleReaction(VIEWER, REVIEW_ID, ReactionType.THUMBS_UP, ReactionAction.ADD);
+        PutReactionResult afterAdd = dal.putReaction(VIEWER, REVIEW_ID, ReactionType.THUMBS_UP, ReactionAction.ADD);
         assertTrue(afterAdd.myReactions().isThumbsUp());
         assertEquals(1, afterAdd.reactionCounts().getThumbsUp());
 
-        ToggleReactionResult afterRemove = dal.toggleReaction(VIEWER, REVIEW_ID, ReactionType.THUMBS_UP, ReactionAction.REMOVE);
+        PutReactionResult afterRemove = dal.putReaction(VIEWER, REVIEW_ID, ReactionType.THUMBS_UP, ReactionAction.REMOVE);
         assertFalse(afterRemove.myReactions().isThumbsUp());
         assertEquals(0, afterRemove.reactionCounts().getThumbsUp());
 
@@ -267,25 +267,25 @@ class ReviewDALImplTest {
     }
 
     @Test
-    void toggleReaction_reviewNotFound_throws() {
+    void putReaction_reviewNotFound_throws() {
         when(dynamoDb.getItem(any(GetItemRequest.class))).thenReturn(
                 GetItemResponse.builder().build());
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> dal.toggleReaction(VIEWER, REVIEW_ID, ReactionType.THUMBS_UP, ReactionAction.ADD));
+                () -> dal.putReaction(VIEWER, REVIEW_ID, ReactionType.THUMBS_UP, ReactionAction.ADD));
         assertTrue(ex.getMessage().contains("Review not found"));
     }
 
     @Test
-    void toggleReaction_invalidReviewId_throws() {
+    void putReaction_invalidReviewId_throws() {
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> dal.toggleReaction(VIEWER, "no-colon-in-id", ReactionType.THUMBS_UP, ReactionAction.ADD));
+                () -> dal.putReaction(VIEWER, "no-colon-in-id", ReactionType.THUMBS_UP, ReactionAction.ADD));
         assertTrue(ex.getMessage().contains("Invalid reviewId"));
         verify(dynamoDb, never()).getItem(any(GetItemRequest.class));
     }
 
     @Test
-    void toggleReaction_idempotentAddWhenAlreadyThumbsUp_skipsWrites() {
+    void putReaction_idempotentAddWhenAlreadyThumbsUp_skipsWrites() {
         Map<String, AttributeValue> reviewRow = rankingReviewRowWithReactionTotals(1, 0, 0);
         Map<String, AttributeValue> reactionRow = reactionRowWithThumbsUpOnly();
 
@@ -300,7 +300,7 @@ class ReviewDALImplTest {
             return GetItemResponse.builder().build();
         });
 
-        ToggleReactionResult result = dal.toggleReaction(VIEWER, REVIEW_ID, ReactionType.THUMBS_UP, ReactionAction.ADD);
+        PutReactionResult result = dal.putReaction(VIEWER, REVIEW_ID, ReactionType.THUMBS_UP, ReactionAction.ADD);
 
         assertTrue(result.myReactions().isThumbsUp());
         assertEquals(1, result.reactionCounts().getThumbsUp());
@@ -310,7 +310,7 @@ class ReviewDALImplTest {
     }
 
     @Test
-    void toggleReaction_removeThumbsUp_decrementsPublicCountAndDeletesReactionRow() {
+    void putReaction_removeThumbsUp_decrementsPublicCountAndDeletesReactionRow() {
         Map<String, AttributeValue> reviewRow = rankingReviewRowWithReactionTotals(1, 0, 0);
         Map<String, AttributeValue> reactionRow = reactionRowWithThumbsUpOnly();
 
@@ -326,7 +326,7 @@ class ReviewDALImplTest {
         });
         when(dynamoDb.updateItem(any(UpdateItemRequest.class))).thenReturn(UpdateItemResponse.builder().build());
 
-        ToggleReactionResult result = dal.toggleReaction(VIEWER, REVIEW_ID, ReactionType.THUMBS_UP, ReactionAction.REMOVE);
+        PutReactionResult result = dal.putReaction(VIEWER, REVIEW_ID, ReactionType.THUMBS_UP, ReactionAction.REMOVE);
 
         assertFalse(result.myReactions().isThumbsUp());
         assertEquals(0, result.reactionCounts().getThumbsUp());
@@ -340,7 +340,7 @@ class ReviewDALImplTest {
     }
 
     @Test
-    void toggleReaction_idempotentRemoveWhenNotLiked_skipsWrites() {
+    void putReaction_idempotentRemoveWhenNotLiked_skipsWrites() {
         Map<String, AttributeValue> reviewRow = rankingReviewRowWithZeroCounts();
 
         when(dynamoDb.getItem(any(GetItemRequest.class))).thenAnswer(invocation -> {
@@ -354,7 +354,7 @@ class ReviewDALImplTest {
             return GetItemResponse.builder().build();
         });
 
-        ToggleReactionResult result = dal.toggleReaction(VIEWER, REVIEW_ID, ReactionType.THUMBS_UP, ReactionAction.REMOVE);
+        PutReactionResult result = dal.putReaction(VIEWER, REVIEW_ID, ReactionType.THUMBS_UP, ReactionAction.REMOVE);
 
         assertFalse(result.myReactions().isThumbsUp());
         verify(dynamoDb, never()).updateItem(any(UpdateItemRequest.class));

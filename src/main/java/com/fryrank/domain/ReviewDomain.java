@@ -1,7 +1,7 @@
 package com.fryrank.domain;
 
 import static com.fryrank.Constants.REVIEW_VALIDATOR_ERRORS_OBJECT_NAME;
-import static com.fryrank.Constants.TOGGLE_REACTION_REQUEST_VALIDATOR_ERRORS_OBJECT_NAME;
+import static com.fryrank.Constants.PUT_REACTION_REQUEST_VALIDATOR_ERRORS_OBJECT_NAME;
 
 import java.util.Arrays;
 import java.util.List;
@@ -14,10 +14,10 @@ import com.fryrank.model.DeleteReviewRequest;
 import com.fryrank.model.GetAggregateReviewInformationOutput;
 import com.fryrank.model.GetAllReviewsOutput;
 import com.fryrank.model.Review;
-import com.fryrank.model.ToggleReactionRequest;
-import com.fryrank.model.ToggleReactionResult;
+import com.fryrank.model.PutReactionRequest;
+import com.fryrank.model.PutReactionResult;
+import com.fryrank.validator.PutReactionRequestValidator;
 import com.fryrank.validator.ReviewValidator;
-import com.fryrank.validator.ToggleReactionRequestValidator;
 import com.fryrank.validator.ValidatorException;
 import com.fryrank.validator.ValidatorUtils;
 
@@ -78,16 +78,16 @@ public class ReviewDomain {
         }
     }
 
-    /** Toggles a reaction for the authenticated viewer on the given review. */
-    public ToggleReactionResult toggleReaction(
+    /** Sets a reaction for the authenticated viewer on the given review. */
+    public PutReactionResult putReaction(
             @NonNull final String viewerAccountId,
-            @NonNull final ToggleReactionRequest request
+            @NonNull final PutReactionRequest request
     ) throws ValidatorException {
         ValidatorUtils.validateAndThrow(
                 request,
-                TOGGLE_REACTION_REQUEST_VALIDATOR_ERRORS_OBJECT_NAME,
-                new ToggleReactionRequestValidator());
-        return reviewDAL.toggleReaction(
+                PUT_REACTION_REQUEST_VALIDATOR_ERRORS_OBJECT_NAME,
+                new PutReactionRequestValidator());
+        return reviewDAL.putReaction(
                 viewerAccountId,
                 request.reviewId(),
                 request.reactionType(),

@@ -1,9 +1,9 @@
 package com.fryrank.model;
 
 /**
- * Result of toggling a reaction (public counts + viewer state).
+ * Result of putting a reaction (public counts + viewer state).
  */
-public record ToggleReactionResult(
+public record PutReactionResult(
         String reviewId,
         ReactionCounts reactionCounts,
         MyReactions myReactions

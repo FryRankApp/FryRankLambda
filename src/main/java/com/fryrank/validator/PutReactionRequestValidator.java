@@ -1,6 +1,6 @@
 package com.fryrank.validator;
 
-import com.fryrank.model.ToggleReactionRequest;
+import com.fryrank.model.PutReactionRequest;
 import lombok.NonNull;
 import org.springframework.validation.Errors;
 import org.springframework.validation.Validator;
@@ -8,9 +8,9 @@ import org.springframework.validation.Validator;
 import static com.fryrank.Constants.REJECTION_REQUIRED_CODE;
 
 /**
- * Validates {@link ToggleReactionRequest} bodies for reaction toggle.
+ * Validates {@link PutReactionRequest} bodies.
  */
-public class ToggleReactionRequestValidator implements Validator {
+public class PutReactionRequestValidator implements Validator {
 
     public static final String ACCOUNT_ID = "accountId";
     public static final String REVIEW_ID = "reviewId";
@@ -24,12 +24,12 @@ public class ToggleReactionRequestValidator implements Validator {
 
     @Override
     public boolean supports(@NonNull Class<?> clazz) {
-        return ToggleReactionRequest.class.isAssignableFrom(clazz);
+        return PutReactionRequest.class.isAssignableFrom(clazz);
     }
 
     @Override
     public void validate(@NonNull Object target, @NonNull Errors errors) {
-        ToggleReactionRequest req = (ToggleReactionRequest) target;
+        PutReactionRequest req = (PutReactionRequest) target;
 
         if (req.accountId() == null || req.accountId().isBlank()) {
             errors.rejectValue(ACCOUNT_ID, REJECTION_REQUIRED_CODE, ACCOUNT_ID_REQUIRED);

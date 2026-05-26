@@ -7,9 +7,9 @@ import com.fryrank.Constants;
 import com.fryrank.dal.ReviewDALImpl;
 import com.fryrank.domain.ReviewDomain;
 import com.fryrank.model.MyReactions;
+import com.fryrank.model.PutReactionRequest;
+import com.fryrank.model.PutReactionResult;
 import com.fryrank.model.ReactionCounts;
-import com.fryrank.model.ToggleReactionRequest;
-import com.fryrank.model.ToggleReactionResult;
 import com.fryrank.model.enums.ReactionAction;
 import com.fryrank.model.enums.ReactionType;
 import com.fryrank.model.exceptions.AuthorizationDisabledException;
@@ -42,7 +42,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-class ToggleReactionHandlerTests {
+class PutReactionHandlerTests {
 
     @Mock
     private ReviewDALImpl reviewDAL;
@@ -60,7 +60,7 @@ class ToggleReactionHandlerTests {
     private Context context;
 
     @InjectMocks
-    private ToggleReactionHandler handler;
+    private PutReactionHandler handler;
 
     private Gson gson;
 
@@ -71,12 +71,12 @@ class ToggleReactionHandlerTests {
 
     @Test
     void handleRequest_validToken_callsDomainAndReturnsSuccess() throws Exception {
-        ToggleReactionRequest request = new ToggleReactionRequest(
+        PutReactionRequest request = new PutReactionRequest(
                 TEST_ACCOUNT_ID,
                 TEST_REVIEW_ID_1,
                 ReactionType.THUMBS_UP,
                 ReactionAction.ADD);
-        ToggleReactionResult result = new ToggleReactionResult(
+        PutReactionResult result = new PutReactionResult(
                 TEST_REVIEW_ID_1,
                 ReactionCounts.builder().thumbsUp(1).build(),
                 MyReactions.builder().thumbsUp(true).build());
@@ -84,7 +84,7 @@ class ToggleReactionHandlerTests {
 
         doNothing().when(requestValidator).validateRequest(any(), any());
         when(authorizer.authorizeAndGetAccountId(TEST_VALID_TOKEN)).thenReturn(TEST_AUTHORIZED_ACCOUNT_ID);
-        when(reviewDomain.toggleReaction(any(), any())).thenReturn(result);
+        when(reviewDomain.putReaction(any(), any())).thenReturn(result);
 
         APIGatewayV2HTTPResponse response = handler.handleRequest(event, context);
 
@@ -93,13 +93,13 @@ class ToggleReactionHandlerTests {
         verify(authorizer).authorizeAndGetAccountId(TEST_VALID_TOKEN);
 
         ArgumentCaptor<String> accountIdCaptor = ArgumentCaptor.forClass(String.class);
-        verify(reviewDomain).toggleReaction(accountIdCaptor.capture(), any(ToggleReactionRequest.class));
+        verify(reviewDomain).putReaction(accountIdCaptor.capture(), any(PutReactionRequest.class));
         assertEquals(TEST_AUTHORIZED_ACCOUNT_ID, accountIdCaptor.getValue());
     }
 
     @Test
     void handleRequest_invalidToken_returnsUnauthorized() throws Exception {
-        ToggleReactionRequest request = new ToggleReactionRequest(
+        PutReactionRequest request = new PutReactionRequest(
                 TEST_ACCOUNT_ID,
                 TEST_REVIEW_ID_1,
                 ReactionType.HEART,
@@ -118,12 +118,12 @@ class ToggleReactionHandlerTests {
 
     @Test
     void handleRequest_authDisabled_usesRequestAccountIdAsViewer() throws Exception {
-        ToggleReactionRequest request = new ToggleReactionRequest(
+        PutReactionRequest request = new PutReactionRequest(
                 TEST_ACCOUNT_ID,
                 TEST_REVIEW_ID_1,
                 ReactionType.THUMBS_DOWN,
                 ReactionAction.REMOVE);
-        ToggleReactionResult result = new ToggleReactionResult(
+        PutReactionResult result = new PutReactionResult(
                 TEST_REVIEW_ID_1,
                 ReactionCounts.zero(),
                 MyReactions.none());
@@ -132,13 +132,13 @@ class ToggleReactionHandlerTests {
         doNothing().when(requestValidator).validateRequest(any(), any());
         doThrow(new AuthorizationDisabledException("Authorization is disabled"))
                 .when(authorizer).authorizeAndGetAccountId(null);
-        when(reviewDomain.toggleReaction(any(), any())).thenReturn(result);
+        when(reviewDomain.putReaction(any(), any())).thenReturn(result);
 
         APIGatewayV2HTTPResponse response = handler.handleRequest(event, context);
 
         assertEquals(200, response.getStatusCode());
         ArgumentCaptor<String> accountIdCaptor = ArgumentCaptor.forClass(String.class);
-        verify(reviewDomain).toggleReaction(accountIdCaptor.capture(), any(ToggleReactionRequest.class));
+        verify(reviewDomain).putReaction(accountIdCaptor.capture(), any(PutReactionRequest.class));
         assertEquals(TEST_ACCOUNT_ID, accountIdCaptor.getValue());
     }
 
