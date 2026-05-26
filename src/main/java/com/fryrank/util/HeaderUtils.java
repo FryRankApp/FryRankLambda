@@ -55,7 +55,7 @@ public class HeaderUtils {
     public static Map<String, String> createCorsHeaders(APIGatewayV2HTTPEvent event) {
         Map<String, String> corsHeaders = new HashMap<>(Map.of(
                 HEADER_ACCESS_CONTROL_ALLOW_METHODS, ALLOWED_METHODS,
-                HEADER_ACCESS_CONTROL_ALLOW_HEADERS, CORS_ALLOW_REQUEST_HEADERS
+                HEADER_ACCESS_CONTROL_ALLOW_HEADERS, CONTENT_TYPE
         ));
 
 

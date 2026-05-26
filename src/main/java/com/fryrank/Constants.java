@@ -100,7 +100,7 @@ public class Constants {
     public static final String FRYRANK_PROD_WWW = "https://www.fryrank.app";
     public static final String FRYRANK_PROD_ALT_URL = "https://pure-temple-61679-98a4d5c2d04e.herokuapp.com";
     public static final String FRYRANK_PROD_CLOUDFRONT = "https://d3h6a05rzfj3y8.cloudfront.net";
-    public static final String FRYRANK_CLOUDFRONT = "https://d34zj8wsl0pw71.cloudfront.net";
+    public static final String FRYRANK_CLOUDFRONT = "https://d34zj8wsl0pw71.cloudfront.net"; //Alma's testing
     public static final Set<String> ALLOWED_ORIGINS = Set.of(
         LOCALHOST,
         FRYRANK_SANDBOX_MATT,
@@ -126,9 +126,6 @@ public class Constants {
     public static final String HEADER_ACCESS_CONTROL_ALLOW_METHODS = "Access-Control-Allow-Methods";
     public static final String HEADER_ACCESS_CONTROL_ALLOW_HEADERS = "Access-Control-Allow-Headers";
     public static final String ALLOWED_METHODS = "GET, POST, PUT, OPTIONS";
-    /** Must cover headers browsers send on cross-origin requests (e.g. Authorization). */
-    public static final String CORS_ALLOW_REQUEST_HEADERS =
-            "Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token";
     public static final String ORIGIN = "origin";
     public static final String CONTENT_TYPE = "Content-Type";
 }
