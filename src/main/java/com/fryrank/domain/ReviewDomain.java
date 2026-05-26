@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import com.fryrank.dal.ReviewDAL;
+import com.fryrank.dal.ReviewsPage;
 import com.fryrank.model.exceptions.NotFoundException;
 import com.fryrank.model.AggregateReviewFilter;
 import com.fryrank.model.DeleteReviewRequest;
@@ -51,11 +52,26 @@ public class ReviewDomain {
 				accountId != null ? " for accountId: " + accountId : "",
 				limit,
 				cursor);
-        return reviewDAL.mergeViewerReactions(restaurantId, accountId, viewerAccountId);
+
+        final ReviewsPage page;
+        if (restaurantId != null) {
+            page = reviewDAL.getAllReviewsByRestaurantId(restaurantId, limit, cursor);
+        } else if (accountId != null) {
+            page = reviewDAL.getAllReviewsByAccountId(accountId, limit, cursor);
+        } else {
+            throw new IllegalArgumentException("At least one of restaurantId and accountId must be provided.");
+        }
+
+        List<Review> reviews = page.reviews();
+        if (viewerAccountId != null && !viewerAccountId.isBlank() && !reviews.isEmpty()) {
+            reviews = reviewDAL.mergeViewerReactions(viewerAccountId, reviews);
+        }
+        return new GetAllReviewsOutput(reviews, page.nextCursor());
     }
 
     public GetAllReviewsOutput getRecentReviews(final Integer count) {
-        return reviewDAL.getRecentReviews(count);
+        final ReviewsPage page = reviewDAL.getRecentReviews(count);
+        return new GetAllReviewsOutput(page.reviews(), page.nextCursor());
     }
 
     public GetAggregateReviewInformationOutput getAggregateReviewInformationForRestaurants(

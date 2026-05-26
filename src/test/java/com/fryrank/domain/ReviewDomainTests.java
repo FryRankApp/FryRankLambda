@@ -1,6 +1,7 @@
 package com.fryrank.domain;
 
 import com.fryrank.dal.ReviewDAL;
+import com.fryrank.dal.ReviewsPage;
 import com.fryrank.model.*;
 import com.fryrank.validator.ReviewValidator;
 import com.fryrank.validator.ValidatorException;
@@ -26,9 +27,13 @@ import static com.fryrank.TestConstants.TEST_REVIEW_NULL_ISO_DATETIME;
 import static com.fryrank.TestConstants.TEST_TITLE_1;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
@@ -53,35 +58,52 @@ public class ReviewDomainTests {
     // /api/reviews endpoint tests
     @Test
     public void testGetAllReviewsForRestaurant() throws Exception {
-        final GetAllReviewsOutput expectedOutput = new GetAllReviewsOutput(TEST_REVIEWS);
-        when(reviewDAL.mergeViewerReactions(eq(TEST_RESTAURANT_ID), isNull(), isNull())).thenReturn(expectedOutput);
+        final ReviewsPage page = new ReviewsPage(TEST_REVIEWS);
+        when(reviewDAL.getAllReviewsByRestaurantId(eq(TEST_RESTAURANT_ID), eq(TEST_LIMIT), eq(TEST_ISO_DATE_TIME_1)))
+                .thenReturn(page);
 
-        final GetAllReviewsOutput actualOutput = domain.getAllReviews(TEST_RESTAURANT_ID, null, TEST_LIMIT, TEST_ISO_DATE_TIME_1);
-        assertEquals(expectedOutput, actualOutput);
+        final GetAllReviewsOutput actualOutput = domain.getAllReviews(
+                TEST_RESTAURANT_ID, null, TEST_LIMIT, TEST_ISO_DATE_TIME_1);
+        assertEquals(TEST_REVIEWS, actualOutput.getReviews());
     }
 
     @Test
     public void testGetAllReviewsForAccount() throws Exception {
-        final GetAllReviewsOutput expectedOutput = new GetAllReviewsOutput(TEST_REVIEWS);
-        when(reviewDAL.mergeViewerReactions(isNull(), eq(TEST_ACCOUNT_ID), isNull())).thenReturn(expectedOutput);
+        final ReviewsPage page = new ReviewsPage(TEST_REVIEWS);
+        when(reviewDAL.getAllReviewsByAccountId(eq(TEST_ACCOUNT_ID), eq(TEST_LIMIT), eq(TEST_ISO_DATE_TIME_1)))
+                .thenReturn(page);
 
-        final GetAllReviewsOutput actualOutput = domain.getAllReviews(null, TEST_ACCOUNT_ID, TEST_LIMIT, TEST_ISO_DATE_TIME_1);
-        assertEquals(expectedOutput, actualOutput);
+        final GetAllReviewsOutput actualOutput = domain.getAllReviews(
+                null, TEST_ACCOUNT_ID, TEST_LIMIT, TEST_ISO_DATE_TIME_1);
+        assertEquals(TEST_REVIEWS, actualOutput.getReviews());
     }
 
     @Test
     public void testGetAllReviewsNoParameter() throws Exception {
-        doThrow(new NullPointerException()).when(reviewDAL).mergeViewerReactions(isNull(), isNull(), isNull());
-        assertThrows(NullPointerException.class, () -> domain.getAllReviews(null, null, TEST_LIMIT, TEST_ISO_DATE_TIME_1));
+        assertThrows(IllegalArgumentException.class,
+                () -> domain.getAllReviews(null, null, TEST_LIMIT, TEST_ISO_DATE_TIME_1));
+    }
+
+    @Test
+    public void testGetAllReviews_mergesViewerReactionsWhenViewerPresent() throws Exception {
+        final ReviewsPage page = new ReviewsPage(TEST_REVIEWS);
+        when(reviewDAL.getAllReviewsByRestaurantId(eq(TEST_RESTAURANT_ID), anyInt(), isNull()))
+                .thenReturn(page);
+        when(reviewDAL.mergeViewerReactions(eq("viewer-1"), eq(TEST_REVIEWS)))
+                .thenReturn(TEST_REVIEWS);
+
+        domain.getAllReviews(TEST_RESTAURANT_ID, null, TEST_LIMIT, null, "viewer-1");
+
+        verify(reviewDAL).mergeViewerReactions("viewer-1", TEST_REVIEWS);
     }
 
     @Test
     public void testGetRecentReviews() throws Exception {
-        final GetAllReviewsOutput expectedOutput = new GetAllReviewsOutput(TEST_REVIEWS);
-        when(reviewDAL.getRecentReviews(TEST_REVIEWS.size())).thenReturn(expectedOutput);
+        final ReviewsPage page = new ReviewsPage(TEST_REVIEWS);
+        when(reviewDAL.getRecentReviews(TEST_REVIEWS.size())).thenReturn(page);
 
         final GetAllReviewsOutput actualOutput = domain.getRecentReviews(TEST_REVIEWS.size());
-        assertEquals(expectedOutput.getReviews().size(), actualOutput.getReviews().size());
+        assertEquals(TEST_REVIEWS.size(), actualOutput.getReviews().size());
     }
 
     // /api/reviews/aggregateInformation endpoint tests

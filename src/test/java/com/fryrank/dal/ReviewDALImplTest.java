@@ -1,8 +1,8 @@
 package com.fryrank.dal;
 
-import com.fryrank.model.GetAllReviewsOutput;
 import com.fryrank.model.MyReactions;
 import com.fryrank.model.ReactionCounts;
+import com.fryrank.model.Review;
 import com.fryrank.model.PutReactionResult;
 import com.fryrank.model.enums.ReactionAction;
 import com.fryrank.model.enums.ReactionType;
@@ -63,52 +63,23 @@ class ReviewDALImplTest {
     }
 
     @Test
-    void mergeViewerReactions_nullRestaurantAndAccount_throws() {
-        assertThrows(NullPointerException.class, () -> dal.mergeViewerReactions(null, null, VIEWER));
-    }
+    void mergeViewerReactions_emptyReviews_skipsReactionBatchGet() {
+        List<Review> out = dal.mergeViewerReactions(VIEWER, List.of());
 
-    @Test
-    void mergeViewerReactions_blankViewer_returnsWithoutMergingMyReactions() {
-        when(dynamoDb.query(any(QueryRequest.class))).thenReturn(
-                QueryResponse.builder().items(List.of()).build());
-
-        GetAllReviewsOutput out = dal.mergeViewerReactions("rest1", null, "   ");
-
-        assertTrue(out.getReviews().isEmpty());
-        verify(dynamoDb).query(any(QueryRequest.class));
+        assertTrue(out.isEmpty());
         verify(dynamoDb, never()).batchGetItem(any(BatchGetItemRequest.class));
     }
 
     @Test
-    void mergeViewerReactions_nonEmptyViewerButNoReviews_skipsReactionBatchGet() {
-        when(dynamoDb.query(any(QueryRequest.class))).thenReturn(
-                QueryResponse.builder().items(List.of()).build());
-
-        GetAllReviewsOutput out = dal.mergeViewerReactions("rest1", null, VIEWER);
-
-        assertTrue(out.getReviews().isEmpty());
-        verify(dynamoDb, never()).batchGetItem(any(BatchGetItemRequest.class));
-    }
-
-    @Test
-    void mergeViewerReactions_nullViewer_queriesReviewsAndSkipsReactionBatchGetWhenNoViewer() {
-        when(dynamoDb.query(any(QueryRequest.class))).thenReturn(
-                QueryResponse.builder().items(List.of()).build());
-
-        GetAllReviewsOutput out = dal.mergeViewerReactions("rest1", null, null);
-
-        assertTrue(out.getReviews().isEmpty());
-        verify(dynamoDb).query(any(QueryRequest.class));
-        verify(dynamoDb, never()).batchGetItem(any(BatchGetItemRequest.class));
-    }
-
-    @Test
-    void mergeViewerReactions_withViewer_queriesReviewsThenBatchGetsReactionsAndSetsMyReactions() {
-        Map<String, AttributeValue> reviewRow = rankingReviewRowWithReactionTotals(1, 0, 0);
-        reviewRow.put(ACCOUNT_ID_KEY, AttributeValue.builder().s("author1").build());
-
-        when(dynamoDb.query(any(QueryRequest.class))).thenReturn(
-                QueryResponse.builder().items(List.of(reviewRow)).build());
+    void mergeViewerReactions_withViewer_batchGetsReactionsAndSetsMyReactions() {
+        Review review = Review.builder()
+                .reviewId(REVIEW_ID)
+                .restaurantId("rest1")
+                .score(5.0)
+                .title("title")
+                .body("body")
+                .reactionCounts(ReactionCounts.builder().thumbsUp(1).build())
+                .build();
 
         Map<String, AttributeValue> reactionItem = new HashMap<>();
         reactionItem.put(VIEWER_ACCOUNT_ID_KEY, AttributeValue.builder().s(VIEWER).build());
@@ -117,32 +88,21 @@ class ReviewDALImplTest {
         reactionItem.put(THUMBS_DOWN_KEY, AttributeValue.builder().bool(false).build());
         reactionItem.put(HEART_KEY, AttributeValue.builder().bool(false).build());
 
-        when(dynamoDb.batchGetItem(any(BatchGetItemRequest.class))).thenAnswer(invocation -> {
-            BatchGetItemRequest req = invocation.getArgument(0);
-            if (req.requestItems().containsKey(REACTIONS_TABLE_NAME)) {
-                return BatchGetItemResponse.builder()
+        when(dynamoDb.batchGetItem(any(BatchGetItemRequest.class))).thenReturn(
+                BatchGetItemResponse.builder()
                         .responses(Map.of(REACTIONS_TABLE_NAME, List.of(reactionItem)))
-                        .build();
-            }
-            if (req.requestItems().containsKey(USER_METADATA_TABLE_NAME)) {
-                return BatchGetItemResponse.builder()
-                        .responses(Map.of(USER_METADATA_TABLE_NAME, List.of()))
-                        .build();
-            }
-            return BatchGetItemResponse.builder().build();
-        });
+                        .build());
 
-        GetAllReviewsOutput out = dal.mergeViewerReactions("rest1", null, VIEWER);
+        List<Review> out = dal.mergeViewerReactions(VIEWER, List.of(review));
 
-        assertEquals(1, out.getReviews().size());
-        ReactionCounts counts = out.getReviews().get(0).getReactionCounts();
+        assertEquals(1, out.size());
+        ReactionCounts counts = out.get(0).getReactionCounts();
         assertEquals(1, totalPublicReactions(counts), "card should show exactly one total reaction");
-        MyReactions mine = out.getReviews().get(0).getMyReactions();
+        MyReactions mine = out.get(0).getMyReactions();
         assertEquals(1, togglesOn(mine),
-                "when total public reaction is 1, the viewer must have exactly one reaction toggle on");
+                "when total public reaction is 1, the viewer must have exactly one reaction on");
         assertTrue(mine.isThumbsUp());
 
-        verify(dynamoDb).query(any(QueryRequest.class));
         verify(dynamoDb, atLeastOnce()).batchGetItem(any(BatchGetItemRequest.class));
     }
 

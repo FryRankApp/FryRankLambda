@@ -5,7 +5,6 @@ import com.fryrank.model.AggregateReviewFilter;
 import com.fryrank.model.AggregateReviewInformation;
 import com.fryrank.model.DeleteReviewRequest;
 import com.fryrank.model.GetAggregateReviewInformationOutput;
-import com.fryrank.model.GetAllReviewsOutput;
 import com.fryrank.model.PublicUserMetadata;
 import com.fryrank.model.MyReactions;
 import com.fryrank.model.ReactionCounts;
@@ -103,18 +102,18 @@ public class ReviewDALImpl implements ReviewDAL {
     }
 
     @Override
-    public GetAllReviewsOutput getAllReviewsByRestaurantId(@NonNull final String restaurantId, final Integer limit, final String cursor) {
+    public ReviewsPage getAllReviewsByRestaurantId(@NonNull final String restaurantId, final Integer limit, final String cursor) {
         log.info("Getting reviews for restaurantId: {} with limit: {} and cursor: {}", restaurantId, limit, cursor);
         return queryReviews(RESTAURANT_ID_TIME_INDEX, RESTAURANT_ID_KEY, restaurantId, limit, cursor);
     }
 
     @Override
-    public GetAllReviewsOutput getAllReviewsByAccountId(@NonNull final String accountId, final Integer limit, final String cursor) {
+    public ReviewsPage getAllReviewsByAccountId(@NonNull final String accountId, final Integer limit, final String cursor) {
         log.info("Getting reviews for accountId: {} with limit: {} and cursor: {}", accountId, limit, cursor);
         return queryReviews(ACCOUNT_ID_TIME_INDEX, ACCOUNT_ID_KEY, accountId, limit, cursor);
     }
 
-    private GetAllReviewsOutput queryReviews(String indexName, String keyAttribute, String keyValue, Integer limit, String cursor) {
+    private ReviewsPage queryReviews(String indexName, String keyAttribute, String keyValue, Integer limit, String cursor) {
         final Map<String, String> exprAttrNames = new HashMap<>();
         exprAttrNames.put("#key", keyAttribute);
 
@@ -161,33 +160,21 @@ public class ReviewDALImpl implements ReviewDAL {
     }
 
     @Override
-    public GetAllReviewsOutput mergeViewerReactions(final String restaurantId, final String accountId, final String viewerAccountId) {
-
-        final GetAllReviewsOutput reviewsOutput;
-        if (restaurantId != null) {
-            reviewsOutput = getAllReviewsByRestaurantId(restaurantId, null, null);
-        } else if (accountId != null) {
-            reviewsOutput = getAllReviewsByAccountId(accountId, null, null);
-        } else {
-            throw new NullPointerException("At least one of restaurantId and accountId must not be null.");
-        }
-        if (reviewsOutput == null || viewerAccountId == null || viewerAccountId.isBlank()) {
-            return reviewsOutput;
-        }
-
-        final List<Review> reviews = reviewsOutput.getReviews();
+    public List<Review> mergeViewerReactions(
+            @NonNull final String viewerAccountId,
+            @NonNull final List<Review> reviews
+    ) {
         if (reviews.isEmpty()) {
-            return reviewsOutput;
+            return reviews;
         }
         final Map<String, MyReactions> byReviewId = batchGetMyReactionsForViewer(viewerAccountId, reviews);
-        final List<Review> merged = reviews.parallelStream()
+        return reviews.parallelStream()
                 .map(r -> withMyReactions(r, byReviewId.getOrDefault(r.getReviewId(), MyReactions.none())))
                 .collect(Collectors.toList());
-        return new GetAllReviewsOutput(merged);
     }
 
     @Override
-    public GetAllReviewsOutput getRecentReviews(@NonNull final Integer count) {
+    public ReviewsPage getRecentReviews(@NonNull final Integer count) {
         log.info("Getting {} recent reviews", count);
 
         final QueryRequest request = QueryRequest.builder()
@@ -787,7 +774,7 @@ public class ReviewDALImpl implements ReviewDAL {
     /**
      * Maps DynamoDB items to Review objects with batched user metadata fetching.
      */
-    private GetAllReviewsOutput mapItemsToReviewsWithUserMetadata(List<Map<String, AttributeValue>> items, String nextCursor) {
+    private ReviewsPage mapItemsToReviewsWithUserMetadata(List<Map<String, AttributeValue>> items, String nextCursor) {
         final List<String> accountIds = items.parallelStream()
                 .map(item -> getStringAttribute(item, ACCOUNT_ID_KEY))
                 .filter(Objects::nonNull)
@@ -800,7 +787,7 @@ public class ReviewDALImpl implements ReviewDAL {
                 .map(item -> mapItemToReview(item, userMetadataMap))
                 .collect(Collectors.toList());
 
-        return new GetAllReviewsOutput(reviews, nextCursor);
+        return new ReviewsPage(reviews, nextCursor);
     }
 
     private static Review withMyReactions(Review review, MyReactions myReactions) {

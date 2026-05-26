@@ -3,7 +3,6 @@ package com.fryrank.dal;
 import com.fryrank.model.AggregateReviewFilter;
 import com.fryrank.model.DeleteReviewRequest;
 import com.fryrank.model.GetAggregateReviewInformationOutput;
-import com.fryrank.model.GetAllReviewsOutput;
 import com.fryrank.model.Review;
 import com.fryrank.model.PutReactionResult;
 import com.fryrank.model.enums.ReactionAction;
@@ -13,17 +12,16 @@ import java.util.List;
 
 public interface ReviewDAL {
 
-    GetAllReviewsOutput getAllReviewsByRestaurantId(final String restaurantId, final Integer limit, final String cursor);
+    ReviewsPage getAllReviewsByRestaurantId(final String restaurantId, final Integer limit, final String cursor);
 
-    GetAllReviewsOutput getAllReviewsByAccountId(final String accountId, final Integer limit, final String cursor);
+    ReviewsPage getAllReviewsByAccountId(final String accountId, final Integer limit, final String cursor);
 
-    GetAllReviewsOutput getRecentReviews(final Integer count);
+    ReviewsPage getRecentReviews(final Integer count);
 
     /**
      * Batch-loads the viewer's reaction rows and fills {@link Review#getMyReactions()} on each review.
-     * No-op if {@code viewerAccountId} is null or blank.
      */
-    GetAllReviewsOutput mergeViewerReactions(final String restaurantId, final String accountId, final String viewerAccountId);
+    List<Review> mergeViewerReactions(final String viewerAccountId, final List<Review> reviews);
 
     GetAggregateReviewInformationOutput getAggregateReviewInformationForRestaurants(final List<String> restaurantIds, final AggregateReviewFilter aggregateReviewFilter);
 

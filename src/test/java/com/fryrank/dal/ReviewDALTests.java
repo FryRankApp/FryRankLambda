@@ -1,7 +1,7 @@
 
 package com.fryrank.dal;
 
-import com.fryrank.model.GetAllReviewsOutput;
+import com.fryrank.dal.ReviewsPage;
 import com.fryrank.model.Review;
 import com.fryrank.model.DeleteReviewRequest;
 import org.junit.jupiter.api.Test;
@@ -82,9 +82,9 @@ public class ReviewDALTests {
         // Mock user metadata lookup for each review
         mockUserMetadataLookup();
 
-        final GetAllReviewsOutput actualOutput = reviewDAL.getAllReviewsByRestaurantId(TEST_RESTAURANT_ID, TEST_LIMIT, null);
+        final ReviewsPage actualOutput = reviewDAL.getAllReviewsByRestaurantId(TEST_RESTAURANT_ID, TEST_LIMIT, null);
         assertNotNull(actualOutput);
-        assertEquals(TEST_REVIEWS.size(), actualOutput.getReviews().size());
+        assertEquals(TEST_REVIEWS.size(), actualOutput.reviews().size());
     }
 
     @Test
@@ -94,8 +94,8 @@ public class ReviewDALTests {
                 .build();
         when(dynamoDb.query(any(QueryRequest.class))).thenReturn(queryResponse);
 
-        final GetAllReviewsOutput expectedOutput = new GetAllReviewsOutput(List.of());
-        final GetAllReviewsOutput actualOutput = reviewDAL.getAllReviewsByRestaurantId(TEST_RESTAURANT_ID, TEST_LIMIT, null);
+        final ReviewsPage expectedOutput = new ReviewsPage(List.of());
+        final ReviewsPage actualOutput = reviewDAL.getAllReviewsByRestaurantId(TEST_RESTAURANT_ID, TEST_LIMIT, null);
         assertEquals(expectedOutput, actualOutput);
     }
 
@@ -113,9 +113,9 @@ public class ReviewDALTests {
 
         mockUserMetadataLookup();
 
-        final GetAllReviewsOutput actualOutput = reviewDAL.getAllReviewsByAccountId(TEST_ACCOUNT_ID, TEST_LIMIT, null);
+        final ReviewsPage actualOutput = reviewDAL.getAllReviewsByAccountId(TEST_ACCOUNT_ID, TEST_LIMIT, null);
         assertNotNull(actualOutput);
-        assertEquals(TEST_REVIEWS.size(), actualOutput.getReviews().size());
+        assertEquals(TEST_REVIEWS.size(), actualOutput.reviews().size());
     }
 
     @Test
@@ -125,8 +125,8 @@ public class ReviewDALTests {
                 .build();
         when(dynamoDb.query(any(QueryRequest.class))).thenReturn(queryResponse);
 
-        final GetAllReviewsOutput expectedOutput = new GetAllReviewsOutput(List.of());
-        final GetAllReviewsOutput actualOutput = reviewDAL.getAllReviewsByAccountId(TEST_ACCOUNT_ID, TEST_LIMIT, null);
+        final ReviewsPage expectedOutput = new ReviewsPage(List.of());
+        final ReviewsPage actualOutput = reviewDAL.getAllReviewsByAccountId(TEST_ACCOUNT_ID, TEST_LIMIT, null);
         assertEquals(expectedOutput, actualOutput);
     }
 
@@ -144,9 +144,9 @@ public class ReviewDALTests {
 
         mockUserMetadataLookup();
 
-        final GetAllReviewsOutput actualOutput = reviewDAL.getRecentReviews(TEST_REVIEWS.size());
+        final ReviewsPage actualOutput = reviewDAL.getRecentReviews(TEST_REVIEWS.size());
         assertNotNull(actualOutput);
-        assertEquals(TEST_REVIEWS.size(), actualOutput.getReviews().size());
+        assertEquals(TEST_REVIEWS.size(), actualOutput.reviews().size());
     }
 
     @Test
@@ -501,11 +501,11 @@ public class ReviewDALTests {
                 .thenReturn(firstBatchResponse)
                 .thenReturn(secondBatchResponse);
 
-        final GetAllReviewsOutput actualOutput = reviewDAL.getAllReviewsByRestaurantId(TEST_RESTAURANT_ID, TEST_LIMIT, null);
+        final ReviewsPage actualOutput = reviewDAL.getAllReviewsByRestaurantId(TEST_RESTAURANT_ID, TEST_LIMIT, null);
 
         // Verify results
         assertNotNull(actualOutput);
-        assertEquals(totalReviews, actualOutput.getReviews().size());
+        assertEquals(totalReviews, actualOutput.reviews().size());
 
         // Verify batchGetItem was called exactly twice (100 + 50)
         ArgumentCaptor<BatchGetItemRequest> batchCaptor = ArgumentCaptor.forClass(BatchGetItemRequest.class);
@@ -562,10 +562,10 @@ public class ReviewDALTests {
 
         when(dynamoDb.batchGetItem(any(BatchGetItemRequest.class))).thenReturn(batchResponse);
 
-        final GetAllReviewsOutput actualOutput = reviewDAL.getAllReviewsByRestaurantId(TEST_RESTAURANT_ID, TEST_LIMIT, null);
+        final ReviewsPage actualOutput = reviewDAL.getAllReviewsByRestaurantId(TEST_RESTAURANT_ID, TEST_LIMIT, null);
 
         assertNotNull(actualOutput);
-        assertEquals(totalReviews, actualOutput.getReviews().size());
+        assertEquals(totalReviews, actualOutput.reviews().size());
 
         // Verify batchGetItem was called exactly once
         verify(dynamoDb, times(1)).batchGetItem(any(BatchGetItemRequest.class));
@@ -612,10 +612,10 @@ public class ReviewDALTests {
 
         when(dynamoDb.batchGetItem(any(BatchGetItemRequest.class))).thenReturn(batchResponse);
 
-        final GetAllReviewsOutput actualOutput = reviewDAL.getAllReviewsByRestaurantId(TEST_RESTAURANT_ID, TEST_LIMIT, null);
+        final ReviewsPage actualOutput = reviewDAL.getAllReviewsByRestaurantId(TEST_RESTAURANT_ID, TEST_LIMIT, null);
 
         assertNotNull(actualOutput);
-        assertEquals(totalReviews, actualOutput.getReviews().size());
+        assertEquals(totalReviews, actualOutput.reviews().size());
 
         // Verify batchGetItem was called exactly once (50 unique accounts < 100 batch limit)
         ArgumentCaptor<BatchGetItemRequest> batchCaptor = ArgumentCaptor.forClass(BatchGetItemRequest.class);
@@ -1005,12 +1005,12 @@ public class ReviewDALTests {
                 .build();
         when(dynamoDb.batchGetItem(any(BatchGetItemRequest.class))).thenReturn(batchResponse);
 
-        final GetAllReviewsOutput actualOutput = reviewDAL.getAllReviewsByRestaurantId(restaurantId, TEST_LIMIT, null);
+        final ReviewsPage actualOutput = reviewDAL.getAllReviewsByRestaurantId(restaurantId, TEST_LIMIT, null);
 
         assertNotNull(actualOutput);
-        assertEquals(1, actualOutput.getReviews().size());
+        assertEquals(1, actualOutput.reviews().size());
 
-        Review review = actualOutput.getReviews().get(0);
+        Review review = actualOutput.reviews().get(0);
         assertEquals(restaurantId + ":" + identifier, review.getReviewId());
         assertEquals(restaurantId, review.getRestaurantId());
         assertEquals(score, review.getScore());
@@ -1044,12 +1044,12 @@ public class ReviewDALTests {
                 .build();
         when(dynamoDb.query(any(QueryRequest.class))).thenReturn(queryResponse);
 
-        final GetAllReviewsOutput actualOutput = reviewDAL.getAllReviewsByRestaurantId(restaurantId, TEST_LIMIT, null);
+        final ReviewsPage actualOutput = reviewDAL.getAllReviewsByRestaurantId(restaurantId, TEST_LIMIT, null);
 
         assertNotNull(actualOutput);
-        assertEquals(1, actualOutput.getReviews().size());
+        assertEquals(1, actualOutput.reviews().size());
 
-        Review review = actualOutput.getReviews().get(0);
+        Review review = actualOutput.reviews().get(0);
         assertNull(review.getAccountId());
     }
 
@@ -1074,12 +1074,12 @@ public class ReviewDALTests {
 
         mockUserMetadataLookup();
 
-        final GetAllReviewsOutput actualOutput = reviewDAL.getAllReviewsByRestaurantId(restaurantId, TEST_LIMIT, null);
+        final ReviewsPage actualOutput = reviewDAL.getAllReviewsByRestaurantId(restaurantId, TEST_LIMIT, null);
 
         assertNotNull(actualOutput);
-        assertEquals(1, actualOutput.getReviews().size());
+        assertEquals(1, actualOutput.reviews().size());
 
-        Review review = actualOutput.getReviews().get(0);
+        Review review = actualOutput.reviews().get(0);
         // reviewId matches addNewReview: restaurantId + ":" + identifier (SK includes REVIEW: prefix)
         assertEquals(restaurantId + ":" + identifier, review.getReviewId());
     }
@@ -1101,10 +1101,10 @@ public class ReviewDALTests {
         mockUserMetadataLookup();
 
         // Act
-        final GetAllReviewsOutput output = reviewDAL.getAllReviewsByRestaurantId(TEST_RESTAURANT_ID, TEST_LIMIT, null);
+        final ReviewsPage output = reviewDAL.getAllReviewsByRestaurantId(TEST_RESTAURANT_ID, TEST_LIMIT, null);
 
         // Assert
-        assertNotNull(output.getNextCursor());
+        assertNotNull(output.nextCursor());
     }
 
     @Test
@@ -1117,10 +1117,10 @@ public class ReviewDALTests {
         mockUserMetadataLookup();
 
         // Act
-        final GetAllReviewsOutput output = reviewDAL.getAllReviewsByRestaurantId(TEST_RESTAURANT_ID, TEST_LIMIT, null);
+        final ReviewsPage output = reviewDAL.getAllReviewsByRestaurantId(TEST_RESTAURANT_ID, TEST_LIMIT, null);
 
         // Assert
-        assertNull(output.getNextCursor());
+        assertNull(output.nextCursor());
     }
 
     @Test
@@ -1136,11 +1136,11 @@ public class ReviewDALTests {
         when(dynamoDb.query(any(QueryRequest.class))).thenReturn(queryResponse);
 
         // Act
-        final GetAllReviewsOutput output = reviewDAL.getAllReviewsByRestaurantId(TEST_RESTAURANT_ID, TEST_LIMIT, null);
+        final ReviewsPage output = reviewDAL.getAllReviewsByRestaurantId(TEST_RESTAURANT_ID, TEST_LIMIT, null);
 
         // Assert
-        assertNull(output.getNextCursor());
-        assertTrue(output.getReviews().isEmpty());
+        assertNull(output.nextCursor());
+        assertTrue(output.reviews().isEmpty());
     }
 
     @Test
@@ -1166,10 +1166,10 @@ public class ReviewDALTests {
         mockUserMetadataLookup();
 
         // Act
-        final GetAllReviewsOutput output = reviewDAL.getAllReviewsByRestaurantId(TEST_RESTAURANT_ID, TEST_LIMIT, null);
+        final ReviewsPage output = reviewDAL.getAllReviewsByRestaurantId(TEST_RESTAURANT_ID, TEST_LIMIT, null);
 
         // Assert
-        assertNull(output.getNextCursor());
+        assertNull(output.nextCursor());
     }
 
     @Test
@@ -1181,12 +1181,12 @@ public class ReviewDALTests {
         when(dynamoDb.query(any(QueryRequest.class))).thenReturn(queryResponse);
 
         // Act
-        final GetAllReviewsOutput output = reviewDAL.getAllReviewsByRestaurantId(TEST_RESTAURANT_ID, TEST_LIMIT, TEST_ISO_DATE_TIME_1);
+        final ReviewsPage output = reviewDAL.getAllReviewsByRestaurantId(TEST_RESTAURANT_ID, TEST_LIMIT, TEST_ISO_DATE_TIME_1);
 
         // Assert
         assertNotNull(output);
-        assertNull(output.getNextCursor());
-        assertTrue(output.getReviews().isEmpty());
+        assertNull(output.nextCursor());
+        assertTrue(output.reviews().isEmpty());
     }
 
     @Test
@@ -1198,12 +1198,12 @@ public class ReviewDALTests {
         when(dynamoDb.query(any(QueryRequest.class))).thenReturn(queryResponse);
 
         // Act
-        final GetAllReviewsOutput output = reviewDAL.getAllReviewsByAccountId(TEST_ACCOUNT_ID, TEST_LIMIT, TEST_ISO_DATE_TIME_1);
+        final ReviewsPage output = reviewDAL.getAllReviewsByAccountId(TEST_ACCOUNT_ID, TEST_LIMIT, TEST_ISO_DATE_TIME_1);
 
         // Assert
         assertNotNull(output);
-        assertNull(output.getNextCursor());
-        assertTrue(output.getReviews().isEmpty());
+        assertNull(output.nextCursor());
+        assertTrue(output.reviews().isEmpty());
     }
 
     /**
