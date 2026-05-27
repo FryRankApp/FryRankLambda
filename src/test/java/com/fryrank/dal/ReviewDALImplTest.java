@@ -219,7 +219,7 @@ class ReviewDALImplTest {
 
         PutReactionResult afterRemove = dal.putReaction(VIEWER, REVIEW_ID, ReactionType.THUMBS_UP, ReactionAction.REMOVE);
         assertFalse(afterRemove.myReactions().isThumbsUp());
-        assertEquals(0, afterRemove.reactionCounts().getThumbsUp());
+        assertEquals(0, totalPublicReactions(afterRemove.reactionCounts()));
 
         verify(dynamoDb, times(2)).updateItem(any(UpdateItemRequest.class));
         verify(dynamoDb).putItem(any(PutItemRequest.class));
@@ -289,7 +289,7 @@ class ReviewDALImplTest {
         PutReactionResult result = dal.putReaction(VIEWER, REVIEW_ID, ReactionType.THUMBS_UP, ReactionAction.REMOVE);
 
         assertFalse(result.myReactions().isThumbsUp());
-        assertEquals(0, result.reactionCounts().getThumbsUp());
+        assertEquals(0, totalPublicReactions(result.reactionCounts()));
 
         ArgumentCaptor<UpdateItemRequest> updateCap = ArgumentCaptor.forClass(UpdateItemRequest.class);
         verify(dynamoDb).updateItem(updateCap.capture());
