@@ -48,6 +48,8 @@ Don't test:
 - "Method returns null when input is null" if null is a valid no-op path that's designed-in.
 - "Did the optional param get a default?" if the absence-of-param path is the original, already-tested behavior.
 - Every combination of optional parameters — pick the representative case.
+- **Silent-fallback paths for malformed optional input.** If the design says "bad `limit` → default" or "bad `cursor` → empty results", you don't need a test that asserts the bad input → fallback. The fallback is the same code path as the default, which is already exercised.
+- **Encoded/decoded value equality across layers.** If the handler URL-decodes and the DAL receives the decoded value, one test that asserts the handler decoded correctly is enough — don't re-assert the decoded value at every layer.
 
 **Real session example:** When adding tag filtering to review queries, we wrote 3 tests:
 1. Filter expression injection (the new query construction).
@@ -87,6 +89,17 @@ Before adding a test, check:
 
 If yes → skip.
 
+**Concrete example:** When pagination was added, there was no separate "no cursor → base key condition" test — that scenario was already covered by every existing non-pagination DAL test (which all pass `null` as the cursor). Likewise no separate "limit defaults to 10" test, because every existing test that omits the limit param already proves that.
+
+### 7. Capture Internal Construction Only When It IS The New Behavior
+
+Use `ArgumentCaptor` to inspect the request sent to DynamoDB (or any downstream call) **only when the request shape itself is what the test is verifying.**
+
+- **Right reason to capture:** the test asserts that a new filter expression or attribute binding is correctly injected. The captured expression *is* the new behavior. Example: `testGetAllReviewsByRestaurantId_withTag_injectsContainsTagsFilter` captures the `QueryRequest` because the `contains(#tags, :tag)` clause is the new wiring.
+- **Wrong reason to capture:** the test exercises an existing well-tested helper. Asserting the exact `KeyConditionExpression` string or the cursor encoding for the Nth time just re-verifies code that other tests already cover, and makes the test fragile to harmless refactors.
+
+If two tests would capture the same thing, the second one is probably unnecessary.
+
 ## Test Placement
 
 - Put a new test in the **existing test file that owns the behavior being tested** (`ReviewDALTests`, `ReviewDomainTests`, `GetAllReviewsHandlerTests`, etc.) — don't always create a new file per feature.
@@ -102,4 +115,5 @@ If yes → skip.
 ## See Also
 
 - `implementation-skill/SKILL.md` for implementation principles these tests support.
+- `dal-pagination-planning/SKILL.md` for pagination-specific test guidance (this skill borrows several principles from there).
 - `claude-school/SKILL.md` for the post-session learning export format.

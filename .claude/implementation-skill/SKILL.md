@@ -48,9 +48,22 @@ For user-driven inputs (review tags, search filters, etc.), the frontend is the 
 
 **Bad GET queries are fine** — they should silently return empty results rather than 4xx errors. The frontend is responsible for never sending malformed queries; if it does, returning `[]` is an acceptable degradation.
 
+**Prefer silent fallback over hard error for optional inputs.** When an optional input is malformed (e.g. an unparseable `limit`, an unknown `tag`, a corrupted `cursor`), prefer a safe default or empty result over a 4xx. Examples in the codebase:
+- `limit`: invalid format → `DEFAULT_PAGE_LIMIT`; out-of-range → clamped to `[1, MAX_PAGE_LIMIT]`. No validator class.
+- `cursor`: bad value produces bad query results, not a thrown exception. Strict format validation would reject valid cursors if the datetime format varies slightly.
+- `tag`: unknown value silently returns empty results.
+
+The rule: if a bad value can only cause "empty or unexpected results" (not a security or data-integrity issue), don't validate.
+
 ### 6. Don't Build A Reverse Index / GSI / Cache Until It's Needed
 
 For MVP features, prefer the lightweight approach (filter expressions, in-memory filtering) over the scalable one (GSIs, reverse indexes, cache layers). Note the migration path in a comment or design doc — but don't ship the heavier solution preemptively.
+
+## DynamoDB / Query Construction Notes
+
+- **Use mutable maps for expression attributes when conditionally building.** `Map.of()` is immutable; if you might conditionally add cursor / tag / filter bindings, start with `new HashMap<>()` and `put()` into it. Trying to `put()` on a `Map.of()` throws.
+- **URL-decode query-string values in the handler before passing them downstream.** API Gateway passes query params verbatim, so a value that's already URL-encoded (like a cursor from a previous response) arrives still encoded. If used as-is in a DynamoDB key condition, `%` (37) compares differently than `:` (58) and silently corrupts results.
+- **Filter expressions run *after* DynamoDB's pagination.** A `limit` counts items *read*, not items *returned*. A page with a strict filter expression may return fewer items than the requested limit. This is acceptable for MVP; a GSI is the long-term fix.
 
 ## When To Pause And Ask
 
@@ -69,4 +82,5 @@ For MVP features, prefer the lightweight approach (filter expressions, in-memory
 ## See Also
 
 - `tests-skill/SKILL.md` for testing principles that complement these.
+- `dal-pagination-planning/SKILL.md` for pagination-specific guidance (this skill borrows several principles from there).
 - `claude-school/SKILL.md` for the post-session learning export format.
