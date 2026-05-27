@@ -60,7 +60,8 @@ public class GetAllReviewsHandler implements RequestHandler<APIGatewayV2HTTPEven
 					params.get(QueryParam.RESTAURANT_ID.getValue()),
 					params.get(QueryParam.ACCOUNT_ID.getValue()),
 					params.get(QueryParam.LIMIT.getValue()),
-					decodeCursor(params.get(QueryParam.CURSOR.getValue())));
+					decodeCursor(params.get(QueryParam.CURSOR.getValue())),
+					params.get(QueryParam.TAG.getValue()));
 
 			final String limitParam = request.limit();
 			int limit = DEFAULT_PAGE_LIMIT;
@@ -76,7 +77,8 @@ public class GetAllReviewsHandler implements RequestHandler<APIGatewayV2HTTPEven
 					request.restaurantId(),
 					request.accountId(),
 					limit,
-					request.cursor());
+					request.cursor(),
+					request.tag());
 
             log.info("Request processed successfully");
             return APIGatewayResponseBuilder.buildSuccessResponse(output, createCorsHeaders(input));

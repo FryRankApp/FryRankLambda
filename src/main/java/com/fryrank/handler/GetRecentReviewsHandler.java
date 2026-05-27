@@ -12,6 +12,8 @@ import com.fryrank.util.APIGatewayResponseBuilder;
 import com.fryrank.validator.APIGatewayRequestValidator;
 import lombok.extern.log4j.Log4j2;
 
+import java.util.Map;
+
 import static com.fryrank.util.HeaderUtils.createCorsHeaders;
 
 @Log4j2
@@ -34,8 +36,10 @@ public class GetRecentReviewsHandler implements RequestHandler<APIGatewayV2HTTPE
         return APIGatewayResponseBuilder.handleRequest(handlerName, input, () -> {
             requestValidator.validateRequest(handlerName, input);
 
+            final Map<String, String> params = input.getQueryStringParameters();
             final GetAllReviewsOutput output = reviewDomain.getRecentReviews(
-                    Integer.parseInt(input.getQueryStringParameters().get(QueryParam.COUNT.getValue())));
+                    Integer.parseInt(params.get(QueryParam.COUNT.getValue())),
+                    params.get(QueryParam.TAG.getValue()));
 
             log.info("Request processed successfully");
             return APIGatewayResponseBuilder.buildSuccessResponse(output, createCorsHeaders(input));

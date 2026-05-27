@@ -7,5 +7,6 @@ public record GetAllReviewsRequest(
         String restaurantId,
         String accountId,
         String limit,
-        String cursor
+        String cursor,
+        String tag
 ) {}

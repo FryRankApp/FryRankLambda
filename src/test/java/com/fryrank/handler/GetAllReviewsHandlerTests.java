@@ -55,109 +55,109 @@ public class GetAllReviewsHandlerTests {
     @Test
     public void testHandleRequest_WithNoLimitParam_UsesDefaultLimit() throws Exception {
         doNothing().when(requestValidator).validateRequest(any(), any());
-        when(reviewDomain.getAllReviews(eq(TEST_RESTAURANT_ID), isNull(), eq(DEFAULT_PAGE_LIMIT), isNull()))
+        when(reviewDomain.getAllReviews(eq(TEST_RESTAURANT_ID), isNull(), eq(DEFAULT_PAGE_LIMIT), isNull(), isNull()))
                 .thenReturn(defaultOutput);
 
         final APIGatewayV2HTTPResponse response = handler.handleRequest(createEvent(TEST_RESTAURANT_ID, null, null), context);
 
         assertEquals(200, response.getStatusCode());
-        verify(reviewDomain).getAllReviews(eq(TEST_RESTAURANT_ID), isNull(), eq(DEFAULT_PAGE_LIMIT), isNull());
+        verify(reviewDomain).getAllReviews(eq(TEST_RESTAURANT_ID), isNull(), eq(DEFAULT_PAGE_LIMIT), isNull(), isNull());
     }
 
     @Test
     public void testHandleRequest_WithEmptyLimitParam_UsesDefaultLimit() throws Exception {
         doNothing().when(requestValidator).validateRequest(any(), any());
-        when(reviewDomain.getAllReviews(eq(TEST_RESTAURANT_ID), isNull(), eq(DEFAULT_PAGE_LIMIT), isNull()))
+        when(reviewDomain.getAllReviews(eq(TEST_RESTAURANT_ID), isNull(), eq(DEFAULT_PAGE_LIMIT), isNull(), isNull()))
                 .thenReturn(defaultOutput);
 
         final APIGatewayV2HTTPResponse response = handler.handleRequest(createEvent(TEST_RESTAURANT_ID, null, ""), context);
 
         assertEquals(200, response.getStatusCode());
-        verify(reviewDomain).getAllReviews(eq(TEST_RESTAURANT_ID), isNull(), eq(DEFAULT_PAGE_LIMIT), isNull());
+        verify(reviewDomain).getAllReviews(eq(TEST_RESTAURANT_ID), isNull(), eq(DEFAULT_PAGE_LIMIT), isNull(), isNull());
     }
 
     @Test
     public void testHandleRequest_WithNonNumericLimitParam_UsesDefaultLimit() throws Exception {
         doNothing().when(requestValidator).validateRequest(any(), any());
-        when(reviewDomain.getAllReviews(eq(TEST_RESTAURANT_ID), isNull(), eq(DEFAULT_PAGE_LIMIT), isNull()))
+        when(reviewDomain.getAllReviews(eq(TEST_RESTAURANT_ID), isNull(), eq(DEFAULT_PAGE_LIMIT), isNull(), isNull()))
                 .thenReturn(defaultOutput);
 
         final APIGatewayV2HTTPResponse response = handler.handleRequest(createEvent(TEST_RESTAURANT_ID, null, "abc"), context);
 
         assertEquals(200, response.getStatusCode());
-        verify(reviewDomain).getAllReviews(eq(TEST_RESTAURANT_ID), isNull(), eq(DEFAULT_PAGE_LIMIT), isNull());
+        verify(reviewDomain).getAllReviews(eq(TEST_RESTAURANT_ID), isNull(), eq(DEFAULT_PAGE_LIMIT), isNull(), isNull());
     }
 
     @Test
     public void testHandleRequest_WithZeroLimitParam_ClampsToOne() throws Exception {
         doNothing().when(requestValidator).validateRequest(any(), any());
-        when(reviewDomain.getAllReviews(eq(TEST_RESTAURANT_ID), isNull(), eq(1), isNull()))
+        when(reviewDomain.getAllReviews(eq(TEST_RESTAURANT_ID), isNull(), eq(1), isNull(), isNull()))
                 .thenReturn(defaultOutput);
 
         final APIGatewayV2HTTPResponse response = handler.handleRequest(createEvent(TEST_RESTAURANT_ID, null, "0"), context);
 
         assertEquals(200, response.getStatusCode());
-        verify(reviewDomain).getAllReviews(eq(TEST_RESTAURANT_ID), isNull(), eq(1), isNull());
+        verify(reviewDomain).getAllReviews(eq(TEST_RESTAURANT_ID), isNull(), eq(1), isNull(), isNull());
     }
 
     @Test
     public void testHandleRequest_WithNegativeLimitParam_ClampsToOne() throws Exception {
         doNothing().when(requestValidator).validateRequest(any(), any());
-        when(reviewDomain.getAllReviews(eq(TEST_RESTAURANT_ID), isNull(), eq(1), isNull()))
+        when(reviewDomain.getAllReviews(eq(TEST_RESTAURANT_ID), isNull(), eq(1), isNull(), isNull()))
                 .thenReturn(defaultOutput);
 
         final APIGatewayV2HTTPResponse response = handler.handleRequest(createEvent(TEST_RESTAURANT_ID, null, "-5"), context);
 
         assertEquals(200, response.getStatusCode());
-        verify(reviewDomain).getAllReviews(eq(TEST_RESTAURANT_ID), isNull(), eq(1), isNull());
+        verify(reviewDomain).getAllReviews(eq(TEST_RESTAURANT_ID), isNull(), eq(1), isNull(), isNull());
     }
 
     @Test
     public void testHandleRequest_WithLimitAboveMax_ClampsToMaxPageLimit() throws Exception {
         doNothing().when(requestValidator).validateRequest(any(), any());
-        when(reviewDomain.getAllReviews(eq(TEST_RESTAURANT_ID), isNull(), eq(MAX_PAGE_LIMIT), isNull()))
+        when(reviewDomain.getAllReviews(eq(TEST_RESTAURANT_ID), isNull(), eq(MAX_PAGE_LIMIT), isNull(), isNull()))
                 .thenReturn(defaultOutput);
 
         final APIGatewayV2HTTPResponse response = handler.handleRequest(createEvent(TEST_RESTAURANT_ID, null, "999"), context);
 
         assertEquals(200, response.getStatusCode());
-        verify(reviewDomain).getAllReviews(eq(TEST_RESTAURANT_ID), isNull(), eq(MAX_PAGE_LIMIT), isNull());
+        verify(reviewDomain).getAllReviews(eq(TEST_RESTAURANT_ID), isNull(), eq(MAX_PAGE_LIMIT), isNull(), isNull());
     }
 
     @Test
     public void testHandleRequest_WithValidLimitParam_UsesProvidedLimit() throws Exception {
         doNothing().when(requestValidator).validateRequest(any(), any());
-        when(reviewDomain.getAllReviews(eq(TEST_RESTAURANT_ID), isNull(), eq(25), isNull()))
+        when(reviewDomain.getAllReviews(eq(TEST_RESTAURANT_ID), isNull(), eq(25), isNull(), isNull()))
                 .thenReturn(defaultOutput);
 
         final APIGatewayV2HTTPResponse response = handler.handleRequest(createEvent(TEST_RESTAURANT_ID, null, "25"), context);
 
         assertEquals(200, response.getStatusCode());
-        verify(reviewDomain).getAllReviews(eq(TEST_RESTAURANT_ID), isNull(), eq(25), isNull());
+        verify(reviewDomain).getAllReviews(eq(TEST_RESTAURANT_ID), isNull(), eq(25), isNull(), isNull());
     }
 
     @Test
     public void testHandleRequest_WithMaxLimitParam_UsesMaxPageLimit() throws Exception {
         doNothing().when(requestValidator).validateRequest(any(), any());
-        when(reviewDomain.getAllReviews(eq(TEST_RESTAURANT_ID), isNull(), eq(MAX_PAGE_LIMIT), isNull()))
+        when(reviewDomain.getAllReviews(eq(TEST_RESTAURANT_ID), isNull(), eq(MAX_PAGE_LIMIT), isNull(), isNull()))
                 .thenReturn(defaultOutput);
 
         final APIGatewayV2HTTPResponse response = handler.handleRequest(createEvent(TEST_RESTAURANT_ID, null, String.valueOf(MAX_PAGE_LIMIT)), context);
 
         assertEquals(200, response.getStatusCode());
-        verify(reviewDomain).getAllReviews(eq(TEST_RESTAURANT_ID), isNull(), eq(MAX_PAGE_LIMIT), isNull());
+        verify(reviewDomain).getAllReviews(eq(TEST_RESTAURANT_ID), isNull(), eq(MAX_PAGE_LIMIT), isNull(), isNull());
     }
 
     @Test
     public void testHandleRequest_WithAccountIdAndValidLimit_PassesLimitToReviewDomain() throws Exception {
         doNothing().when(requestValidator).validateRequest(any(), any());
-        when(reviewDomain.getAllReviews(isNull(), eq(TEST_ACCOUNT_ID), eq(5), isNull()))
+        when(reviewDomain.getAllReviews(isNull(), eq(TEST_ACCOUNT_ID), eq(5), isNull(), isNull()))
                 .thenReturn(defaultOutput);
 
         final APIGatewayV2HTTPResponse response = handler.handleRequest(createEvent(null, TEST_ACCOUNT_ID, "5"), context);
 
         assertEquals(200, response.getStatusCode());
-        verify(reviewDomain).getAllReviews(isNull(), eq(TEST_ACCOUNT_ID), eq(5), isNull());
+        verify(reviewDomain).getAllReviews(isNull(), eq(TEST_ACCOUNT_ID), eq(5), isNull(), isNull());
     }
 
     private APIGatewayV2HTTPEvent createEvent(String restaurantId, String accountId, String limit) {

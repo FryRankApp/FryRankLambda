@@ -10,11 +10,11 @@ import java.util.List;
 
 public interface ReviewDAL {
 
-    GetAllReviewsOutput getAllReviewsByRestaurantId(final String restaurantId, final Integer limit, final String cursor);
+    GetAllReviewsOutput getAllReviewsByRestaurantId(final String restaurantId, final Integer limit, final String cursor, final String tag);
 
-    GetAllReviewsOutput getAllReviewsByAccountId(final String accountId, final Integer limit, final String cursor);
+    GetAllReviewsOutput getAllReviewsByAccountId(final String accountId, final Integer limit, final String cursor, final String tag);
 
-    GetAllReviewsOutput getRecentReviews(final Integer count);
+    GetAllReviewsOutput getRecentReviews(final Integer count, final String tag);
 
     GetAggregateReviewInformationOutput getAggregateReviewInformationForRestaurants(final List<String> restaurantIds, final AggregateReviewFilter aggregateReviewFilter);
 

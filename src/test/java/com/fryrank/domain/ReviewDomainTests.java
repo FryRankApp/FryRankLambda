@@ -51,32 +51,59 @@ public class ReviewDomainTests {
     @Test
     public void testGetAllReviewsForRestaurant() throws Exception {
         final GetAllReviewsOutput expectedOutput = new GetAllReviewsOutput(TEST_REVIEWS);
-        when(reviewDAL.getAllReviewsByRestaurantId(TEST_RESTAURANT_ID, TEST_LIMIT, TEST_ISO_DATE_TIME_1)).thenReturn(expectedOutput);
+        when(reviewDAL.getAllReviewsByRestaurantId(TEST_RESTAURANT_ID, TEST_LIMIT, TEST_ISO_DATE_TIME_1, null)).thenReturn(expectedOutput);
 
-        final GetAllReviewsOutput actualOutput = domain.getAllReviews(TEST_RESTAURANT_ID, null, TEST_LIMIT, TEST_ISO_DATE_TIME_1);
+        final GetAllReviewsOutput actualOutput = domain.getAllReviews(TEST_RESTAURANT_ID, null, TEST_LIMIT, TEST_ISO_DATE_TIME_1, null);
+        assertEquals(expectedOutput, actualOutput);
+    }
+
+    @Test
+    public void testGetAllReviewsForRestaurant_withTag_forwardsTagToDAL() throws Exception {
+        final GetAllReviewsOutput expectedOutput = new GetAllReviewsOutput(TEST_REVIEWS);
+        when(reviewDAL.getAllReviewsByRestaurantId(TEST_RESTAURANT_ID, TEST_LIMIT, TEST_ISO_DATE_TIME_1, "Curly")).thenReturn(expectedOutput);
+
+        final GetAllReviewsOutput actualOutput = domain.getAllReviews(TEST_RESTAURANT_ID, null, TEST_LIMIT, TEST_ISO_DATE_TIME_1, "Curly");
         assertEquals(expectedOutput, actualOutput);
     }
 
     @Test
     public void testGetAllReviewsForAccount() throws Exception {
         final GetAllReviewsOutput expectedOutput = new GetAllReviewsOutput(TEST_REVIEWS);
-        when(reviewDAL.getAllReviewsByAccountId(TEST_ACCOUNT_ID, TEST_LIMIT, TEST_ISO_DATE_TIME_1)).thenReturn(expectedOutput);
+        when(reviewDAL.getAllReviewsByAccountId(TEST_ACCOUNT_ID, TEST_LIMIT, TEST_ISO_DATE_TIME_1, null)).thenReturn(expectedOutput);
 
-        final GetAllReviewsOutput actualOutput = domain.getAllReviews(null, TEST_ACCOUNT_ID, TEST_LIMIT, TEST_ISO_DATE_TIME_1);
+        final GetAllReviewsOutput actualOutput = domain.getAllReviews(null, TEST_ACCOUNT_ID, TEST_LIMIT, TEST_ISO_DATE_TIME_1, null);
+        assertEquals(expectedOutput, actualOutput);
+    }
+
+    @Test
+    public void testGetAllReviewsForAccount_withTag_forwardsTagToDAL() throws Exception {
+        final GetAllReviewsOutput expectedOutput = new GetAllReviewsOutput(TEST_REVIEWS);
+        when(reviewDAL.getAllReviewsByAccountId(TEST_ACCOUNT_ID, TEST_LIMIT, TEST_ISO_DATE_TIME_1, "Waffle")).thenReturn(expectedOutput);
+
+        final GetAllReviewsOutput actualOutput = domain.getAllReviews(null, TEST_ACCOUNT_ID, TEST_LIMIT, TEST_ISO_DATE_TIME_1, "Waffle");
         assertEquals(expectedOutput, actualOutput);
     }
 
     @Test
     public void testGetAllReviewsNoParameter() throws Exception {
-        assertThrows(NullPointerException.class, () -> domain.getAllReviews(null, null, TEST_LIMIT, TEST_ISO_DATE_TIME_1));
+        assertThrows(NullPointerException.class, () -> domain.getAllReviews(null, null, TEST_LIMIT, TEST_ISO_DATE_TIME_1, null));
     }
 
     @Test
     public void testGetRecentReviews() throws Exception {
         final GetAllReviewsOutput expectedOutput = new GetAllReviewsOutput(TEST_REVIEWS);
-        when(reviewDAL.getRecentReviews(TEST_REVIEWS.size())).thenReturn(expectedOutput);
+        when(reviewDAL.getRecentReviews(TEST_REVIEWS.size(), null)).thenReturn(expectedOutput);
 
-        final GetAllReviewsOutput actualOutput = domain.getRecentReviews(TEST_REVIEWS.size());
+        final GetAllReviewsOutput actualOutput = domain.getRecentReviews(TEST_REVIEWS.size(), null);
+        assertEquals(expectedOutput.getReviews().size(), actualOutput.getReviews().size());
+    }
+
+    @Test
+    public void testGetRecentReviews_withTag_forwardsTagToDAL() throws Exception {
+        final GetAllReviewsOutput expectedOutput = new GetAllReviewsOutput(TEST_REVIEWS);
+        when(reviewDAL.getRecentReviews(TEST_REVIEWS.size(), "Curly")).thenReturn(expectedOutput);
+
+        final GetAllReviewsOutput actualOutput = domain.getRecentReviews(TEST_REVIEWS.size(), "Curly");
         assertEquals(expectedOutput.getReviews().size(), actualOutput.getReviews().size());
     }
 

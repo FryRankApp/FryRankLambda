@@ -31,25 +31,26 @@ public class ReviewDomain {
         this.reviewValidator = reviewValidator;
     }
 
-	public GetAllReviewsOutput getAllReviews(final String restaurantId, final String accountId, final Integer limit, final String cursor) {
+	public GetAllReviewsOutput getAllReviews(final String restaurantId, final String accountId, final Integer limit, final String cursor, final String tag) {
 
-		log.info("Getting paginated reviews{}{} with limit: {} and cursor: {}",
+		log.info("Getting paginated reviews{}{} with limit: {}, cursor: {}, tag: {}",
 				restaurantId != null ? " for restaurantId: " + restaurantId : "",
 				accountId != null ? " for accountId: " + accountId : "",
 				limit,
-				cursor);
+				cursor,
+				tag);
 
 		if (restaurantId != null) {
-			return reviewDAL.getAllReviewsByRestaurantId(restaurantId, limit, cursor);
+			return reviewDAL.getAllReviewsByRestaurantId(restaurantId, limit, cursor, tag);
 		} else if (accountId != null) {
-			return reviewDAL.getAllReviewsByAccountId(accountId, limit, cursor);
+			return reviewDAL.getAllReviewsByAccountId(accountId, limit, cursor, tag);
 		} else {
 			throw new NullPointerException("At least one of restaurantId and accountId must not be null.");
 		}
 	}
 
-    public GetAllReviewsOutput getRecentReviews(final Integer count) {
-        return reviewDAL.getRecentReviews(count);
+    public GetAllReviewsOutput getRecentReviews(final Integer count, final String tag) {
+        return reviewDAL.getRecentReviews(count, tag);
     }
 
     public GetAggregateReviewInformationOutput getAggregateReviewInformationForRestaurants(
