@@ -91,6 +91,8 @@ If yes → skip.
 
 **Concrete example:** When pagination was added, there was no separate "no cursor → base key condition" test — that scenario was already covered by every existing non-pagination DAL test (which all pass `null` as the cursor). Likewise no separate "limit defaults to 10" test, because every existing test that omits the limit param already proves that.
 
+**Sibling methods that share a private helper:** if two public methods funnel into the same helper, one test on that shared path covers both. Don't add a near-duplicate test for the sibling just for method-by-method symmetry — it re-asserts the same lines and only differs in arguments that don't affect the behavior under test. Example: tag filtering is built inside `queryReviews`, which both `getAllReviewsByRestaurantId` and `getAllReviewsByAccountId` call; the `withTag` test on the restaurant-id path already exercises the account-id path's filter logic (only the index name and key attribute differ). The cost of a duplicate is real: it's test noise that breaks on harmless refactors. The only thing it would guard against is someone later splitting the two methods apart — speculative, not worth pre-paying for.
+
 ### 7. Capture Internal Construction Only When It IS The New Behavior
 
 Use `ArgumentCaptor` to inspect the request sent to DynamoDB (or any downstream call) **only when the request shape itself is what the test is verifying.**
