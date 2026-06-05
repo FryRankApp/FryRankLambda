@@ -8,6 +8,7 @@ import com.fryrank.model.GetAggregateReviewInformationOutput;
 import com.fryrank.model.GetAllReviewsOutput;
 import com.fryrank.model.PublicUserMetadata;
 import com.fryrank.model.Review;
+import com.fryrank.model.ReviewFilter;
 import lombok.NonNull;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Repository;
@@ -35,6 +36,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static com.fryrank.Constants.ACCOUNT_ID_KEY;
@@ -86,18 +88,18 @@ public class ReviewDALImpl implements ReviewDAL {
     }
 
     @Override
-    public GetAllReviewsOutput getAllReviewsByRestaurantId(@NonNull final String restaurantId, final Integer limit, final String cursor, final String tag) {
-        log.info("Getting reviews for restaurantId: {} with limit: {}, cursor: {}, tag: {}", restaurantId, limit, cursor, tag);
-        return queryReviews(RESTAURANT_ID_TIME_INDEX, RESTAURANT_ID_KEY, restaurantId, limit, cursor, tag);
+    public GetAllReviewsOutput getAllReviewsByRestaurantId(@NonNull final String restaurantId, final Integer limit, final String cursor, @NonNull final ReviewFilter filter) {
+        log.info("Getting reviews for restaurantId: {} with limit: {}, cursor: {}, filter: {}", restaurantId, limit, cursor, filter);
+        return queryReviews(RESTAURANT_ID_TIME_INDEX, RESTAURANT_ID_KEY, restaurantId, limit, cursor, filter);
     }
 
     @Override
-    public GetAllReviewsOutput getAllReviewsByAccountId(@NonNull final String accountId, final Integer limit, final String cursor, final String tag) {
-        log.info("Getting reviews for accountId: {} with limit: {}, cursor: {}, tag: {}", accountId, limit, cursor, tag);
-        return queryReviews(ACCOUNT_ID_TIME_INDEX, ACCOUNT_ID_KEY, accountId, limit, cursor, tag);
+    public GetAllReviewsOutput getAllReviewsByAccountId(@NonNull final String accountId, final Integer limit, final String cursor, @NonNull final ReviewFilter filter) {
+        log.info("Getting reviews for accountId: {} with limit: {}, cursor: {}, filter: {}", accountId, limit, cursor, filter);
+        return queryReviews(ACCOUNT_ID_TIME_INDEX, ACCOUNT_ID_KEY, accountId, limit, cursor, filter);
     }
 
-    private GetAllReviewsOutput queryReviews(String indexName, String keyAttribute, String keyValue, Integer limit, String cursor, String tag) {
+    private GetAllReviewsOutput queryReviews(String indexName, String keyAttribute, String keyValue, Integer limit, String cursor, ReviewFilter filter) {
         final Map<String, String> exprAttrNames = new HashMap<>();
         exprAttrNames.put("#key", keyAttribute);
 
@@ -119,7 +121,7 @@ public class ReviewDALImpl implements ReviewDAL {
                 .keyConditionExpression(keyCondition)
                 // TODO(FRY-114): Temporary filter expression because we have not yet converted over outputs to use the
                 //  new Ranking model objects. Once we convert outputs to use Ranking objects, we can remove this
-                .filterExpression(buildFilterExpression("attribute_exists(isReview)", tag, exprAttrNames, exprAttrValues))
+                .filterExpression(buildFilterExpression(Optional.of("attribute_exists(isReview)"), filter, exprAttrNames, exprAttrValues))
                 .expressionAttributeNames(exprAttrNames)
                 .expressionAttributeValues(exprAttrValues)
                 .scanIndexForward(false);  // Most recent first
@@ -144,8 +146,8 @@ public class ReviewDALImpl implements ReviewDAL {
     }
 
     @Override
-    public GetAllReviewsOutput getRecentReviews(@NonNull final Integer count, final String tag) {
-        log.info("Getting {} recent reviews with tag: {}", count, tag);
+    public GetAllReviewsOutput getRecentReviews(@NonNull final Integer count, @NonNull final ReviewFilter filter) {
+        log.info("Getting {} recent reviews with filter: {}", count, filter);
 
         final Map<String, String> exprAttrNames = new HashMap<>();
         exprAttrNames.put("#ir", IS_REVIEW_KEY);
@@ -158,7 +160,7 @@ public class ReviewDALImpl implements ReviewDAL {
                 .indexName(RECENT_REVIEWS_INDEX)
                 // #ir is an expression attribute placeholder for the isReview attribute.
                 .keyConditionExpression("#ir = :isReview")
-                .filterExpression(buildFilterExpression(null, tag, exprAttrNames, exprAttrValues))
+                .filterExpression(buildFilterExpression(Optional.empty(), filter, exprAttrNames, exprAttrValues))
                 .expressionAttributeNames(exprAttrNames)
                 .expressionAttributeValues(exprAttrValues)
                 .scanIndexForward(false)  // Descending by isoDateTime (most recent first)
@@ -174,14 +176,15 @@ public class ReviewDALImpl implements ReviewDAL {
      * Returns null when neither is present so DynamoDB skips the filter clause entirely.
      * Untagged reviews are naturally excluded by contains() when a tag filter is active.
      */
-    private String buildFilterExpression(String baseFilter, String tag, Map<String, String> exprAttrNames, Map<String, AttributeValue> exprAttrValues) {
+    private String buildFilterExpression(Optional<String> baseFilter, ReviewFilter filter, Map<String, String> exprAttrNames, Map<String, AttributeValue> exprAttrValues) {
+        final String tag = filter.tag();
         if (tag == null || tag.isEmpty()) {
-            return baseFilter;
+            return baseFilter.orElse(null);
         }
         exprAttrNames.put("#tags", TAGS_KEY);
         exprAttrValues.put(":tag", AttributeValue.builder().s(tag).build());
         final String tagFilter = "contains(#tags, :tag)";
-        return baseFilter == null ? tagFilter : baseFilter + " AND " + tagFilter;
+        return baseFilter.map(base -> base + " AND " + tagFilter).orElse(tagFilter);
     }
 
     @Override

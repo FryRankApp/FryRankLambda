@@ -23,6 +23,8 @@ import static com.fryrank.TestConstants.TEST_REVIEW_BAD_ISO_DATETIME;
 import static com.fryrank.TestConstants.TEST_REVIEW_ID_1;
 import static com.fryrank.TestConstants.TEST_REVIEW_NULL_ACCOUNT_ID;
 import static com.fryrank.TestConstants.TEST_REVIEW_NULL_ISO_DATETIME;
+import static com.fryrank.TestConstants.TEST_TAG_1;
+import static com.fryrank.TestConstants.TEST_TAG_2;
 import static com.fryrank.TestConstants.TEST_TITLE_1;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -51,59 +53,59 @@ public class ReviewDomainTests {
     @Test
     public void testGetAllReviewsForRestaurant() throws Exception {
         final GetAllReviewsOutput expectedOutput = new GetAllReviewsOutput(TEST_REVIEWS);
-        when(reviewDAL.getAllReviewsByRestaurantId(TEST_RESTAURANT_ID, TEST_LIMIT, TEST_ISO_DATE_TIME_1, null)).thenReturn(expectedOutput);
+        when(reviewDAL.getAllReviewsByRestaurantId(TEST_RESTAURANT_ID, TEST_LIMIT, TEST_ISO_DATE_TIME_1, new ReviewFilter(null))).thenReturn(expectedOutput);
 
-        final GetAllReviewsOutput actualOutput = domain.getAllReviews(TEST_RESTAURANT_ID, null, TEST_LIMIT, TEST_ISO_DATE_TIME_1, null);
+        final GetAllReviewsOutput actualOutput = domain.getAllReviews(TEST_RESTAURANT_ID, null, TEST_LIMIT, TEST_ISO_DATE_TIME_1, new ReviewFilter(null));
         assertEquals(expectedOutput, actualOutput);
     }
 
     @Test
     public void testGetAllReviewsForRestaurant_withTag_forwardsTagToDAL() throws Exception {
         final GetAllReviewsOutput expectedOutput = new GetAllReviewsOutput(TEST_REVIEWS);
-        when(reviewDAL.getAllReviewsByRestaurantId(TEST_RESTAURANT_ID, TEST_LIMIT, TEST_ISO_DATE_TIME_1, "Curly")).thenReturn(expectedOutput);
+        when(reviewDAL.getAllReviewsByRestaurantId(TEST_RESTAURANT_ID, TEST_LIMIT, TEST_ISO_DATE_TIME_1, new ReviewFilter(TEST_TAG_1))).thenReturn(expectedOutput);
 
-        final GetAllReviewsOutput actualOutput = domain.getAllReviews(TEST_RESTAURANT_ID, null, TEST_LIMIT, TEST_ISO_DATE_TIME_1, "Curly");
+        final GetAllReviewsOutput actualOutput = domain.getAllReviews(TEST_RESTAURANT_ID, null, TEST_LIMIT, TEST_ISO_DATE_TIME_1, new ReviewFilter(TEST_TAG_1));
         assertEquals(expectedOutput, actualOutput);
     }
 
     @Test
     public void testGetAllReviewsForAccount() throws Exception {
         final GetAllReviewsOutput expectedOutput = new GetAllReviewsOutput(TEST_REVIEWS);
-        when(reviewDAL.getAllReviewsByAccountId(TEST_ACCOUNT_ID, TEST_LIMIT, TEST_ISO_DATE_TIME_1, null)).thenReturn(expectedOutput);
+        when(reviewDAL.getAllReviewsByAccountId(TEST_ACCOUNT_ID, TEST_LIMIT, TEST_ISO_DATE_TIME_1, new ReviewFilter(null))).thenReturn(expectedOutput);
 
-        final GetAllReviewsOutput actualOutput = domain.getAllReviews(null, TEST_ACCOUNT_ID, TEST_LIMIT, TEST_ISO_DATE_TIME_1, null);
+        final GetAllReviewsOutput actualOutput = domain.getAllReviews(null, TEST_ACCOUNT_ID, TEST_LIMIT, TEST_ISO_DATE_TIME_1, new ReviewFilter(null));
         assertEquals(expectedOutput, actualOutput);
     }
 
     @Test
     public void testGetAllReviewsForAccount_withTag_forwardsTagToDAL() throws Exception {
         final GetAllReviewsOutput expectedOutput = new GetAllReviewsOutput(TEST_REVIEWS);
-        when(reviewDAL.getAllReviewsByAccountId(TEST_ACCOUNT_ID, TEST_LIMIT, TEST_ISO_DATE_TIME_1, "Waffle")).thenReturn(expectedOutput);
+        when(reviewDAL.getAllReviewsByAccountId(TEST_ACCOUNT_ID, TEST_LIMIT, TEST_ISO_DATE_TIME_1, new ReviewFilter(TEST_TAG_2))).thenReturn(expectedOutput);
 
-        final GetAllReviewsOutput actualOutput = domain.getAllReviews(null, TEST_ACCOUNT_ID, TEST_LIMIT, TEST_ISO_DATE_TIME_1, "Waffle");
+        final GetAllReviewsOutput actualOutput = domain.getAllReviews(null, TEST_ACCOUNT_ID, TEST_LIMIT, TEST_ISO_DATE_TIME_1, new ReviewFilter(TEST_TAG_2));
         assertEquals(expectedOutput, actualOutput);
     }
 
     @Test
     public void testGetAllReviewsNoParameter() throws Exception {
-        assertThrows(NullPointerException.class, () -> domain.getAllReviews(null, null, TEST_LIMIT, TEST_ISO_DATE_TIME_1, null));
+        assertThrows(NullPointerException.class, () -> domain.getAllReviews(null, null, TEST_LIMIT, TEST_ISO_DATE_TIME_1, new ReviewFilter(null)));
     }
 
     @Test
     public void testGetRecentReviews() throws Exception {
         final GetAllReviewsOutput expectedOutput = new GetAllReviewsOutput(TEST_REVIEWS);
-        when(reviewDAL.getRecentReviews(TEST_REVIEWS.size(), null)).thenReturn(expectedOutput);
+        when(reviewDAL.getRecentReviews(TEST_REVIEWS.size(), new ReviewFilter(null))).thenReturn(expectedOutput);
 
-        final GetAllReviewsOutput actualOutput = domain.getRecentReviews(TEST_REVIEWS.size(), null);
+        final GetAllReviewsOutput actualOutput = domain.getRecentReviews(TEST_REVIEWS.size(), new ReviewFilter(null));
         assertEquals(expectedOutput.getReviews().size(), actualOutput.getReviews().size());
     }
 
     @Test
     public void testGetRecentReviews_withTag_forwardsTagToDAL() throws Exception {
         final GetAllReviewsOutput expectedOutput = new GetAllReviewsOutput(TEST_REVIEWS);
-        when(reviewDAL.getRecentReviews(TEST_REVIEWS.size(), "Curly")).thenReturn(expectedOutput);
+        when(reviewDAL.getRecentReviews(TEST_REVIEWS.size(), new ReviewFilter(TEST_TAG_1))).thenReturn(expectedOutput);
 
-        final GetAllReviewsOutput actualOutput = domain.getRecentReviews(TEST_REVIEWS.size(), "Curly");
+        final GetAllReviewsOutput actualOutput = domain.getRecentReviews(TEST_REVIEWS.size(), new ReviewFilter(TEST_TAG_1));
         assertEquals(expectedOutput.getReviews().size(), actualOutput.getReviews().size());
     }
 

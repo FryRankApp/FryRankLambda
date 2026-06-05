@@ -8,6 +8,7 @@ import com.fryrank.dagger.Dependencies;
 import com.fryrank.domain.ReviewDomain;
 import com.fryrank.model.GetAllReviewsOutput;
 import com.fryrank.model.GetAllReviewsRequest;
+import com.fryrank.model.ReviewFilter;
 import com.fryrank.model.enums.QueryParam;
 import com.fryrank.util.APIGatewayResponseBuilder;
 import com.fryrank.validator.APIGatewayRequestValidator;
@@ -78,7 +79,7 @@ public class GetAllReviewsHandler implements RequestHandler<APIGatewayV2HTTPEven
 					request.accountId(),
 					limit,
 					request.cursor(),
-					request.tag());
+					new ReviewFilter(request.tag()));
 
             log.info("Request processed successfully");
             return APIGatewayResponseBuilder.buildSuccessResponse(output, createCorsHeaders(input));

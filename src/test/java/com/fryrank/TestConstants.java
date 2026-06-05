@@ -25,6 +25,9 @@ public class TestConstants {
     public static final String TEST_USERNAME = "testflush";
     public static final String TEST_DELETE_REVIEW_ID = "abcdefg:1234567";
     public static final String TEST_DELETE_REVIEW_ID_NO_COLON = "abcdefg1234567";
+    public static final String TEST_TAG_1 = "Curly";
+    public static final String TEST_TAG_2 = "Waffle";
+    public static final List<String> TEST_TAGS = List.of(TEST_TAG_1, TEST_TAG_2);
 
     // Authorization test constants
     public static final String TEST_VALID_TOKEN = "valid-token";
