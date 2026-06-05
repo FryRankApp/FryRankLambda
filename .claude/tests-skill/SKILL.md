@@ -102,6 +102,42 @@ Use `ArgumentCaptor` to inspect the request sent to DynamoDB (or any downstream 
 
 If two tests would capture the same thing, the second one is probably unnecessary.
 
+### 8. Tripwire Tests Lock Down Pass-Through Contracts
+
+When a handler / domain method is *intentionally* a pure wrap-and-forward today but is **likely to gain custom logic later**, add a test that asserts the current wrap-and-forward contract. The test looks trivial — that's the point. It's a **tripwire**:
+
+- Today: handler reads `tag` query param, constructs `new ReviewFilter(tag)`, passes it to the domain. No transformation.
+- Tomorrow: an engineer adds tag normalization, category routing, or value validation inside the handler. The tripwire test fails. They have to engage with the existing contract — update the test deliberately or rethink the change — instead of silently shifting downstream behavior.
+
+The test isn't testing "nothing new." It's testing *that the wrap-and-forward step itself is the contract*. Future custom logic should be a deliberate change to that contract, not an accidental drift.
+
+**When to add a tripwire test:**
+- The layer is currently pass-through but the design doc / roadmap hints at custom logic later.
+- The wrap step has a structural shape (e.g., `new ReviewFilter(tag)`) that callers downstream might rely on.
+- One test per code path through the layer is enough (e.g., restaurant + account, not every limit/cursor combination).
+
+**When NOT to add one:**
+- Every pass-through method by default — only where future custom logic is realistic.
+- Where principle 6 (don't duplicate) already covers the contract (a downstream DAL test that asserts the same shape).
+
+**Real session example:** The reviewer asked for non-null `tag` tests on `GetAllReviewsHandlerTests` even though the handler does nothing custom with tags today. The two tests (restaurant path + account path) lock down the pass-through wrapping behavior so any future tag-handling logic in the handler trips a test failure.
+
+### 9. Extract Repeated Test Literals Into TestConstants
+
+If a literal value appears in more than one test (a tag name, an ID, a magic number, a fixed list), put it in `TestConstants.java`:
+
+```java
+public static final String TEST_TAG_1 = "Curly";
+public static final String TEST_TAG_2 = "Waffle";
+public static final List<String> TEST_TAGS = List.of(TEST_TAG_1, TEST_TAG_2);
+```
+
+This matches the convention already in place for `TEST_RESTAURANT_ID`, `TEST_REVIEW_*`, `TEST_ISO_DATE_TIME_1`, etc. Surfacing test values in one place means a future rename, value tweak, or schema split (e.g., separating fry shapes from flavors) only touches the constants file — not every test file that references the literal.
+
+If a literal only appears in one test, leave it inline. The constant earns its place once it's reused.
+
+**Real session example:** First pass inlined `"Curly"` and `"Waffle"` across `ReviewDALTests`, `ReviewDomainTests`, and `GetAllReviewsHandlerTests`. A reviewer flagged the repetition. Extracting to `TEST_TAG_1` / `TEST_TAG_2` / `TEST_TAGS` removed the inlined literals from every test except where they're defined.
+
 ## Test Placement
 
 - Put a new test in the **existing test file that owns the behavior being tested** (`ReviewDALTests`, `ReviewDomainTests`, `GetAllReviewsHandlerTests`, etc.) — don't always create a new file per feature.
