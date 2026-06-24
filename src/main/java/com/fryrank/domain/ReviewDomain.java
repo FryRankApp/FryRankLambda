@@ -13,6 +13,7 @@ import com.fryrank.model.DeleteReviewRequest;
 import com.fryrank.model.GetAggregateReviewInformationOutput;
 import com.fryrank.model.GetAllReviewsOutput;
 import com.fryrank.model.Review;
+import com.fryrank.model.ReviewFilter;
 import com.fryrank.validator.ReviewValidator;
 import com.fryrank.validator.ValidatorException;
 import com.fryrank.validator.ValidatorUtils;
@@ -31,25 +32,26 @@ public class ReviewDomain {
         this.reviewValidator = reviewValidator;
     }
 
-	public GetAllReviewsOutput getAllReviews(final String restaurantId, final String accountId, final Integer limit, final String cursor) {
+	public GetAllReviewsOutput getAllReviews(final String restaurantId, final String accountId, final Integer limit, final String cursor, @NonNull final ReviewFilter filter) {
 
-		log.info("Getting paginated reviews{}{} with limit: {} and cursor: {}",
+		log.info("Getting paginated reviews{}{} with limit: {}, cursor: {}, filter: {}",
 				restaurantId != null ? " for restaurantId: " + restaurantId : "",
 				accountId != null ? " for accountId: " + accountId : "",
 				limit,
-				cursor);
+				cursor,
+				filter);
 
 		if (restaurantId != null) {
-			return reviewDAL.getAllReviewsByRestaurantId(restaurantId, limit, cursor);
+			return reviewDAL.getAllReviewsByRestaurantId(restaurantId, limit, cursor, filter);
 		} else if (accountId != null) {
-			return reviewDAL.getAllReviewsByAccountId(accountId, limit, cursor);
+			return reviewDAL.getAllReviewsByAccountId(accountId, limit, cursor, filter);
 		} else {
 			throw new NullPointerException("At least one of restaurantId and accountId must not be null.");
 		}
 	}
 
-    public GetAllReviewsOutput getRecentReviews(final Integer count) {
-        return reviewDAL.getRecentReviews(count);
+    public GetAllReviewsOutput getRecentReviews(final Integer count, @NonNull final ReviewFilter filter) {
+        return reviewDAL.getRecentReviews(count, filter);
     }
 
     public GetAggregateReviewInformationOutput getAggregateReviewInformationForRestaurants(

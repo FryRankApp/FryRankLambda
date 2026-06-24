@@ -8,6 +8,7 @@ import com.fryrank.model.GetAggregateReviewInformationOutput;
 import com.fryrank.model.GetAllReviewsOutput;
 import com.fryrank.model.PublicUserMetadata;
 import com.fryrank.model.Review;
+import com.fryrank.model.ReviewFilter;
 import lombok.NonNull;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Repository;
@@ -35,6 +36,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static com.fryrank.Constants.ACCOUNT_ID_KEY;
@@ -53,6 +55,7 @@ import static com.fryrank.Constants.RESTAURANT_ID_TIME_INDEX;
 import static com.fryrank.Constants.REVIEW_COUNT_KEY;
 import static com.fryrank.Constants.REVIEW_IDENTIFIER_PREFIX;
 import static com.fryrank.Constants.SCORE_KEY;
+import static com.fryrank.Constants.TAGS_KEY;
 import static com.fryrank.Constants.TITLE_KEY;
 import static com.fryrank.Constants.USERNAME_KEY;
 import static com.fryrank.Constants.USER_METADATA_TABLE_NAME;
@@ -85,18 +88,18 @@ public class ReviewDALImpl implements ReviewDAL {
     }
 
     @Override
-    public GetAllReviewsOutput getAllReviewsByRestaurantId(@NonNull final String restaurantId, final Integer limit, final String cursor) {
-        log.info("Getting reviews for restaurantId: {} with limit: {} and cursor: {}", restaurantId, limit, cursor);
-        return queryReviews(RESTAURANT_ID_TIME_INDEX, RESTAURANT_ID_KEY, restaurantId, limit, cursor);
+    public GetAllReviewsOutput getAllReviewsByRestaurantId(@NonNull final String restaurantId, final Integer limit, final String cursor, @NonNull final ReviewFilter filter) {
+        log.info("Getting reviews for restaurantId: {} with limit: {}, cursor: {}, filter: {}", restaurantId, limit, cursor, filter);
+        return queryReviews(RESTAURANT_ID_TIME_INDEX, RESTAURANT_ID_KEY, restaurantId, limit, cursor, filter);
     }
 
     @Override
-    public GetAllReviewsOutput getAllReviewsByAccountId(@NonNull final String accountId, final Integer limit, final String cursor) {
-        log.info("Getting reviews for accountId: {} with limit: {} and cursor: {}", accountId, limit, cursor);
-        return queryReviews(ACCOUNT_ID_TIME_INDEX, ACCOUNT_ID_KEY, accountId, limit, cursor);
+    public GetAllReviewsOutput getAllReviewsByAccountId(@NonNull final String accountId, final Integer limit, final String cursor, @NonNull final ReviewFilter filter) {
+        log.info("Getting reviews for accountId: {} with limit: {}, cursor: {}, filter: {}", accountId, limit, cursor, filter);
+        return queryReviews(ACCOUNT_ID_TIME_INDEX, ACCOUNT_ID_KEY, accountId, limit, cursor, filter);
     }
 
-    private GetAllReviewsOutput queryReviews(String indexName, String keyAttribute, String keyValue, Integer limit, String cursor) {
+    private GetAllReviewsOutput queryReviews(String indexName, String keyAttribute, String keyValue, Integer limit, String cursor, ReviewFilter filter) {
         final Map<String, String> exprAttrNames = new HashMap<>();
         exprAttrNames.put("#key", keyAttribute);
 
@@ -118,7 +121,7 @@ public class ReviewDALImpl implements ReviewDAL {
                 .keyConditionExpression(keyCondition)
                 // TODO(FRY-114): Temporary filter expression because we have not yet converted over outputs to use the
                 //  new Ranking model objects. Once we convert outputs to use Ranking objects, we can remove this
-                .filterExpression("attribute_exists(isReview)")
+                .filterExpression(buildFilterExpression(Optional.of("attribute_exists(isReview)"), filter, exprAttrNames, exprAttrValues))
                 .expressionAttributeNames(exprAttrNames)
                 .expressionAttributeValues(exprAttrValues)
                 .scanIndexForward(false);  // Most recent first
@@ -143,24 +146,45 @@ public class ReviewDALImpl implements ReviewDAL {
     }
 
     @Override
-    public GetAllReviewsOutput getRecentReviews(@NonNull final Integer count) {
-        log.info("Getting {} recent reviews", count);
+    public GetAllReviewsOutput getRecentReviews(@NonNull final Integer count, @NonNull final ReviewFilter filter) {
+        log.info("Getting {} recent reviews with filter: {}", count, filter);
+
+        final Map<String, String> exprAttrNames = new HashMap<>();
+        exprAttrNames.put("#ir", IS_REVIEW_KEY);
+
+        final Map<String, AttributeValue> exprAttrValues = new HashMap<>();
+        exprAttrValues.put(":isReview", AttributeValue.builder().s(IS_REVIEW_VALUE).build());
 
         final QueryRequest request = QueryRequest.builder()
                 .tableName(RANKINGS_TABLE_NAME)
                 .indexName(RECENT_REVIEWS_INDEX)
                 // #ir is an expression attribute placeholder for the isReview attribute.
                 .keyConditionExpression("#ir = :isReview")
-                .expressionAttributeNames(Map.of("#ir", IS_REVIEW_KEY))
-                .expressionAttributeValues(Map.of(
-                        ":isReview", AttributeValue.builder().s(IS_REVIEW_VALUE).build()
-                ))
+                .filterExpression(buildFilterExpression(Optional.empty(), filter, exprAttrNames, exprAttrValues))
+                .expressionAttributeNames(exprAttrNames)
+                .expressionAttributeValues(exprAttrValues)
                 .scanIndexForward(false)  // Descending by isoDateTime (most recent first)
                 .limit(count)
                 .build();
 
         final QueryResponse response = dynamoDb.query(request);
         return mapItemsToReviewsWithUserMetadata(response.items(), null);
+    }
+
+    /**
+     * Combines an optional base filter expression with an optional tag filter.
+     * Returns null when neither is present so DynamoDB skips the filter clause entirely.
+     * Untagged reviews are naturally excluded by contains() when a tag filter is active.
+     */
+    private String buildFilterExpression(Optional<String> baseFilter, ReviewFilter filter, Map<String, String> exprAttrNames, Map<String, AttributeValue> exprAttrValues) {
+        final String tag = filter.tag();
+        if (tag == null || tag.isEmpty()) {
+            return baseFilter.orElse(null);
+        }
+        exprAttrNames.put("#tags", TAGS_KEY);
+        exprAttrValues.put(":tag", AttributeValue.builder().s(tag).build());
+        final String tagFilter = "contains(#tags, :tag)";
+        return baseFilter.map(base -> base + " AND " + tagFilter).orElse(tagFilter);
     }
 
     @Override
@@ -252,6 +276,12 @@ public class ReviewDALImpl implements ReviewDAL {
         if (review.getAccountId() != null) {
             reviewItem.put(ACCOUNT_ID_KEY, AttributeValue.builder().s(review.getAccountId()).build());
         }
+        if (review.getTags() != null && !review.getTags().isEmpty()) {
+            final List<AttributeValue> tagValues = review.getTags().stream()
+                    .map(t -> AttributeValue.builder().s(t).build())
+                    .collect(Collectors.toList());
+            reviewItem.put(TAGS_KEY, AttributeValue.builder().l(tagValues).build());
+        }
 
         // Use transactional write with optimistic locking retries
         addReviewWithTransactionalAggregate(restaurantId, reviewItem, review.getScore());
@@ -266,6 +296,7 @@ public class ReviewDALImpl implements ReviewDAL {
                 .body(review.getBody())
                 .isoDateTime(review.getIsoDateTime())
                 .accountId(review.getAccountId())
+                .tags(review.getTags())
                 .build();
     }
 
@@ -514,6 +545,7 @@ public class ReviewDALImpl implements ReviewDAL {
                 // TODO(FRY-108): Once we update isoDateTime to non-optional we can add a requirement here for non null.
                 .isoDateTime(getStringAttribute(item, ISO_DATE_TIME))
                 .accountId(accountId)
+                .tags(getStringListAttribute(item, TAGS_KEY))
                 .userMetadata(userMetadata)
                 .build();
     }
@@ -566,6 +598,14 @@ public class ReviewDALImpl implements ReviewDAL {
     private Double getDoubleAttribute(Map<String, AttributeValue> item, String key) {
         AttributeValue attr = item.get(key);
         return (attr != null && attr.n() != null) ? Double.parseDouble(attr.n()) : null;
+    }
+
+    private List<String> getStringListAttribute(Map<String, AttributeValue> item, String key) {
+        AttributeValue attr = item.get(key);
+        if (attr == null || !attr.hasL()) {
+            return null;
+        }
+        return attr.l().stream().map(AttributeValue::s).collect(Collectors.toList());
     }
 }
 
