@@ -182,7 +182,7 @@ public class ReviewDALImpl implements ReviewDAL {
         log.info("Getting {} recent reviews with filter: {}", count, filter);
 
         final Map<String, String> exprAttrNames = new HashMap<>();
-        exprAttrNames.put("#r", IS_REVIEW_KEY);
+        exprAttrNames.put("#ir", IS_REVIEW_KEY);
 
         final Map<String, AttributeValue> exprAttrValues = new HashMap<>();
         exprAttrValues.put(":isReview", AttributeValue.builder().s(IS_REVIEW_VALUE).build());
