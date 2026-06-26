@@ -43,6 +43,7 @@ public class Constants {
     public static final String USERNAME_KEY = "username";
     public static final String IS_REVIEW_KEY = "isReview";
     public static final String IS_REVIEW_VALUE = "true";
+    public static final String TAGS_KEY = "tags";
 
     // DynamoDB Ranking table identifiers
     public static final String REVIEW_IDENTIFIER_PREFIX = "REVIEW:";

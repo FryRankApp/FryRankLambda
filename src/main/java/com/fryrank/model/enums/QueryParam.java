@@ -8,7 +8,8 @@ public enum QueryParam {
 	INCLUDE_RATING("rating"),
 	USERNAME("defaultUsername"),
 	LIMIT("limit"),
-	CURSOR("cursor");
+	CURSOR("cursor"),
+	TAG("tag");
 
     private final String value;
 

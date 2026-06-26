@@ -8,6 +8,7 @@ import com.fryrank.dagger.Dependencies;
 import com.fryrank.domain.ReviewDomain;
 import com.fryrank.model.GetAllReviewsOutput;
 import com.fryrank.model.GetAllReviewsRequest;
+import com.fryrank.model.ReviewFilter;
 import com.fryrank.model.enums.QueryParam;
 import com.fryrank.model.exceptions.AuthorizationDisabledException;
 import com.fryrank.model.exceptions.NotAuthorizedException;
@@ -64,25 +65,27 @@ public class GetAllReviewsHandler implements RequestHandler<APIGatewayV2HTTPEven
         return APIGatewayResponseBuilder.handleRequest(handlerName, input, () -> {
             requestValidator.validateRequest(handlerName, input);
 
-			final Map<String, String> params = input.getQueryStringParameters() != null
-					? input.getQueryStringParameters()
-					: Map.of();
-			final GetAllReviewsRequest request = new GetAllReviewsRequest(
-					params.get(QueryParam.RESTAURANT_ID.getValue()),
-					params.get(QueryParam.ACCOUNT_ID.getValue()),
-					params.get(QueryParam.LIMIT.getValue()),
-					decodeCursor(params.get(QueryParam.CURSOR.getValue())));
+            final Map<String, String> params = input.getQueryStringParameters() != null
+                    ? input.getQueryStringParameters()
+                    : Map.of();
+            final GetAllReviewsRequest request = new GetAllReviewsRequest(
+                    params.get(QueryParam.RESTAURANT_ID.getValue()),
+                    params.get(QueryParam.ACCOUNT_ID.getValue()),
+                    params.get(QueryParam.LIMIT.getValue()),
+                    decodeCursor(params.get(QueryParam.CURSOR.getValue())),
+                    params.get(QueryParam.TAG.getValue()));
 
-			final String limitParam = request.limit();
-			int limit = DEFAULT_PAGE_LIMIT;
-			if (limitParam != null && !limitParam.isEmpty()) {
-				try {
-					limit = Math.min(Math.max(Integer.parseInt(limitParam), 1), MAX_PAGE_LIMIT);
-				} catch (NumberFormatException e) {
-					log.warn("Invalid limit param '{}', using default: {}", limitParam, DEFAULT_PAGE_LIMIT);
-				}
-			}
-			log.debug("Using limit: {}", limit);
+            final String limitParam = request.limit();
+            int limit = DEFAULT_PAGE_LIMIT;
+            if (limitParam != null && !limitParam.isEmpty()) {
+                try {
+                    limit = Math.min(Math.max(Integer.parseInt(limitParam), 1), MAX_PAGE_LIMIT);
+                } catch (NumberFormatException e) {
+                    log.warn("Invalid limit param '{}', using default: {}", limitParam, DEFAULT_PAGE_LIMIT);
+                }
+            }
+            log.debug("Using limit: {}", limit);
+
             final String viewerAccountId;
             try {
                 viewerAccountId = resolveViewerAccountIdFromAuthorizationHeader(input);
@@ -90,17 +93,19 @@ public class GetAllReviewsHandler implements RequestHandler<APIGatewayV2HTTPEven
                 return APIGatewayResponseBuilder.buildErrorResponse(401, e.getMessage(), createCorsHeaders(input));
             }
 
-			final GetAllReviewsOutput output = reviewDomain.getAllReviews(
-					request.restaurantId(),
-					request.accountId(),
-					limit,
-					request.cursor(),
+            final GetAllReviewsOutput output = reviewDomain.getAllReviews(
+                    request.restaurantId(),
+                    request.accountId(),
+                    limit,
+                    request.cursor(),
+                    new ReviewFilter(request.tag()),
                     viewerAccountId);
 
             log.info("Request processed successfully");
             return APIGatewayResponseBuilder.buildSuccessResponse(output, createCorsHeaders(input));
         });
     }
+
     /**
      * Verified Google {@code sub} when a Bearer token is present and valid; {@code null} when there is no token
      * (anonymous listing). Throws {@link NotAuthorizedException} if a token is present but invalid.

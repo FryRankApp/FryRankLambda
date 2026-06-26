@@ -8,7 +8,6 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import com.fryrank.dal.ReviewDAL;
-import com.fryrank.dal.ReviewsPage;
 import com.fryrank.model.exceptions.NotFoundException;
 import com.fryrank.model.AggregateReviewFilter;
 import com.fryrank.model.DeleteReviewRequest;
@@ -18,6 +17,7 @@ import com.fryrank.model.Review;
 import com.fryrank.model.PutReactionRequest;
 import com.fryrank.model.PutReactionResult;
 import com.fryrank.validator.PutReactionRequestValidator;
+import com.fryrank.model.ReviewFilter;
 import com.fryrank.validator.ReviewValidator;
 import com.fryrank.validator.ValidatorException;
 import com.fryrank.validator.ValidatorUtils;
@@ -36,42 +36,51 @@ public class ReviewDomain {
         this.reviewValidator = reviewValidator;
     }
 
-	public GetAllReviewsOutput getAllReviews(final String restaurantId, final String accountId, final Integer limit, final String cursor) {
-        return getAllReviews(restaurantId, accountId, limit, cursor, null);
-    }
-
-	public GetAllReviewsOutput getAllReviews(
+    public GetAllReviewsOutput getAllReviews(
             final String restaurantId,
             final String accountId,
             final Integer limit,
             final String cursor,
-            final String viewerAccountId
+            @NonNull final ReviewFilter filter
     ) {
-		log.info("Getting paginated reviews{}{} with limit: {} and cursor: {}",
-				restaurantId != null ? " for restaurantId: " + restaurantId : "",
-				accountId != null ? " for accountId: " + accountId : "",
-				limit,
-				cursor);
-
-        final ReviewsPage page;
-        if (restaurantId != null) {
-            page = reviewDAL.getAllReviewsByRestaurantId(restaurantId, limit, cursor);
-        } else if (accountId != null) {
-            page = reviewDAL.getAllReviewsByAccountId(accountId, limit, cursor);
-        } else {
-            throw new IllegalArgumentException("At least one of restaurantId and accountId must be provided.");
-        }
-
-        List<Review> reviews = page.reviews();
-        if (viewerAccountId != null && !viewerAccountId.isBlank() && !reviews.isEmpty()) {
-            reviews = reviewDAL.mergeViewerReactions(viewerAccountId, reviews);
-        }
-        return new GetAllReviewsOutput(reviews, page.nextCursor());
+        return getAllReviews(restaurantId, accountId, limit, cursor, filter, null);
     }
 
-    public GetAllReviewsOutput getRecentReviews(final Integer count) {
-        final ReviewsPage page = reviewDAL.getRecentReviews(count);
-        return new GetAllReviewsOutput(page.reviews(), page.nextCursor());
+    public GetAllReviewsOutput getAllReviews(
+            final String restaurantId,
+            final String accountId,
+            final Integer limit,
+            final String cursor,
+            @NonNull final ReviewFilter filter,
+            final String viewerAccountId
+    ) {
+
+        log.info("Getting paginated reviews{}{} with limit: {} and cursor: {}",
+                restaurantId != null ? " for restaurantId: " + restaurantId : "",
+                accountId != null ? " for accountId: " + accountId : "",
+                limit,
+                cursor,
+                filter);
+
+        final GetAllReviewsOutput output;
+        if (restaurantId != null) {
+            output = reviewDAL.getAllReviewsByRestaurantId(restaurantId, limit, cursor, filter);
+        } else if (accountId != null) {
+            output = reviewDAL.getAllReviewsByAccountId(accountId, limit, cursor, filter);
+        } else {
+            throw new NullPointerException("At least one of restaurantId and accountId must not be null.");
+        }
+
+        List<Review> reviews = output.getReviews();
+        if (viewerAccountId != null && !viewerAccountId.isBlank() && !reviews.isEmpty()) {
+            reviews = reviewDAL.mergeViewerReactions(viewerAccountId, reviews);
+            return new GetAllReviewsOutput(reviews, output.getNextCursor());
+        }
+        return output;
+    }
+
+    public GetAllReviewsOutput getRecentReviews(final Integer count, @NonNull final ReviewFilter filter) {
+        return reviewDAL.getRecentReviews(count, filter);
     }
 
     public GetAggregateReviewInformationOutput getAggregateReviewInformationForRestaurants(

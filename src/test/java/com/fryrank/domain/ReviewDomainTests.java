@@ -1,7 +1,6 @@
 package com.fryrank.domain;
 
 import com.fryrank.dal.ReviewDAL;
-import com.fryrank.dal.ReviewsPage;
 import com.fryrank.model.*;
 import com.fryrank.validator.ReviewValidator;
 import com.fryrank.validator.ValidatorException;
@@ -24,15 +23,13 @@ import static com.fryrank.TestConstants.TEST_REVIEW_BAD_ISO_DATETIME;
 import static com.fryrank.TestConstants.TEST_REVIEW_ID_1;
 import static com.fryrank.TestConstants.TEST_REVIEW_NULL_ACCOUNT_ID;
 import static com.fryrank.TestConstants.TEST_REVIEW_NULL_ISO_DATETIME;
+import static com.fryrank.TestConstants.TEST_TAG_1;
+import static com.fryrank.TestConstants.TEST_TAG_2;
 import static com.fryrank.TestConstants.TEST_TITLE_1;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
-import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -58,52 +55,74 @@ public class ReviewDomainTests {
     // /api/reviews endpoint tests
     @Test
     public void testGetAllReviewsForRestaurant() throws Exception {
-        final ReviewsPage page = new ReviewsPage(TEST_REVIEWS);
-        when(reviewDAL.getAllReviewsByRestaurantId(eq(TEST_RESTAURANT_ID), eq(TEST_LIMIT), eq(TEST_ISO_DATE_TIME_1)))
-                .thenReturn(page);
+        final GetAllReviewsOutput expectedOutput = new GetAllReviewsOutput(TEST_REVIEWS);
+        when(reviewDAL.getAllReviewsByRestaurantId(TEST_RESTAURANT_ID, TEST_LIMIT, TEST_ISO_DATE_TIME_1, new ReviewFilter(null))).thenReturn(expectedOutput);
 
-        final GetAllReviewsOutput actualOutput = domain.getAllReviews(
-                TEST_RESTAURANT_ID, null, TEST_LIMIT, TEST_ISO_DATE_TIME_1);
-        assertEquals(TEST_REVIEWS, actualOutput.getReviews());
+        final GetAllReviewsOutput actualOutput = domain.getAllReviews(TEST_RESTAURANT_ID, null, TEST_LIMIT, TEST_ISO_DATE_TIME_1, new ReviewFilter(null));
+        assertEquals(expectedOutput, actualOutput);
+    }
+
+    @Test
+    public void testGetAllReviewsForRestaurant_withTag_forwardsTagToDAL() throws Exception {
+        final GetAllReviewsOutput expectedOutput = new GetAllReviewsOutput(TEST_REVIEWS);
+        when(reviewDAL.getAllReviewsByRestaurantId(TEST_RESTAURANT_ID, TEST_LIMIT, TEST_ISO_DATE_TIME_1, new ReviewFilter(TEST_TAG_1))).thenReturn(expectedOutput);
+
+        final GetAllReviewsOutput actualOutput = domain.getAllReviews(TEST_RESTAURANT_ID, null, TEST_LIMIT, TEST_ISO_DATE_TIME_1, new ReviewFilter(TEST_TAG_1));
+        assertEquals(expectedOutput, actualOutput);
     }
 
     @Test
     public void testGetAllReviewsForAccount() throws Exception {
-        final ReviewsPage page = new ReviewsPage(TEST_REVIEWS);
-        when(reviewDAL.getAllReviewsByAccountId(eq(TEST_ACCOUNT_ID), eq(TEST_LIMIT), eq(TEST_ISO_DATE_TIME_1)))
-                .thenReturn(page);
+        final GetAllReviewsOutput expectedOutput = new GetAllReviewsOutput(TEST_REVIEWS);
+        when(reviewDAL.getAllReviewsByAccountId(TEST_ACCOUNT_ID, TEST_LIMIT, TEST_ISO_DATE_TIME_1, new ReviewFilter(null))).thenReturn(expectedOutput);
 
-        final GetAllReviewsOutput actualOutput = domain.getAllReviews(
-                null, TEST_ACCOUNT_ID, TEST_LIMIT, TEST_ISO_DATE_TIME_1);
-        assertEquals(TEST_REVIEWS, actualOutput.getReviews());
+        final GetAllReviewsOutput actualOutput = domain.getAllReviews(null, TEST_ACCOUNT_ID, TEST_LIMIT, TEST_ISO_DATE_TIME_1, new ReviewFilter(null));
+        assertEquals(expectedOutput, actualOutput);
+    }
+
+    @Test
+    public void testGetAllReviewsForAccount_withTag_forwardsTagToDAL() throws Exception {
+        final GetAllReviewsOutput expectedOutput = new GetAllReviewsOutput(TEST_REVIEWS);
+        when(reviewDAL.getAllReviewsByAccountId(TEST_ACCOUNT_ID, TEST_LIMIT, TEST_ISO_DATE_TIME_1, new ReviewFilter(TEST_TAG_2))).thenReturn(expectedOutput);
+
+        final GetAllReviewsOutput actualOutput = domain.getAllReviews(null, TEST_ACCOUNT_ID, TEST_LIMIT, TEST_ISO_DATE_TIME_1, new ReviewFilter(TEST_TAG_2));
+        assertEquals(expectedOutput, actualOutput);
     }
 
     @Test
     public void testGetAllReviewsNoParameter() throws Exception {
-        assertThrows(IllegalArgumentException.class,
-                () -> domain.getAllReviews(null, null, TEST_LIMIT, TEST_ISO_DATE_TIME_1));
+        assertThrows(NullPointerException.class, () ->domain.getAllReviews(null, null, TEST_LIMIT, TEST_ISO_DATE_TIME_1, new ReviewFilter(null)));
     }
 
     @Test
     public void testGetAllReviews_mergesViewerReactionsWhenViewerPresent() throws Exception {
-        final ReviewsPage page = new ReviewsPage(TEST_REVIEWS);
-        when(reviewDAL.getAllReviewsByRestaurantId(eq(TEST_RESTAURANT_ID), anyInt(), isNull()))
-                .thenReturn(page);
+        final GetAllReviewsOutput dalOutput = new GetAllReviewsOutput(TEST_REVIEWS);
+        when(reviewDAL.getAllReviewsByRestaurantId(eq(TEST_RESTAURANT_ID), eq(TEST_LIMIT), isNull(), eq(new ReviewFilter(null))))
+                .thenReturn(dalOutput);
         when(reviewDAL.mergeViewerReactions(eq("viewer-1"), eq(TEST_REVIEWS)))
                 .thenReturn(TEST_REVIEWS);
 
-        domain.getAllReviews(TEST_RESTAURANT_ID, null, TEST_LIMIT, null, "viewer-1");
+        domain.getAllReviews(TEST_RESTAURANT_ID, null, TEST_LIMIT, null, new ReviewFilter(null), "viewer-1");
 
         verify(reviewDAL).mergeViewerReactions("viewer-1", TEST_REVIEWS);
     }
 
     @Test
     public void testGetRecentReviews() throws Exception {
-        final ReviewsPage page = new ReviewsPage(TEST_REVIEWS);
-        when(reviewDAL.getRecentReviews(TEST_REVIEWS.size())).thenReturn(page);
+        final GetAllReviewsOutput expectedOutput = new GetAllReviewsOutput(TEST_REVIEWS);
+        when(reviewDAL.getRecentReviews(TEST_REVIEWS.size(), new ReviewFilter(null))).thenReturn(expectedOutput);
 
-        final GetAllReviewsOutput actualOutput = domain.getRecentReviews(TEST_REVIEWS.size());
-        assertEquals(TEST_REVIEWS.size(), actualOutput.getReviews().size());
+        final GetAllReviewsOutput actualOutput = domain.getRecentReviews(TEST_REVIEWS.size(), new ReviewFilter(null));
+        assertEquals(expectedOutput.getReviews().size(), actualOutput.getReviews().size());
+    }
+
+    @Test
+    public void testGetRecentReviews_withTag_forwardsTagToDAL() throws Exception {
+        final GetAllReviewsOutput expectedOutput = new GetAllReviewsOutput(TEST_REVIEWS);
+        when(reviewDAL.getRecentReviews(TEST_REVIEWS.size(), new ReviewFilter(TEST_TAG_1))).thenReturn(expectedOutput);
+
+        final GetAllReviewsOutput actualOutput = domain.getRecentReviews(TEST_REVIEWS.size(), new ReviewFilter(TEST_TAG_1));
+        assertEquals(expectedOutput.getReviews().size(), actualOutput.getReviews().size());
     }
 
     // /api/reviews/aggregateInformation endpoint tests
@@ -201,7 +220,7 @@ public class ReviewDomainTests {
 
     @Test
     public void testAddNewReviewForNullRestaurant() throws Exception {
-        assertThrows(NullPointerException.class, () -> domain.addNewReviewForRestaurant(null));
+        assertThrows(NullPointerException.class, () ->domain.addNewReviewForRestaurant(null));
     }
 
     @Test
@@ -225,7 +244,7 @@ public class ReviewDomainTests {
 
     @Test
     public void testAddNewReviewNullRestaurantID() throws Exception {
-        assertThrows(NullPointerException.class, () -> 
+        assertThrows(NullPointerException.class, () ->
             Review.builder()
                 .reviewId(TEST_REVIEW_ID_1)
                 .restaurantId(null)
@@ -240,7 +259,7 @@ public class ReviewDomainTests {
 
     @Test
     public void testAddNewReviewNullScore() throws Exception {
-        assertThrows(NullPointerException.class, () -> 
+        assertThrows(NullPointerException.class, () ->
             Review.builder()
                 .reviewId(TEST_REVIEW_ID_1)
                 .restaurantId(TEST_RESTAURANT_ID_1)
@@ -255,7 +274,7 @@ public class ReviewDomainTests {
 
     @Test
     public void testAddNewReviewNullTitle() throws Exception {
-        assertThrows(NullPointerException.class, () -> 
+        assertThrows(NullPointerException.class, () ->
             Review.builder()
                 .reviewId(TEST_REVIEW_ID_1)
                 .restaurantId(TEST_RESTAURANT_ID_1)
@@ -270,7 +289,7 @@ public class ReviewDomainTests {
 
     @Test
     public void testAddNewReviewNullBody() throws Exception {
-        assertThrows(NullPointerException.class, () -> 
+        assertThrows(NullPointerException.class, () ->
             Review.builder()
                 .reviewId(TEST_REVIEW_ID_1)
                 .restaurantId(TEST_RESTAURANT_ID_1)

@@ -7,10 +7,13 @@ import com.amazonaws.services.lambda.runtime.events.APIGatewayV2HTTPResponse;
 import com.fryrank.dagger.Dependencies;
 import com.fryrank.domain.ReviewDomain;
 import com.fryrank.model.GetAllReviewsOutput;
+import com.fryrank.model.ReviewFilter;
 import com.fryrank.model.enums.QueryParam;
 import com.fryrank.util.APIGatewayResponseBuilder;
 import com.fryrank.validator.APIGatewayRequestValidator;
 import lombok.extern.log4j.Log4j2;
+
+import java.util.Map;
 
 import static com.fryrank.util.HeaderUtils.createCorsHeaders;
 
@@ -25,7 +28,7 @@ public class GetRecentReviewsHandler implements RequestHandler<APIGatewayV2HTTPE
         reviewDomain = component.reviewDomain();
         requestValidator = component.apiGatewayRequestValidator();
     }
-    
+
     @Override
     public APIGatewayV2HTTPResponse handleRequest(APIGatewayV2HTTPEvent input, Context context) {
         log.info("Handling request: {}", input);
@@ -34,8 +37,10 @@ public class GetRecentReviewsHandler implements RequestHandler<APIGatewayV2HTTPE
         return APIGatewayResponseBuilder.handleRequest(handlerName, input, () -> {
             requestValidator.validateRequest(handlerName, input);
 
+            final Map<String, String> params = input.getQueryStringParameters();
             final GetAllReviewsOutput output = reviewDomain.getRecentReviews(
-                    Integer.parseInt(input.getQueryStringParameters().get(QueryParam.COUNT.getValue())));
+                    Integer.parseInt(params.get(QueryParam.COUNT.getValue())),
+                    new ReviewFilter(params.get(QueryParam.TAG.getValue())));
 
             log.info("Request processed successfully");
             return APIGatewayResponseBuilder.buildSuccessResponse(output, createCorsHeaders(input));

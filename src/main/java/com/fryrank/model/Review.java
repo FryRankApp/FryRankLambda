@@ -6,6 +6,8 @@ import lombok.NonNull;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
+import java.util.List;
+
 @Document("review")
 @Data
 @Builder
@@ -28,6 +30,8 @@ public class Review {
     private String isoDateTime;
 
     private String accountId;
+
+    private List<String> tags;
 
     private final PublicUserMetadata userMetadata;
 

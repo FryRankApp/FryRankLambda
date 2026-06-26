@@ -20,7 +20,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static com.fryrank.Constants.ACCOUNT_ID_KEY;
 import static com.fryrank.Constants.BODY_KEY;
 import static com.fryrank.Constants.HEART_KEY;
 import static com.fryrank.Constants.IDENTIFIER_KEY;
@@ -33,7 +32,6 @@ import static com.fryrank.Constants.SCORE_KEY;
 import static com.fryrank.Constants.THUMBS_DOWN_KEY;
 import static com.fryrank.Constants.THUMBS_UP_KEY;
 import static com.fryrank.Constants.TITLE_KEY;
-import static com.fryrank.Constants.USER_METADATA_TABLE_NAME;
 import static com.fryrank.Constants.VIEWER_ACCOUNT_ID_KEY;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
