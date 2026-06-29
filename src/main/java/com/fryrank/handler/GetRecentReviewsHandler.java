@@ -7,6 +7,7 @@ import com.amazonaws.services.lambda.runtime.events.APIGatewayV2HTTPResponse;
 import com.fryrank.dagger.Dependencies;
 import com.fryrank.domain.ReviewDomain;
 import com.fryrank.model.GetAllReviewsOutput;
+import com.fryrank.model.ReviewFilter;
 import com.fryrank.model.enums.QueryParam;
 import com.fryrank.util.APIGatewayResponseBuilder;
 import com.fryrank.validator.APIGatewayRequestValidator;
@@ -39,7 +40,7 @@ public class GetRecentReviewsHandler implements RequestHandler<APIGatewayV2HTTPE
             final Map<String, String> params = input.getQueryStringParameters();
             final GetAllReviewsOutput output = reviewDomain.getRecentReviews(
                     Integer.parseInt(params.get(QueryParam.COUNT.getValue())),
-                    params.get(QueryParam.TAG.getValue()));
+                    new ReviewFilter(params.get(QueryParam.TAG.getValue())));
 
             log.info("Request processed successfully");
             return APIGatewayResponseBuilder.buildSuccessResponse(output, createCorsHeaders(input));
