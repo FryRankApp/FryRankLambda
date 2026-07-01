@@ -122,5 +122,4 @@ The schema sets the right level of specificity. If a value is stored as one undi
 ## See Also
 
 - `tests-skill/SKILL.md` for testing principles that complement these.
-- `dal-pagination-planning/SKILL.md` for pagination-specific guidance (this skill borrows several principles from there).
 - `claude-school/SKILL.md` for the post-session learning export format.

@@ -153,5 +153,4 @@ If a literal only appears in one test, leave it inline. The constant earns its p
 ## See Also
 
 - `implementation-skill/SKILL.md` for implementation principles these tests support.
-- `dal-pagination-planning/SKILL.md` for pagination-specific test guidance (this skill borrows several principles from there).
 - `claude-school/SKILL.md` for the post-session learning export format.
