@@ -1,6 +1,7 @@
 package com.fryrank.domain;
 
 import com.fryrank.dal.UserMetadataDAL;
+import com.fryrank.dal.WriteMode;
 import com.fryrank.model.PublicUserMetadata;
 import com.fryrank.model.PublicUserMetadataOutput;
 import com.fryrank.validator.UserMetadataValidator;
@@ -20,7 +21,6 @@ import static com.fryrank.TestConstants.TEST_USERNAME;
 import static com.fryrank.TestConstants.TEST_USER_METADATA_1;
 import static com.fryrank.TestConstants.TEST_USER_METADATA_OUTPUT_1;
 import static com.fryrank.TestConstants.TEST_PUBLIC_USER_METADATA_OUTPUT_EMPTY;
-import static com.fryrank.TestConstants.TEST_PUBLIC_USER_METADATA_OUTPUT_WITH_DEFAULT_NAME;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.when;
@@ -61,20 +61,11 @@ public class PublicUserMetadataDomainTests {
 
     @Test
     public void testPutPublicUserMetadata_happyPath() throws Exception {
-        when(userMetadataDAL.putPublicUserMetadataForAccountId(TEST_ACCOUNT_ID, TEST_DEFAULT_NAME))
+        when(userMetadataDAL.putPublicUserMetadata(new PublicUserMetadata(TEST_ACCOUNT_ID, TEST_DEFAULT_NAME), WriteMode.CREATE_IF_ABSENT))
             .thenReturn(TEST_USER_METADATA_OUTPUT_1);
 
         final PublicUserMetadataOutput actualOutput = domain.putPublicUserMetadata(TEST_ACCOUNT_ID, TEST_DEFAULT_NAME);
         assertEquals(TEST_USER_METADATA_OUTPUT_1, actualOutput);
-    }
-
-    @Test
-    public void testPutPublicUserMetadata_noExistingMetadata() throws Exception {
-        when(userMetadataDAL.putPublicUserMetadataForAccountId(TEST_ACCOUNT_ID_NO_USER_METADATA, TEST_DEFAULT_NAME))
-            .thenReturn(TEST_PUBLIC_USER_METADATA_OUTPUT_WITH_DEFAULT_NAME);
-
-        final PublicUserMetadataOutput actualOutput = domain.putPublicUserMetadata(TEST_ACCOUNT_ID_NO_USER_METADATA, TEST_DEFAULT_NAME);
-        assertEquals(TEST_PUBLIC_USER_METADATA_OUTPUT_WITH_DEFAULT_NAME, actualOutput);
     }
 
     @Test
@@ -94,7 +85,7 @@ public class PublicUserMetadataDomainTests {
 
     @Test
     public void testUpsertPublicUserMetadata_happyPath() throws Exception {
-        when(userMetadataDAL.upsertPublicUserMetadata(TEST_USER_METADATA_1))
+        when(userMetadataDAL.putPublicUserMetadata(TEST_USER_METADATA_1, WriteMode.OVERWRITE))
             .thenReturn(TEST_USER_METADATA_OUTPUT_1);
 
         final PublicUserMetadataOutput actualOutput = domain.upsertPublicUserMetadata(TEST_USER_METADATA_1);

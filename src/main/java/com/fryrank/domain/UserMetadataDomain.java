@@ -3,6 +3,7 @@ package com.fryrank.domain;
 import static com.fryrank.Constants.USER_METADATA_VALIDATOR_ERRORS_OBJECT_NAME;
 
 import com.fryrank.dal.UserMetadataDAL;
+import com.fryrank.dal.WriteMode;
 import com.fryrank.model.PublicUserMetadata;
 import com.fryrank.model.PublicUserMetadataOutput;
 import com.fryrank.validator.UserMetadataValidator;
@@ -30,14 +31,14 @@ public class UserMetadataDomain {
 
     public PublicUserMetadataOutput putPublicUserMetadata(@NonNull final String accountId, @NonNull final String defaultUserName) {
         log.info("Putting public user metadata for accountId: {} with default username: {}", accountId, defaultUserName);
-        return userMetadataDAL.putPublicUserMetadataForAccountId(accountId, defaultUserName);
+        return userMetadataDAL.putPublicUserMetadata(new PublicUserMetadata(accountId, defaultUserName), WriteMode.CREATE_IF_ABSENT);
     }
 
     public PublicUserMetadataOutput upsertPublicUserMetadata(@NonNull final PublicUserMetadata userMetadata) throws ValidatorException {
         log.info("Upserting public user metadata for accountId: {}", userMetadata.getAccountId());
-        
+
         ValidatorUtils.validateAndThrow(userMetadata, USER_METADATA_VALIDATOR_ERRORS_OBJECT_NAME, userMetadataValidator);
-        
-        return userMetadataDAL.upsertPublicUserMetadata(userMetadata);
+
+        return userMetadataDAL.putPublicUserMetadata(userMetadata, WriteMode.OVERWRITE);
     }
 }
