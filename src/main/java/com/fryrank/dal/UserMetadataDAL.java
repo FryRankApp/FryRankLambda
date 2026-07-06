@@ -1,5 +1,6 @@
 package com.fryrank.dal;
 
+import com.fryrank.dal.enums.WriteMode;
 import com.fryrank.model.PublicUserMetadata;
 import com.fryrank.model.PublicUserMetadataOutput;
 

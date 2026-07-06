@@ -3,7 +3,7 @@ package com.fryrank.domain;
 import static com.fryrank.Constants.USER_METADATA_VALIDATOR_ERRORS_OBJECT_NAME;
 
 import com.fryrank.dal.UserMetadataDAL;
-import com.fryrank.dal.WriteMode;
+import com.fryrank.dal.enums.WriteMode;
 import com.fryrank.model.PublicUserMetadata;
 import com.fryrank.model.PublicUserMetadataOutput;
 import com.fryrank.validator.UserMetadataValidator;

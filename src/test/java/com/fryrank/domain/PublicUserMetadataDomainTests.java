@@ -1,7 +1,7 @@
 package com.fryrank.domain;
 
 import com.fryrank.dal.UserMetadataDAL;
-import com.fryrank.dal.WriteMode;
+import com.fryrank.dal.enums.WriteMode;
 import com.fryrank.model.PublicUserMetadata;
 import com.fryrank.model.PublicUserMetadataOutput;
 import com.fryrank.validator.UserMetadataValidator;
