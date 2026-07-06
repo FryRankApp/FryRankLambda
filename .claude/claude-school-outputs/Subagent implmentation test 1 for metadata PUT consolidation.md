@@ -64,7 +64,7 @@ Crucially, this was only **Phase 1** (backend internals). The full endpoint coll
 | `test/.../PublicUserMetadataDomainTests.java` | Repointed happy-path mocks; dropped the now-redundant existence-branch test. |
 | Handlers, routes, frontend, infra | **Untouched** (deferred to Phase 2). |
 
-*Staged (not committed) on branch `MetadataPut_Consolidate_CTest1`, branched off `MetadataPut_Consolidate`.*
+*Committed on branch `MetadataPut_Consolidate_CTest1` (`557e8d0`), branched off `MetadataPut_Consolidate`; later merged with the latest Claude/agent files via `196cf33`.*
 
 ## Testing Approach
 
