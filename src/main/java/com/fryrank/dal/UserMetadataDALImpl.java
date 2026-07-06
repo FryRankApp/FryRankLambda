@@ -7,9 +7,11 @@ import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Repository;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
+import software.amazon.awssdk.services.dynamodb.model.ConditionalCheckFailedException;
 import software.amazon.awssdk.services.dynamodb.model.GetItemRequest;
 import software.amazon.awssdk.services.dynamodb.model.GetItemResponse;
 import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
+import software.amazon.awssdk.services.dynamodb.model.ReturnValuesOnConditionCheckFailure;
 
 import java.util.Map;
 
@@ -28,22 +30,44 @@ public class UserMetadataDALImpl implements UserMetadataDAL {
         this.dynamoDb = dynamoDb;
     }
 
-    // TODO(FRY-137): Consolidate into 1 function
     @Override
-    public PublicUserMetadataOutput putPublicUserMetadataForAccountId(
-            @NonNull final String accountId,
-            @NonNull final String defaultUserName
+    public PublicUserMetadataOutput putPublicUserMetadata(
+            @NonNull final PublicUserMetadata userMetadata,
+            @NonNull final WriteMode mode
     ) {
-        log.info("Putting public user metadata for accountId: {}", accountId);
+        log.info("Putting public user metadata for accountId: {} with mode: {}", userMetadata.getAccountId(), mode);
 
-        // Check if it already exists; if so, return current value.
-        final PublicUserMetadataOutput existing = getPublicUserMetadataForAccountId(accountId);
-        if (existing.getUsername() != null) {
-            return existing;
+        final Map<String, AttributeValue> item = Map.of(
+                ACCOUNT_ID_KEY, AttributeValue.builder().s(userMetadata.getAccountId()).build(),
+                USERNAME_KEY, AttributeValue.builder().s(userMetadata.getUsername()).build()
+        );
+
+        final PutItemRequest.Builder requestBuilder = PutItemRequest.builder()
+                .tableName(USER_METADATA_TABLE_NAME)
+                .item(item);
+
+        if (mode == WriteMode.CREATE_IF_ABSENT) {
+            // Guards on record existence (the partition key), not username presence:
+            // an existing item is returned untouched, even if its stored username is null.
+            requestBuilder
+                    .conditionExpression("attribute_not_exists(#pk)")
+                    .expressionAttributeNames(Map.of("#pk", ACCOUNT_ID_KEY))
+                    .returnValuesOnConditionCheckFailure(ReturnValuesOnConditionCheckFailure.ALL_OLD);
+
+            try {
+                dynamoDb.putItem(requestBuilder.build());
+            } catch (final ConditionalCheckFailedException e) {
+                // Item already exists; return the username that's already stored.
+                final AttributeValue usernameAttr = e.item().get(USERNAME_KEY);
+                final String existingUsername = (usernameAttr == null) ? null : usernameAttr.s();
+                return new PublicUserMetadataOutput(existingUsername);
+            }
+        } else {
+            dynamoDb.putItem(requestBuilder.build());
         }
 
-        final PublicUserMetadata newUserMetadata = new PublicUserMetadata(accountId, defaultUserName);
-        return upsertPublicUserMetadata(newUserMetadata);
+        // DynamoDB PutItem doesn't return the saved item by default
+        return new PublicUserMetadataOutput(userMetadata.getUsername());
     }
 
     @Override
@@ -69,26 +93,5 @@ public class UserMetadataDALImpl implements UserMetadataDAL {
         final AttributeValue usernameAttr = item.get(USERNAME_KEY);
         final String username = (usernameAttr == null) ? null : usernameAttr.s();
         return new PublicUserMetadataOutput(username);
-    }
-
-    // TODO(FRY-137): Consolidate into 1 function
-    @Override
-    public PublicUserMetadataOutput upsertPublicUserMetadata(@NonNull final PublicUserMetadata userMetadata) {
-        log.info("Upserting public user metadata for accountId: {}", userMetadata.getAccountId());
-
-        final Map<String, AttributeValue> item = Map.of(
-                ACCOUNT_ID_KEY, AttributeValue.builder().s(userMetadata.getAccountId()).build(),
-                USERNAME_KEY, AttributeValue.builder().s(userMetadata.getUsername()).build()
-        );
-
-        final PutItemRequest request = PutItemRequest.builder()
-                .tableName(USER_METADATA_TABLE_NAME)
-                .item(item)
-                .build();
-
-        dynamoDb.putItem(request);
-
-        // DynamoDB PutItem doesn't return the saved item by default
-        return new PublicUserMetadataOutput(userMetadata.getUsername());
     }
 }
