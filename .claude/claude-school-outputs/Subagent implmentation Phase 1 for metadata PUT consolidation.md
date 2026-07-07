@@ -1,4 +1,4 @@
-# Fryrank - Subagent Implementation Test 1 (Metadata PUT Consolidation)
+# Fryrank - Subagent Implementation Phase 1 (Metadata PUT Consolidation)
 
 This session had two intertwined goals: (1) do the real feature work for **FRY-137** — consolidating the user-metadata write operations — and (2) exercise the newly-built **Claude subagent team** (dynamo-specialist, backend-engineer, code-reviewer) on a live-app change for the first time. Both are captured below.
 
@@ -27,7 +27,7 @@ Crucially, this was only **Phase 1** (backend internals). The full endpoint coll
 
 - **Single route + mode flag (Design 1)** over *method-branching* (two routes → one Lambda) and *two honest endpoints* (no flag). Chosen because we control all clients (no third-party/mobile), the two ops are the same write differing only conditional-vs-unconditional, there's no need for per-route operational independence, and a contained flag is acceptable for this tiny metadata surface.
 - **PUT over POST** for idempotency / retry-safety — one editable resource keyed by `accountId`, so no duplicate-creation risk. (The "POST creates duplicates" worry doesn't apply here since the item is keyed by the identity, not a generated id — but the idempotency argument still favors PUT.)
-- **`WriteMode` enum over a boolean.** `putPublicUserMetadata(metadata, CREATE_IF_ABSENT)` self-documents where `(metadata, true)` is opaque; the enum also absorbs a future third mode without a second boolean. Placed in the `dal` package (not `model/enums`) because it's a persistence-strategy concern, not a request/URL concept like `QueryParam`.
+- **`WriteMode` enum over a boolean.** `putPublicUserMetadata(metadata, CREATE_IF_ABSENT)` self-documents where `(metadata, true)` is opaque; the enum also absorbs a future third mode without a second boolean. Lives in the `dal.enums` subpackage. Two *orthogonal* decisions govern its home: (1) **which layer owns it** — `dal`, not `model`, because it's a persistence-strategy concern (how the DAL writes), not a request/URL concept like `QueryParam`; and (2) **how it's organized within that layer** — grouped in a `dal/enums` subfolder mirroring the existing `model/enums` convention, rather than sitting flat in `dal`. (Initially placed flat in `dal`; later moved into `dal/enums` for directory consistency. The layer decision never changed — it's still a persistence concern; only the sub-organization did.)
 - **Conditional write + `ALL_OLD` over the old read-then-write.** One round-trip instead of two, and it eliminates the TOCTOU race. Trade-off: a failed conditional put spends ~1 WCU vs the old eventually-consistent read, but you drop a network round-trip and the race — net win.
 - **No `TransactWriteItems`.** It's a single item; a conditional `PutItem` is already atomic. A transaction would double WCU cost and add nothing.
 - **Accepted the null-username edge (documented, not fixed).** A record that exists with a *null/absent* username was "repaired" (overwritten with the default) under the old code, but the new conditional write leaves it untouched. The code-reviewer flagged this as the one spot where "strictly backward compatible" isn't literally true. We accepted + documented it because it's **unreachable through the API** (every writer persists a non-null username). If ever needed, restore with the guard `attribute_not_exists(#pk) OR attribute_not_exists(#username)`.
@@ -51,12 +51,14 @@ Crucially, this was only **Phase 1** (backend internals). The full endpoint coll
 - **Control coupling / flag-parameter smell** — a boolean/mode param that makes one function do two things; sometimes a sign two functions (or endpoints) are cleaner. Weighed here and judged acceptable.
 - **Permission laundering** — routing a denied action through someone else to bypass the denial. Not allowed; the user approves at the prompt.
 - **Case-insensitive filesystem git rename** — on Windows (`core.ignorecase=true`), `git mv Foo foo` silently no-ops; you must rename through a distinct temp name with `core.ignorecase=false` to record the case change (hit this renaming `Skills` → `skills`).
+- **Uncommitted changes can dissolve across a branch switch** — staged-but-uncommitted files that are *identical* to what the target branch already has committed get reconciled away when you `git checkout` to that branch; hopping back leaves you empty-handed (no error, no conflict — the "change" simply stops being a change). Bit us twice this session while shuffling between the feature branch and the old mixed branch. Lesson: **commit (or stash) before switching branches** — don't trust staged work to survive a checkout.
+- **`git mv` won't create a missing target directory** on this setup — `git mv x dir/x` fails with `No such file or directory` if `dir/` doesn't exist yet. `mkdir -p dir` first, then `git mv`.
 
 ## Files Changed
 
 | File | What Changed |
 |------|--------------|
-| `dal/WriteMode.java` | **New.** Enum `{ CREATE_IF_ABSENT, OVERWRITE }` in the `dal` package. |
+| `dal/enums/WriteMode.java` | **New.** Enum `{ CREATE_IF_ABSENT, OVERWRITE }` in the `dal/enums` subpackage (mirrors `model/enums`). |
 | `dal/UserMetadataDAL.java` | Interface collapsed to `putPublicUserMetadata(PublicUserMetadata, WriteMode)` + the untouched getter; removed the old two write methods. |
 | `dal/UserMetadataDALImpl.java` | Implemented the one primitive (conditional `PutItem` + `ALL_OLD` for create-if-absent; unconditional for overwrite); deleted the read-then-write; documented the null-username edge. |
 | `domain/UserMetadataDomain.java` | Both public methods kept; repointed to the new primitive with the right `WriteMode`; `upsert` keeps its validator. |
