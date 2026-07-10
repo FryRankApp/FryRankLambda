@@ -358,20 +358,6 @@ public class ReviewDALImpl implements ReviewDAL {
         return new AggregateAndReview(aggregate, review);
     }
 
-    private Map<String, AttributeValue> getRestaurantAggregate(String restaurantId) {
-        final Map<String, AttributeValue> rankingsTablePrimaryKey = Map.of(
-                RESTAURANT_ID_KEY, AttributeValue.builder().s(restaurantId).build(),
-                IDENTIFIER_KEY, AttributeValue.builder().s(AGGREGATE_IDENTIFIER).build()
-        );
-
-        final GetItemRequest getAggregateRequest = GetItemRequest.builder()
-                .tableName(RANKINGS_TABLE_NAME)
-                .key(rankingsTablePrimaryKey)
-                .build();
-
-        return dynamoDb.getItem(getAggregateRequest).item();
-    }
-
     void handleAggregateUpdateOptimisticLockingConflict(String restaurantId, int attempt, Exception e) {
         log.warn("Transaction conflict for restaurantId: {} on attempt {}/{}, retrying...",
                 restaurantId, attempt + 1, MAX_AGGREGATE_UPDATE_RETRIES);
@@ -512,41 +498,35 @@ public class ReviewDALImpl implements ReviewDAL {
 
         String[] keyParts = reviewId.split(":");
         String restaurantId = keyParts[0];
-        String identifier = REVIEW_IDENTIFIER_PREFIX + keyParts[1];
-
-        // First, get the review to find its score (needed for aggregate update)
-        final Map<String, AttributeValue> reviewKey = Map.of(
-                RESTAURANT_ID_KEY, AttributeValue.builder().s(restaurantId).build(),
-                IDENTIFIER_KEY, AttributeValue.builder().s(identifier).build()
-        );
-
-        final GetItemRequest getReviewRequest = GetItemRequest.builder()
-                .tableName(RANKINGS_TABLE_NAME)
-                .key(reviewKey)
-                .build();
-
-        final GetItemResponse reviewResponse = dynamoDb.getItem(getReviewRequest);
-        final Map<String, AttributeValue> existingReview = reviewResponse.item();
-
-        if (existingReview == null || existingReview.isEmpty()) {
-            log.warn("Review with reviewId: {} does not exist, skipping delete", reviewId);
-            return false;
-        }
-
-        final Double reviewScore = getDoubleAttribute(existingReview, SCORE_KEY);
+        String accountId = keyParts[1];
 
         for (int attempt = 0; attempt < MAX_AGGREGATE_UPDATE_RETRIES; attempt++) {
             try {
-                List<TransactWriteItem> transactWriteItems = new ArrayList<>();
+                final AggregateAndReview existingAggregateAndReview =
+                        getRestaurantAggregateAndExistingReview(restaurantId, accountId);
 
-                final Map<String, AttributeValue> existingAggregate = getRestaurantAggregate(restaurantId);
+                final Map<String, AttributeValue> existingReview = existingAggregateAndReview.review();
+                final Map<String, AttributeValue> existingAggregate = existingAggregateAndReview.aggregate();
+
+                if (existingReview == null || existingReview.isEmpty()) {
+                    log.warn("Review with reviewId: {} does not exist, skipping delete", reviewId);
+                    return false;
+                }
+
+                final String identifier = REVIEW_IDENTIFIER_PREFIX + accountId;
+                final Map<String, AttributeValue> reviewKey = Map.of(
+                        RESTAURANT_ID_KEY, AttributeValue.builder().s(restaurantId).build(),
+                        IDENTIFIER_KEY, AttributeValue.builder().s(identifier).build()
+                );
+
+                final Double reviewScore = getDoubleAttribute(existingReview, SCORE_KEY);
+
+                List<TransactWriteItem> transactWriteItems = new ArrayList<>();
 
                 if (existingAggregate == null || existingAggregate.isEmpty()) {
                     log.warn("Aggregate for restaurantId: {} does not exist, deleting review without aggregate update", restaurantId);
-                    // Just delete the review without updating aggregate
                 } else if (reviewScore == null) {
                     log.warn("Review with reviewId: {} has no score, deleting review without aggregate update", reviewId);
-                    // Just delete the review without updating aggregate
                 } else {
                     AggregateRanking existingAggregateRanking = AggregateRanking.fromMap(existingAggregate);
 
@@ -606,7 +586,6 @@ public class ReviewDALImpl implements ReviewDAL {
             }
         }
 
-        // Should not reach here, but return false if all retries exhausted without throwing
         return false;
     }
 
