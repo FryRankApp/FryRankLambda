@@ -73,7 +73,7 @@ public class ReviewDomain {
 
         List<Review> reviews = output.getReviews();
         if (viewerAccountId != null && !viewerAccountId.isBlank() && !reviews.isEmpty()) {
-            reviews = reviewDAL.mergeViewerReactions(viewerAccountId, reviews);
+            reviews = reviewDAL.getAndFillViewerReactions(viewerAccountId, reviews);
             return new GetAllReviewsOutput(reviews, output.getNextCursor());
         }
         return output;

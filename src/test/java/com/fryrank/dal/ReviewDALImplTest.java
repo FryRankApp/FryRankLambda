@@ -6,6 +6,7 @@ import com.fryrank.model.Review;
 import com.fryrank.model.PutReactionResult;
 import com.fryrank.model.enums.ReactionAction;
 import com.fryrank.model.enums.ReactionType;
+import com.fryrank.model.exceptions.NotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -61,15 +62,15 @@ class ReviewDALImplTest {
     }
 
     @Test
-    void mergeViewerReactions_emptyReviews_skipsReactionBatchGet() {
-        List<Review> out = dal.mergeViewerReactions(VIEWER, List.of());
+    void getAndFillViewerReactions_emptyReviews_skipsReactionBatchGet() {
+        List<Review> out = dal.getAndFillViewerReactions(VIEWER, List.of());
 
         assertTrue(out.isEmpty());
         verify(dynamoDb, never()).batchGetItem(any(BatchGetItemRequest.class));
     }
 
     @Test
-    void mergeViewerReactions_withViewer_batchGetsReactionsAndSetsMyReactions() {
+    void getAndFillViewerReactions_withViewer_batchGetsReactionsAndSetsMyReactions() {
         Review review = Review.builder()
                 .reviewId(REVIEW_ID)
                 .restaurantId("rest1")
@@ -91,7 +92,7 @@ class ReviewDALImplTest {
                         .responses(Map.of(REACTIONS_TABLE_NAME, List.of(reactionItem)))
                         .build());
 
-        List<Review> out = dal.mergeViewerReactions(VIEWER, List.of(review));
+        List<Review> out = dal.getAndFillViewerReactions(VIEWER, List.of(review));
 
         assertEquals(1, out.size());
         ReactionCounts counts = out.get(0).getReactionCounts();
@@ -229,7 +230,7 @@ class ReviewDALImplTest {
         when(dynamoDb.getItem(any(GetItemRequest.class))).thenReturn(
                 GetItemResponse.builder().build());
 
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+        NotFoundException ex = assertThrows(NotFoundException.class,
                 () -> dal.putReaction(VIEWER, REVIEW_ID, ReactionType.THUMBS_UP, ReactionAction.ADD));
         assertTrue(ex.getMessage().contains("Review not found"));
     }

@@ -23,7 +23,7 @@ public interface ReviewDAL {
     /**
      * Batch-loads the viewer's reaction rows and fills {@link Review#getMyReactions()} on each review.
      */
-    List<Review> mergeViewerReactions(String viewerAccountId, List<Review> reviews);
+    List<Review> getAndFillViewerReactions(String viewerAccountId, List<Review> reviews);
 
     GetAggregateReviewInformationOutput getAggregateReviewInformationForRestaurants(final List<String> restaurantIds, final AggregateReviewFilter aggregateReviewFilter);
 

@@ -14,6 +14,7 @@ import com.fryrank.model.Review;
 import com.fryrank.model.ReviewFilter;
 import com.fryrank.model.enums.ReactionAction;
 import com.fryrank.model.enums.ReactionType;
+import com.fryrank.model.exceptions.NotFoundException;
 import lombok.NonNull;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Repository;
@@ -164,16 +165,19 @@ public class ReviewDALImpl implements ReviewDAL {
     }
 
     @Override
-    public List<Review> mergeViewerReactions(
+    public List<Review> getAndFillViewerReactions(
             @NonNull final String viewerAccountId,
             @NonNull final List<Review> reviews
     ) {
         if (reviews.isEmpty()) {
             return reviews;
         }
-        final Map<String, MyReactions> byReviewId = batchGetMyReactionsForViewer(viewerAccountId, reviews);
+        final Map<String, MyReactions> byReviewId = batchGetReactionsForViewer(viewerAccountId, reviews);
         return reviews.parallelStream()
-                .map(r -> withMyReactions(r, byReviewId.getOrDefault(r.getReviewId(), MyReactions.none())))
+                .map(r -> {
+                    r.setMyReactions(byReviewId.getOrDefault(r.getReviewId(), MyReactions.none()));
+                    return r;
+                })
                 .collect(Collectors.toList());
     }
 
@@ -592,34 +596,30 @@ public class ReviewDALImpl implements ReviewDAL {
             @NonNull final ReactionType reactionType,
             @NonNull final ReactionAction action
     ) {
-        final Map<String, AttributeValue> reviewKey = buildRankingsKeyForReviewId(reviewId);
+        final String[] rk = splitReviewId(reviewId);
+        final Map<String, AttributeValue> reviewKey = Map.of(
+                RESTAURANT_ID_KEY, AttributeValue.builder().s(rk[0]).build(),
+                IDENTIFIER_KEY, AttributeValue.builder().s(rk[1]).build()
+        );
         final Map<String, AttributeValue> reviewItem = getReviewItemOrThrow(reviewKey, reviewId);
         final ReactionCounts counts = mapReactionCountsOrZero(reviewItem);
 
         final Map<String, AttributeValue> reactionKey = buildReactionKey(viewerAccountId, reviewId);
-        final MyReactions previous = loadViewerMyReactions(reactionKey);
+        final MyReactions previousReactions = loadViewerMyReactions(reactionKey);
 
-        if (isAlreadyInRequestedState(previous, reactionType, action)) {
-            return new PutReactionResult(reviewId, counts, previous);
+        final boolean requestedOn = action == ReactionAction.ADD;
+        if (reactionFlag(previousReactions, reactionType) == requestedOn) {
+            return new PutReactionResult(reviewId, counts, previousReactions);
         }
 
         final ReactionCountsSnapshot snapshot = ReactionCountsSnapshot.from(reviewItem, counts);
-        final boolean requestedOn = action == ReactionAction.ADD;
         applyActionToPublicCounts(counts, reactionType, action);
-        final MyReactions next = setReactionFlag(previous, reactionType, requestedOn);
+        final MyReactions next = setReactionFlag(previousReactions, reactionType, requestedOn);
 
         updateReviewReactionCounts(reviewKey, counts, snapshot);
         syncViewerReactionRow(reactionKey, viewerAccountId, reviewId, next);
 
         return new PutReactionResult(reviewId, counts, next);
-    }
-
-    private Map<String, AttributeValue> buildRankingsKeyForReviewId(String reviewId) {
-        final String[] rk = splitReviewId(reviewId);
-        return Map.of(
-                RESTAURANT_ID_KEY, AttributeValue.builder().s(rk[0]).build(),
-                IDENTIFIER_KEY, AttributeValue.builder().s(rk[1]).build()
-        );
     }
 
     private Map<String, AttributeValue> buildReactionKey(String viewerAccountId, String reviewId) {
@@ -637,7 +637,7 @@ public class ReviewDALImpl implements ReviewDAL {
                 GetItemRequest.builder().tableName(RANKINGS_TABLE_NAME).key(reviewKey).build()
         ).item();
         if (reviewItem == null || reviewItem.isEmpty()) {
-            throw new IllegalArgumentException("Review not found: " + reviewId);
+            throw new NotFoundException("Review not found: " + reviewId);
         }
         return reviewItem;
     }
@@ -649,16 +649,7 @@ public class ReviewDALImpl implements ReviewDAL {
         if (existingReaction == null || existingReaction.isEmpty()) {
             return MyReactions.none();
         }
-        return mapItemToMyReactions(existingReaction);
-    }
-
-    private static boolean isAlreadyInRequestedState(
-            MyReactions previous,
-            ReactionType reactionType,
-            ReactionAction action
-    ) {
-        final boolean requestedOn = action == ReactionAction.ADD;
-        return reactionFlag(previous, reactionType) == requestedOn;
+        return mapItemToReactions(existingReaction);
     }
 
     /**
@@ -821,15 +812,10 @@ public class ReviewDALImpl implements ReviewDAL {
         return new GetAllReviewsOutput(reviews, nextCursor);
     }
 
-    private static Review withMyReactions(Review review, MyReactions myReactions) {
-        review.setMyReactions(myReactions);
-        return review;
-    }
-
     /**
      * Batch-gets reaction rows for this viewer for the given reviews (simple prototype; chunks of 100).
      */
-    private Map<String, MyReactions> batchGetMyReactionsForViewer(String viewerAccountId, List<Review> reviews) {
+    private Map<String, MyReactions> batchGetReactionsForViewer(String viewerAccountId, List<Review> reviews) {
         final List<String> reviewIds = reviews.parallelStream().map(Review::getReviewId).collect(Collectors.toList());
         if (reviewIds.isEmpty()) {
             return Map.of();
@@ -853,14 +839,14 @@ public class ReviewDALImpl implements ReviewDAL {
             if (items != null) {
                 for (Map<String, AttributeValue> item : items) {
                     final String rid = item.get(REVIEW_ID_KEY).s();
-                    out.put(rid, mapItemToMyReactions(item));
+                    out.put(rid, mapItemToReactions(item));
                 }
             }
         }
         return out;
     }
 
-    private static MyReactions mapItemToMyReactions(Map<String, AttributeValue> item) {
+    private static MyReactions mapItemToReactions(Map<String, AttributeValue> item) {
         return MyReactions.builder()
                 .thumbsUp(boolAttr(item, THUMBS_UP_KEY))
                 .thumbsDown(boolAttr(item, THUMBS_DOWN_KEY))

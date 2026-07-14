@@ -99,12 +99,12 @@ public class ReviewDomainTests {
         final GetAllReviewsOutput dalOutput = new GetAllReviewsOutput(TEST_REVIEWS);
         when(reviewDAL.getAllReviewsByRestaurantId(eq(TEST_RESTAURANT_ID), eq(TEST_LIMIT), isNull(), eq(new ReviewFilter(null))))
                 .thenReturn(dalOutput);
-        when(reviewDAL.mergeViewerReactions(eq("viewer-1"), eq(TEST_REVIEWS)))
+        when(reviewDAL.getAndFillViewerReactions(eq("viewer-1"), eq(TEST_REVIEWS)))
                 .thenReturn(TEST_REVIEWS);
 
         domain.getAllReviews(TEST_RESTAURANT_ID, null, TEST_LIMIT, null, new ReviewFilter(null), "viewer-1");
 
-        verify(reviewDAL).mergeViewerReactions("viewer-1", TEST_REVIEWS);
+        verify(reviewDAL).getAndFillViewerReactions("viewer-1", TEST_REVIEWS);
     }
 
     @Test
