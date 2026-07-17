@@ -159,6 +159,108 @@ public class ReviewDALTests {
     // ==================== Put Review Tests ====================
 
     @Test
+    public void testPutReview_withExistingReview_doesNotIncrementReviewCount() throws Exception {
+        // Existing aggregate: totalScore=50, reviewCount=5, averageScore=10.0
+        double existingTotalScore = 50.0;
+        int existingReviewCount = 5;
+        double oldScore = 8.0;
+        double newScore = TEST_REVIEW_1.getScore(); // score being updated to
+
+        Map<String, AttributeValue> existingReview = new HashMap<>();
+        existingReview.put(RESTAURANT_ID_KEY, AttributeValue.builder().s(TEST_REVIEW_1.getRestaurantId()).build());
+        existingReview.put(IDENTIFIER_KEY, AttributeValue.builder().s(REVIEW_IDENTIFIER_PREFIX + TEST_REVIEW_1.getAccountId()).build());
+        existingReview.put(SCORE_KEY, AttributeValue.builder().n(String.valueOf(oldScore)).build());
+        existingReview.put(TITLE_KEY, AttributeValue.builder().s("old title").build());
+        existingReview.put(BODY_KEY, AttributeValue.builder().s("old body").build());
+
+        Map<String, AttributeValue> existingAggregate = new HashMap<>();
+        existingAggregate.put(RESTAURANT_ID_KEY, AttributeValue.builder().s(TEST_REVIEW_1.getRestaurantId()).build());
+        existingAggregate.put(IDENTIFIER_KEY, AttributeValue.builder().s("AGGREGATE").build());
+        existingAggregate.put(ISO_DATE_TIME_KEY, AttributeValue.builder().s("AGGREGATE").build());
+        existingAggregate.put(TOTAL_SCORE_KEY, AttributeValue.builder().n(String.valueOf(existingTotalScore)).build());
+        existingAggregate.put(REVIEW_COUNT_KEY, AttributeValue.builder().n(String.valueOf(existingReviewCount)).build());
+        existingAggregate.put(AVERAGE_SCORE_KEY, AttributeValue.builder().n("10.0").build());
+
+        // Return both aggregate and existing review for this account
+        TransactGetItemsResponse aggregateAndReviewResponse = TransactGetItemsResponse.builder()
+                .responses(List.of(
+                        ItemResponse.builder().item(existingAggregate).build(),
+                        ItemResponse.builder().item(existingReview).build()
+                ))
+                .build();
+        when(dynamoDb.transactGetItems(any(TransactGetItemsRequest.class))).thenReturn(aggregateAndReviewResponse);
+
+        when(dynamoDb.transactWriteItems(any(TransactWriteItemsRequest.class)))
+                .thenReturn(TransactWriteItemsResponse.builder().build());
+
+        final Review actualReview = reviewDAL.putReview(TEST_REVIEW_1);
+
+        assertNotNull(actualReview);
+
+        ArgumentCaptor<TransactWriteItemsRequest> transactCaptor = ArgumentCaptor.forClass(TransactWriteItemsRequest.class);
+        verify(dynamoDb, times(1)).transactWriteItems(transactCaptor.capture());
+
+        TransactWriteItemsRequest capturedRequest = transactCaptor.getValue();
+        var aggregatePut = capturedRequest.transactItems().get(1).put();
+        Map<String, AttributeValue> aggregateItem = aggregatePut.item();
+
+        // Review count must NOT change — this is the bug that was fixed
+        assertEquals(String.valueOf(existingReviewCount), aggregateItem.get(REVIEW_COUNT_KEY).n());
+
+        // Total score should be adjusted: existingTotal - oldScore + newScore
+        double expectedTotalScore = existingTotalScore - oldScore + newScore;
+        assertEquals(String.valueOf(expectedTotalScore), aggregateItem.get(TOTAL_SCORE_KEY).n());
+
+        // Average score should be recalculated using unchanged review count
+        double expectedAverageScore = expectedTotalScore / existingReviewCount;
+        assertEquals(String.valueOf(expectedAverageScore), aggregateItem.get(AVERAGE_SCORE_KEY).n());
+    }
+
+    @Test
+    public void testPutReview_withExistingReview_sameScore_doesNotChangeAggregate() throws Exception {
+        double existingTotalScore = 50.0;
+        int existingReviewCount = 5;
+        double sameScore = TEST_REVIEW_1.getScore();
+
+        Map<String, AttributeValue> existingReview = new HashMap<>();
+        existingReview.put(RESTAURANT_ID_KEY, AttributeValue.builder().s(TEST_REVIEW_1.getRestaurantId()).build());
+        existingReview.put(IDENTIFIER_KEY, AttributeValue.builder().s(REVIEW_IDENTIFIER_PREFIX + TEST_REVIEW_1.getAccountId()).build());
+        existingReview.put(SCORE_KEY, AttributeValue.builder().n(String.valueOf(sameScore)).build());
+        existingReview.put(TITLE_KEY, AttributeValue.builder().s("old title").build());
+        existingReview.put(BODY_KEY, AttributeValue.builder().s("old body").build());
+
+        Map<String, AttributeValue> existingAggregate = new HashMap<>();
+        existingAggregate.put(RESTAURANT_ID_KEY, AttributeValue.builder().s(TEST_REVIEW_1.getRestaurantId()).build());
+        existingAggregate.put(IDENTIFIER_KEY, AttributeValue.builder().s("AGGREGATE").build());
+        existingAggregate.put(ISO_DATE_TIME_KEY, AttributeValue.builder().s("AGGREGATE").build());
+        existingAggregate.put(TOTAL_SCORE_KEY, AttributeValue.builder().n(String.valueOf(existingTotalScore)).build());
+        existingAggregate.put(REVIEW_COUNT_KEY, AttributeValue.builder().n(String.valueOf(existingReviewCount)).build());
+        existingAggregate.put(AVERAGE_SCORE_KEY, AttributeValue.builder().n("10.0").build());
+
+        TransactGetItemsResponse aggregateAndReviewResponse = TransactGetItemsResponse.builder()
+                .responses(List.of(
+                        ItemResponse.builder().item(existingAggregate).build(),
+                        ItemResponse.builder().item(existingReview).build()
+                ))
+                .build();
+        when(dynamoDb.transactGetItems(any(TransactGetItemsRequest.class))).thenReturn(aggregateAndReviewResponse);
+
+        when(dynamoDb.transactWriteItems(any(TransactWriteItemsRequest.class)))
+                .thenReturn(TransactWriteItemsResponse.builder().build());
+
+        reviewDAL.putReview(TEST_REVIEW_1);
+
+        ArgumentCaptor<TransactWriteItemsRequest> transactCaptor = ArgumentCaptor.forClass(TransactWriteItemsRequest.class);
+        verify(dynamoDb, times(1)).transactWriteItems(transactCaptor.capture());
+
+        Map<String, AttributeValue> aggregateItem = transactCaptor.getValue().transactItems().get(1).put().item();
+
+        // Neither review count nor total score should change when score is unchanged
+        assertEquals(String.valueOf(existingReviewCount), aggregateItem.get(REVIEW_COUNT_KEY).n());
+        assertEquals(String.valueOf(existingTotalScore), aggregateItem.get(TOTAL_SCORE_KEY).n());
+    }
+
+    @Test
     public void testPutReview_withNewReview_noExistingAggregate() throws Exception {
         // Mock getItem to return empty (no existing aggregate)
         TransactGetItemsResponse emptyAggregateResponse = TransactGetItemsResponse.builder()
