@@ -8,7 +8,6 @@ import com.fryrank.domain.ReviewDomain;
 import com.fryrank.domain.UserMetadataDomain;
 import com.fryrank.model.GetAllReviewsOutput;
 import com.fryrank.model.Review;
-import com.fryrank.model.ReviewFilter;
 import com.fryrank.util.Authorizer;
 import com.fryrank.validator.APIGatewayRequestValidator;
 import com.fryrank.validator.DeleteReviewRequestValidator;
@@ -96,7 +95,7 @@ public class ServiceRequestHandlerTests {
 
         doNothing().when(requestValidator).validateRequest(any(), any());
         final GetAllReviewsOutput output = new GetAllReviewsOutput(TEST_REVIEWS, null);
-        when(reviewDomain.getAllReviews(eq(TEST_RESTAURANT_ID), isNull(), eq(DEFAULT_PAGE_LIMIT), isNull(), eq(new ReviewFilter(null))))
+        when(reviewDomain.getAllReviews(eq(TEST_RESTAURANT_ID), isNull(), eq(DEFAULT_PAGE_LIMIT), isNull()))
                 .thenReturn(output);
 
         final APIGatewayV2HTTPResponse response = handler.handleRequest(event, context);
@@ -104,7 +103,7 @@ public class ServiceRequestHandlerTests {
         assertEquals(200, response.getStatusCode());
         assertNotNull(response.getBody());
         verify(requestValidator).validateRequest(eq(GET_ALL_REVIEWS_HANDLER), any(APIGatewayV2HTTPEvent.class));
-        verify(reviewDomain).getAllReviews(eq(TEST_RESTAURANT_ID), isNull(), eq(DEFAULT_PAGE_LIMIT), isNull(), eq(new ReviewFilter(null)));
+        verify(reviewDomain).getAllReviews(eq(TEST_RESTAURANT_ID), isNull(), eq(DEFAULT_PAGE_LIMIT), isNull());
     }
 
     @Test
