@@ -45,7 +45,7 @@ import com.fryrank.validator.ReviewValidator;
 import com.google.gson.Gson;
 
 @ExtendWith(MockitoExtension.class)
-public class AddNewReviewForRestaurantHandlerTests {
+public class PutReviewHandlerTests {
 
     @Mock
     private ReviewDALImpl reviewDAL;
@@ -66,7 +66,7 @@ public class AddNewReviewForRestaurantHandlerTests {
     private Context context;
     
     @InjectMocks
-    private AddNewReviewForRestaurantHandler handler;
+    private PutReviewHandler handler;
     
     private Gson gson;
 
@@ -102,7 +102,7 @@ public class AddNewReviewForRestaurantHandlerTests {
         // Setup mocks - mock Authorizer returns different accountId than what's in request body
         doNothing().when(requestValidator).validateRequest(any(), any());
         when(authorizer.authorizeAndGetAccountId(TEST_VALID_TOKEN)).thenReturn(TEST_AUTHORIZED_ACCOUNT_ID);
-        when(reviewDomain.addNewReviewForRestaurant(any(Review.class))).thenReturn(outputReview);
+        when(reviewDomain.putReview(any(Review.class))).thenReturn(outputReview);
         
         // Act
         final APIGatewayV2HTTPResponse response = handler.handleRequest(event, context);
@@ -121,7 +121,7 @@ public class AddNewReviewForRestaurantHandlerTests {
 
         // Capture the Review object passed to the domain layer
         final ArgumentCaptor<Review> reviewCaptor = ArgumentCaptor.forClass(Review.class);
-        verify(reviewDomain).addNewReviewForRestaurant(reviewCaptor.capture());
+        verify(reviewDomain).putReview(reviewCaptor.capture());
         
         final Review capturedReview = reviewCaptor.getValue();
         assertNotNull(capturedReview.getAccountId(), "Account ID should not be null when authorization succeeds");
@@ -229,7 +229,7 @@ public class AddNewReviewForRestaurantHandlerTests {
         // Setup mocks - mock Authorizer to throw exception (auth disabled)
         doNothing().when(requestValidator).validateRequest(any(), any());
         doThrow(new AuthorizationDisabledException("Authorization is disabled")).when(authorizer).authorizeAndGetAccountId(null);
-        when(reviewDomain.addNewReviewForRestaurant(any(Review.class))).thenReturn(outputReview);
+        when(reviewDomain.putReview(any(Review.class))).thenReturn(outputReview);
         
         // Act
         final APIGatewayV2HTTPResponse response = handler.handleRequest(event, context);
@@ -239,7 +239,7 @@ public class AddNewReviewForRestaurantHandlerTests {
         
         // Capture the Review object passed to the domain layer
         final ArgumentCaptor<Review> reviewCaptor = ArgumentCaptor.forClass(Review.class);
-        verify(reviewDomain).addNewReviewForRestaurant(reviewCaptor.capture());
+        verify(reviewDomain).putReview(reviewCaptor.capture());
         
         final Review capturedReview = reviewCaptor.getValue();
         assertEquals(TEST_ACCOUNT_ID, capturedReview.getAccountId(), "Account ID should be used from request body when auth is disabled");

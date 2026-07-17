@@ -194,21 +194,21 @@ public class ReviewDomainTests {
     }
 
     @Test
-    public void testAddNewReviewForRestaurant() throws Exception {
-        when(reviewDAL.addNewReview(TEST_REVIEW_1)).thenReturn(TEST_REVIEW_1);
+    public void testPutReview() throws Exception {
+        when(reviewDAL.putReview(TEST_REVIEW_1)).thenReturn(TEST_REVIEW_1);
 
-        Review actualReview = domain.addNewReviewForRestaurant(TEST_REVIEW_1);
+        Review actualReview = domain.putReview(TEST_REVIEW_1);
 
         assertEquals(TEST_REVIEW_1, actualReview);
     }
 
     @Test
-    public void testAddNewReviewForNullRestaurant() throws Exception {
-        assertThrows(NullPointerException.class, () -> domain.addNewReviewForRestaurant(null));
+    public void testPutReviewForNullRestaurant() throws Exception {
+        assertThrows(NullPointerException.class, () -> domain.putReview(null));
     }
 
     @Test
-    public void testAddNewReviewNullReviewID() throws Exception {
+    public void testPutReviewNullReviewID() throws Exception {
         Review expectedReview = Review.builder()
             .reviewId(null)
             .restaurantId(TEST_RESTAURANT_ID_1)
@@ -219,15 +219,15 @@ public class ReviewDomainTests {
             .accountId(TEST_ACCOUNT_ID)
             .build();
 
-        when(reviewDAL.addNewReview(expectedReview)).thenReturn(expectedReview);
+        when(reviewDAL.putReview(expectedReview)).thenReturn(expectedReview);
 
-        Review actualReview = domain.addNewReviewForRestaurant(expectedReview);
+        Review actualReview = domain.putReview(expectedReview);
 
         assertEquals(expectedReview, actualReview);
     }
 
     @Test
-    public void testAddNewReviewNullRestaurantID() throws Exception {
+    public void testPutReviewNullRestaurantID() throws Exception {
         assertThrows(NullPointerException.class, () -> 
             Review.builder()
                 .reviewId(TEST_REVIEW_ID_1)
@@ -242,7 +242,7 @@ public class ReviewDomainTests {
     }
 
     @Test
-    public void testAddNewReviewNullScore() throws Exception {
+    public void testPutReviewNullScore() throws Exception {
         assertThrows(NullPointerException.class, () -> 
             Review.builder()
                 .reviewId(TEST_REVIEW_ID_1)
@@ -257,7 +257,7 @@ public class ReviewDomainTests {
     }
 
     @Test
-    public void testAddNewReviewNullTitle() throws Exception {
+    public void testPutReviewNullTitle() throws Exception {
         assertThrows(NullPointerException.class, () -> 
             Review.builder()
                 .reviewId(TEST_REVIEW_ID_1)
@@ -272,7 +272,7 @@ public class ReviewDomainTests {
     }
 
     @Test
-    public void testAddNewReviewNullBody() throws Exception {
+    public void testPutReviewNullBody() throws Exception {
         assertThrows(NullPointerException.class, () -> 
             Review.builder()
                 .reviewId(TEST_REVIEW_ID_1)
@@ -287,17 +287,17 @@ public class ReviewDomainTests {
     }
 
     @Test
-    public void testAddNewReviewNullISODateTime() throws Exception {
-        assertThrows(ValidatorException.class, () -> domain.addNewReviewForRestaurant(TEST_REVIEW_NULL_ISO_DATETIME));
+    public void testPutReviewNullISODateTime() throws Exception {
+        assertThrows(ValidatorException.class, () -> domain.putReview(TEST_REVIEW_NULL_ISO_DATETIME));
     }
 
     @Test
     public void testAddNewBadFormatISODateTime() throws Exception {
-        assertThrows(ValidatorException.class, () -> domain.addNewReviewForRestaurant(TEST_REVIEW_BAD_ISO_DATETIME));
+        assertThrows(ValidatorException.class, () -> domain.putReview(TEST_REVIEW_BAD_ISO_DATETIME));
     }
 
     @Test
-    public void testAddNewReviewNullAccountId() throws Exception {
-        assertThrows(ValidatorException.class, () -> domain.addNewReviewForRestaurant(TEST_REVIEW_NULL_ACCOUNT_ID));
+    public void testPutReviewNullAccountId() throws Exception {
+        assertThrows(ValidatorException.class, () -> domain.putReview(TEST_REVIEW_NULL_ACCOUNT_ID));
     }
 }
