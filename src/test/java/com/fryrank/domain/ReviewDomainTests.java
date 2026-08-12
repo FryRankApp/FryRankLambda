@@ -28,6 +28,9 @@ import static com.fryrank.TestConstants.TEST_TAG_2;
 import static com.fryrank.TestConstants.TEST_TITLE_1;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
@@ -88,7 +91,20 @@ public class ReviewDomainTests {
 
     @Test
     public void testGetAllReviewsNoParameter() throws Exception {
-        assertThrows(NullPointerException.class, () -> domain.getAllReviews(null, null, TEST_LIMIT, TEST_ISO_DATE_TIME_1, new ReviewFilter(null)));
+        assertThrows(NullPointerException.class, () ->domain.getAllReviews(null, null, TEST_LIMIT, TEST_ISO_DATE_TIME_1, new ReviewFilter(null)));
+    }
+
+    @Test
+    public void testGetAllReviews_mergesViewerReactionsWhenViewerPresent() throws Exception {
+        final GetAllReviewsOutput dalOutput = new GetAllReviewsOutput(TEST_REVIEWS);
+        when(reviewDAL.getAllReviewsByRestaurantId(eq(TEST_RESTAURANT_ID), eq(TEST_LIMIT), isNull(), eq(new ReviewFilter(null))))
+                .thenReturn(dalOutput);
+        when(reviewDAL.getAndFillViewerReactions(eq("viewer-1"), eq(TEST_REVIEWS)))
+                .thenReturn(TEST_REVIEWS);
+
+        domain.getAllReviews(TEST_RESTAURANT_ID, null, TEST_LIMIT, null, new ReviewFilter(null), "viewer-1");
+
+        verify(reviewDAL).getAndFillViewerReactions("viewer-1", TEST_REVIEWS);
     }
 
     @Test
@@ -204,7 +220,7 @@ public class ReviewDomainTests {
 
     @Test
     public void testAddNewReviewForNullRestaurant() throws Exception {
-        assertThrows(NullPointerException.class, () -> domain.addNewReviewForRestaurant(null));
+        assertThrows(NullPointerException.class, () ->domain.addNewReviewForRestaurant(null));
     }
 
     @Test
@@ -228,7 +244,7 @@ public class ReviewDomainTests {
 
     @Test
     public void testAddNewReviewNullRestaurantID() throws Exception {
-        assertThrows(NullPointerException.class, () -> 
+        assertThrows(NullPointerException.class, () ->
             Review.builder()
                 .reviewId(TEST_REVIEW_ID_1)
                 .restaurantId(null)
@@ -243,7 +259,7 @@ public class ReviewDomainTests {
 
     @Test
     public void testAddNewReviewNullScore() throws Exception {
-        assertThrows(NullPointerException.class, () -> 
+        assertThrows(NullPointerException.class, () ->
             Review.builder()
                 .reviewId(TEST_REVIEW_ID_1)
                 .restaurantId(TEST_RESTAURANT_ID_1)
@@ -258,7 +274,7 @@ public class ReviewDomainTests {
 
     @Test
     public void testAddNewReviewNullTitle() throws Exception {
-        assertThrows(NullPointerException.class, () -> 
+        assertThrows(NullPointerException.class, () ->
             Review.builder()
                 .reviewId(TEST_REVIEW_ID_1)
                 .restaurantId(TEST_RESTAURANT_ID_1)
@@ -273,7 +289,7 @@ public class ReviewDomainTests {
 
     @Test
     public void testAddNewReviewNullBody() throws Exception {
-        assertThrows(NullPointerException.class, () -> 
+        assertThrows(NullPointerException.class, () ->
             Review.builder()
                 .reviewId(TEST_REVIEW_ID_1)
                 .restaurantId(TEST_RESTAURANT_ID_1)

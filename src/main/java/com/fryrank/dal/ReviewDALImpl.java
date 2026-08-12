@@ -6,9 +6,15 @@ import com.fryrank.model.AggregateReviewInformation;
 import com.fryrank.model.DeleteReviewRequest;
 import com.fryrank.model.GetAggregateReviewInformationOutput;
 import com.fryrank.model.GetAllReviewsOutput;
+import com.fryrank.model.MyReactions;
 import com.fryrank.model.PublicUserMetadata;
+import com.fryrank.model.PutReactionResult;
+import com.fryrank.model.ReactionCounts;
 import com.fryrank.model.Review;
 import com.fryrank.model.ReviewFilter;
+import com.fryrank.model.enums.ReactionAction;
+import com.fryrank.model.enums.ReactionType;
+import com.fryrank.model.exceptions.NotFoundException;
 import lombok.NonNull;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Repository;
@@ -21,11 +27,15 @@ import software.amazon.awssdk.services.dynamodb.model.GetItemRequest;
 import software.amazon.awssdk.services.dynamodb.model.GetItemResponse;
 import software.amazon.awssdk.services.dynamodb.model.KeysAndAttributes;
 import software.amazon.awssdk.services.dynamodb.model.Put;
+import software.amazon.awssdk.services.dynamodb.model.DeleteItemRequest;
+import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
 import software.amazon.awssdk.services.dynamodb.model.QueryRequest;
 import software.amazon.awssdk.services.dynamodb.model.QueryResponse;
 import software.amazon.awssdk.services.dynamodb.model.TransactWriteItem;
+import software.amazon.awssdk.services.dynamodb.model.UpdateItemRequest;
 import software.amazon.awssdk.services.dynamodb.model.TransactWriteItemsRequest;
 import software.amazon.awssdk.services.dynamodb.model.TransactionCanceledException;
+import software.amazon.awssdk.services.dynamodb.model.ConditionalCheckFailedException;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -44,19 +54,26 @@ import static com.fryrank.Constants.ACCOUNT_ID_TIME_INDEX;
 import static com.fryrank.Constants.AGGREGATE_IDENTIFIER;
 import static com.fryrank.Constants.AVERAGE_SCORE_KEY;
 import static com.fryrank.Constants.BODY_KEY;
+import static com.fryrank.Constants.HEART_KEY;
 import static com.fryrank.Constants.IDENTIFIER_KEY;
 import static com.fryrank.Constants.ISO_DATE_TIME;
 import static com.fryrank.Constants.IS_REVIEW_KEY;
 import static com.fryrank.Constants.IS_REVIEW_VALUE;
 import static com.fryrank.Constants.RANKINGS_TABLE_NAME;
+import static com.fryrank.Constants.REACTIONS_TABLE_NAME;
+import static com.fryrank.Constants.REACTION_COUNTS_KEY;
 import static com.fryrank.Constants.RECENT_REVIEWS_INDEX;
 import static com.fryrank.Constants.RESTAURANT_ID_KEY;
 import static com.fryrank.Constants.RESTAURANT_ID_TIME_INDEX;
 import static com.fryrank.Constants.REVIEW_COUNT_KEY;
 import static com.fryrank.Constants.REVIEW_IDENTIFIER_PREFIX;
+import static com.fryrank.Constants.REVIEW_ID_KEY;
 import static com.fryrank.Constants.SCORE_KEY;
 import static com.fryrank.Constants.TAGS_KEY;
+import static com.fryrank.Constants.THUMBS_DOWN_KEY;
+import static com.fryrank.Constants.THUMBS_UP_KEY;
 import static com.fryrank.Constants.TITLE_KEY;
+import static com.fryrank.Constants.VIEWER_ACCOUNT_ID_KEY;
 import static com.fryrank.Constants.USERNAME_KEY;
 import static com.fryrank.Constants.USER_METADATA_TABLE_NAME;
 
@@ -80,6 +97,8 @@ public class ReviewDALImpl implements ReviewDAL {
      */
 
     private static final int MAX_AGGREGATE_UPDATE_RETRIES = 3;
+
+    private static final int MAX_PUT_REACTION_RETRIES = 5;
 
     private final DynamoDbClient dynamoDb;
 
@@ -143,6 +162,23 @@ public class ReviewDALImpl implements ReviewDAL {
         }
 
         return mapItemsToReviewsWithUserMetadata(items, nextCursor);
+    }
+
+    @Override
+    public List<Review> getAndFillViewerReactions(
+            @NonNull final String viewerAccountId,
+            @NonNull final List<Review> reviews
+    ) {
+        if (reviews.isEmpty()) {
+            return reviews;
+        }
+        final Map<String, MyReactions> byReviewId = batchGetReactionsForViewer(viewerAccountId, reviews);
+        return reviews.parallelStream()
+                .map(r -> {
+                    r.setMyReactions(byReviewId.getOrDefault(r.getReviewId(), MyReactions.none()));
+                    return r;
+                })
+                .collect(Collectors.toList());
     }
 
     @Override
@@ -269,6 +305,7 @@ public class ReviewDALImpl implements ReviewDAL {
         reviewItem.put(TITLE_KEY, AttributeValue.builder().s(review.getTitle()).build());
         reviewItem.put(BODY_KEY, AttributeValue.builder().s(review.getBody()).build());
         reviewItem.put(IS_REVIEW_KEY, AttributeValue.builder().s(IS_REVIEW_VALUE).build());
+        reviewItem.put(REACTION_COUNTS_KEY, zeroReactionCountsAttribute());
 
         if (review.getIsoDateTime() != null) {
             reviewItem.put(ISO_DATE_TIME, AttributeValue.builder().s(review.getIsoDateTime()).build());
@@ -297,6 +334,16 @@ public class ReviewDALImpl implements ReviewDAL {
                 .isoDateTime(review.getIsoDateTime())
                 .accountId(review.getAccountId())
                 .tags(review.getTags())
+                .build();
+    }
+
+    private static AttributeValue zeroReactionCountsAttribute() {
+        return AttributeValue.builder()
+                .m(Map.of(
+                        THUMBS_UP_KEY, AttributeValue.builder().n("0").build(),
+                        THUMBS_DOWN_KEY, AttributeValue.builder().n("0").build(),
+                        HEART_KEY, AttributeValue.builder().n("0").build()
+                ))
                 .build();
     }
 
@@ -503,6 +550,250 @@ public class ReviewDALImpl implements ReviewDAL {
     }
 
     /**
+     * Adds or removes one reaction for the viewer: updates {@code reactionCounts} on the review row and
+     * {@code PutItem} / {@code DeleteItem} on {@link com.fryrank.Constants#REACTIONS_TABLE_NAME}.
+     * If the viewer already matches the requested state, returns without writing (idempotent).
+     * <p>
+     * Uses {@link UpdateItemRequest#conditionExpression()} on {@code reactionCounts} so concurrent updates
+     * do not overwrite each other; retries with backoff on {@link ConditionalCheckFailedException}.
+     */
+    @Override
+    public PutReactionResult putReaction(
+            @NonNull final String viewerAccountId,
+            @NonNull final String reviewId,
+            @NonNull final ReactionType reactionType,
+            @NonNull final ReactionAction action
+    ) {
+        ConditionalCheckFailedException lastConflict = null;
+
+        // Retry: another request may have changed reactionCounts between our read and write (optimistic lock miss).
+        for (int attempt = 0; attempt < MAX_PUT_REACTION_RETRIES; attempt++) {
+            try {
+                return putReactionOnce(viewerAccountId, reviewId, reactionType, action);
+            } catch (ConditionalCheckFailedException e) {
+                lastConflict = e;
+                log.warn("putReaction optimistic lock failed for review {} (attempt {}/{})",
+                        reviewId, attempt + 1, MAX_PUT_REACTION_RETRIES);
+                if (attempt < MAX_PUT_REACTION_RETRIES - 1) {
+                    try {
+                        // Exponential backoff before re-reading the item and trying again.
+                        Thread.sleep((long) (Math.pow(2, attempt) * 10L));
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        throw new RuntimeException("Interrupted during put reaction retry", ie);
+                    }
+                }
+            }
+        }
+        throw new IllegalStateException(
+                "Could not update reactionCounts for review " + reviewId + " after concurrent modifications",
+                lastConflict);
+    }
+
+    private PutReactionResult putReactionOnce(
+            @NonNull final String viewerAccountId,
+            @NonNull final String reviewId,
+            @NonNull final ReactionType reactionType,
+            @NonNull final ReactionAction action
+    ) {
+        final String[] rk = splitReviewId(reviewId);
+        final Map<String, AttributeValue> reviewKey = Map.of(
+                RESTAURANT_ID_KEY, AttributeValue.builder().s(rk[0]).build(),
+                IDENTIFIER_KEY, AttributeValue.builder().s(rk[1]).build()
+        );
+        final Map<String, AttributeValue> reviewItem = getReviewItemOrThrow(reviewKey, reviewId);
+        final ReactionCounts counts = mapReactionCountsOrZero(reviewItem);
+
+        final Map<String, AttributeValue> reactionKey = buildReactionKey(viewerAccountId, reviewId);
+        final MyReactions previousReactions = loadViewerMyReactions(reactionKey);
+
+        final boolean requestedOn = action == ReactionAction.ADD;
+        if (reactionFlag(previousReactions, reactionType) == requestedOn) {
+            return new PutReactionResult(reviewId, counts, previousReactions);
+        }
+
+        final ReactionCountsSnapshot snapshot = ReactionCountsSnapshot.from(reviewItem, counts);
+        applyActionToPublicCounts(counts, reactionType, action);
+        final MyReactions next = setReactionFlag(previousReactions, reactionType, requestedOn);
+
+        updateReviewReactionCounts(reviewKey, counts, snapshot);
+        syncViewerReactionRow(reactionKey, viewerAccountId, reviewId, next);
+
+        return new PutReactionResult(reviewId, counts, next);
+    }
+
+    private Map<String, AttributeValue> buildReactionKey(String viewerAccountId, String reviewId) {
+        return Map.of(
+                VIEWER_ACCOUNT_ID_KEY, AttributeValue.builder().s(viewerAccountId).build(),
+                REVIEW_ID_KEY, AttributeValue.builder().s(reviewId).build()
+        );
+    }
+
+    private Map<String, AttributeValue> getReviewItemOrThrow(
+            Map<String, AttributeValue> reviewKey,
+            String reviewId
+    ) {
+        final Map<String, AttributeValue> reviewItem = dynamoDb.getItem(
+                GetItemRequest.builder().tableName(RANKINGS_TABLE_NAME).key(reviewKey).build()
+        ).item();
+        if (reviewItem == null || reviewItem.isEmpty()) {
+            throw new NotFoundException("Review not found: " + reviewId);
+        }
+        return reviewItem;
+    }
+
+    private MyReactions loadViewerMyReactions(Map<String, AttributeValue> reactionKey) {
+        final Map<String, AttributeValue> existingReaction = dynamoDb.getItem(
+                GetItemRequest.builder().tableName(REACTIONS_TABLE_NAME).key(reactionKey).build()
+        ).item();
+        if (existingReaction == null || existingReaction.isEmpty()) {
+            return MyReactions.none();
+        }
+        return mapItemToReactions(existingReaction);
+    }
+
+    /**
+     * Public totals on the review row before applying this toggle (used for optimistic locking).
+     */
+    private record ReactionCountsSnapshot(
+            int thumbsUp,
+            int thumbsDown,
+            int heart,
+            boolean reactionCountsMissingOnItem
+    ) {
+        static ReactionCountsSnapshot from(Map<String, AttributeValue> reviewItem, ReactionCounts counts) {
+            return new ReactionCountsSnapshot(
+                    counts.getThumbsUp(),
+                    counts.getThumbsDown(),
+                    counts.getHeart(),
+                    !reviewItem.containsKey(REACTION_COUNTS_KEY)
+            );
+        }
+
+        boolean wasAllZeros() {
+            return thumbsUp == 0 && thumbsDown == 0 && heart == 0;
+        }
+    }
+
+    private void updateReviewReactionCounts(
+            Map<String, AttributeValue> reviewKey,
+            ReactionCounts updatedCounts,
+            ReactionCountsSnapshot snapshot
+    ) {
+        final Map<String, AttributeValue> updateValues = new HashMap<>();
+        updateValues.put(":rc", reactionCountsToAttribute(updatedCounts));
+
+        final UpdateItemRequest.Builder updateBuilder = UpdateItemRequest.builder()
+                .tableName(RANKINGS_TABLE_NAME)
+                .key(reviewKey)
+                .updateExpression("SET reactionCounts = :rc");
+
+        if (snapshot.reactionCountsMissingOnItem() && snapshot.wasAllZeros()) {
+            updateBuilder.conditionExpression("attribute_not_exists(reactionCounts)");
+        } else {
+            updateValues.put(":etu", AttributeValue.builder().n(String.valueOf(snapshot.thumbsUp())).build());
+            updateValues.put(":etd", AttributeValue.builder().n(String.valueOf(snapshot.thumbsDown())).build());
+            updateValues.put(":eh", AttributeValue.builder().n(String.valueOf(snapshot.heart())).build());
+            updateBuilder
+                    .conditionExpression(
+                            "reactionCounts.#tu = :etu AND reactionCounts.#td = :etd AND reactionCounts.#h = :eh")
+                    .expressionAttributeNames(Map.of(
+                            "#tu", THUMBS_UP_KEY,
+                            "#td", THUMBS_DOWN_KEY,
+                            "#h", HEART_KEY));
+        }
+
+        updateBuilder.expressionAttributeValues(updateValues);
+        dynamoDb.updateItem(updateBuilder.build());
+    }
+
+    /** Per-viewer reaction row; rankings update must succeed before this runs. */
+    private void syncViewerReactionRow(
+            Map<String, AttributeValue> reactionKey,
+            String viewerAccountId,
+            String reviewId,
+            MyReactions next
+    ) {
+        if (isAllReactionsOff(next)) {
+            dynamoDb.deleteItem(DeleteItemRequest.builder()
+                    .tableName(REACTIONS_TABLE_NAME)
+                    .key(reactionKey)
+                    .build());
+            return;
+        }
+        final Map<String, AttributeValue> reactionRow = Map.of(
+                VIEWER_ACCOUNT_ID_KEY, AttributeValue.builder().s(viewerAccountId).build(),
+                REVIEW_ID_KEY, AttributeValue.builder().s(reviewId).build(),
+                THUMBS_UP_KEY, AttributeValue.builder().bool(next.isThumbsUp()).build(),
+                THUMBS_DOWN_KEY, AttributeValue.builder().bool(next.isThumbsDown()).build(),
+                HEART_KEY, AttributeValue.builder().bool(next.isHeart()).build()
+        );
+        dynamoDb.putItem(PutItemRequest.builder()
+                .tableName(REACTIONS_TABLE_NAME)
+                .item(reactionRow)
+                .build());
+    }
+
+    private static String[] splitReviewId(String reviewId) {
+        final int idx = reviewId.indexOf(':');
+        if (idx <= 0 || idx >= reviewId.length() - 1) {
+            throw new IllegalArgumentException("Invalid reviewId: " + reviewId);
+        }
+        return new String[]{reviewId.substring(0, idx), reviewId.substring(idx + 1)};
+    }
+
+    /** Whether the viewer currently has this reaction type turned on. */
+    private static boolean reactionFlag(MyReactions r, ReactionType type) {
+        return switch (type) {
+            case THUMBS_UP -> r.isThumbsUp();
+            case THUMBS_DOWN -> r.isThumbsDown();
+            case HEART -> r.isHeart();
+        };
+    }
+
+    private static MyReactions setReactionFlag(MyReactions r, ReactionType type, boolean value) {
+        return MyReactions.builder()
+                .thumbsUp(type == ReactionType.THUMBS_UP ? value : r.isThumbsUp())
+                .thumbsDown(type == ReactionType.THUMBS_DOWN ? value : r.isThumbsDown())
+                .heart(type == ReactionType.HEART ? value : r.isHeart())
+                .build();
+    }
+
+    /** Adjusts public totals for the review row: ADD increments, REMOVE decrements (call only when viewer state changes). */
+    private static void applyActionToPublicCounts(ReactionCounts counts, ReactionType type, ReactionAction action) {
+        switch (action) {
+            case ADD -> {
+                switch (type) {
+                    case THUMBS_UP -> counts.setThumbsUp(counts.getThumbsUp() + 1);
+                    case THUMBS_DOWN -> counts.setThumbsDown(counts.getThumbsDown() + 1);
+                    case HEART -> counts.setHeart(counts.getHeart() + 1);
+                }
+            }
+            case REMOVE -> {
+                switch (type) {
+                    case THUMBS_UP -> counts.setThumbsUp(Math.max(0, counts.getThumbsUp() - 1));
+                    case THUMBS_DOWN -> counts.setThumbsDown(Math.max(0, counts.getThumbsDown() - 1));
+                    case HEART -> counts.setHeart(Math.max(0, counts.getHeart() - 1));
+                }
+            }
+        }
+    }
+
+    private static boolean isAllReactionsOff(MyReactions r) {
+        return !r.isThumbsUp() && !r.isThumbsDown() && !r.isHeart();
+    }
+
+    private static AttributeValue reactionCountsToAttribute(ReactionCounts c) {
+        return AttributeValue.builder()
+                .m(Map.of(
+                        THUMBS_UP_KEY, AttributeValue.builder().n(String.valueOf(c.getThumbsUp())).build(),
+                        THUMBS_DOWN_KEY, AttributeValue.builder().n(String.valueOf(c.getThumbsDown())).build(),
+                        HEART_KEY, AttributeValue.builder().n(String.valueOf(c.getHeart())).build()
+                ))
+                .build();
+    }
+
+    /**
      * Maps DynamoDB items to Review objects with batched user metadata fetching.
      */
     private GetAllReviewsOutput mapItemsToReviewsWithUserMetadata(List<Map<String, AttributeValue>> items, String nextCursor) {
@@ -522,18 +813,64 @@ public class ReviewDALImpl implements ReviewDAL {
     }
 
     /**
+     * Batch-gets reaction rows for this viewer for the given reviews (simple prototype; chunks of 100).
+     */
+    private Map<String, MyReactions> batchGetReactionsForViewer(String viewerAccountId, List<Review> reviews) {
+        final List<String> reviewIds = reviews.parallelStream().map(Review::getReviewId).collect(Collectors.toList());
+        if (reviewIds.isEmpty()) {
+            return Map.of();
+        }
+        final Map<String, MyReactions> out = new HashMap<>();
+        final int batchSize = 100;
+        for (int i = 0; i < reviewIds.size(); i += batchSize) {
+            final List<String> batch = reviewIds.subList(i, Math.min(i + batchSize, reviewIds.size()));
+            final List<Map<String, AttributeValue>> keys = batch.stream()
+                    .map(rid -> Map.of(
+                            VIEWER_ACCOUNT_ID_KEY, AttributeValue.builder().s(viewerAccountId).build(),
+                            REVIEW_ID_KEY, AttributeValue.builder().s(rid).build()
+                    ))
+                    .collect(Collectors.toList());
+
+            final BatchGetItemRequest req = BatchGetItemRequest.builder()
+                    .requestItems(Map.of(REACTIONS_TABLE_NAME, KeysAndAttributes.builder().keys(keys).build()))
+                    .build();
+            final BatchGetItemResponse resp = dynamoDb.batchGetItem(req);
+            final List<Map<String, AttributeValue>> items = resp.responses().get(REACTIONS_TABLE_NAME);
+            if (items != null) {
+                for (Map<String, AttributeValue> item : items) {
+                    final String rid = item.get(REVIEW_ID_KEY).s();
+                    out.put(rid, mapItemToReactions(item));
+                }
+            }
+        }
+        return out;
+    }
+
+    private static MyReactions mapItemToReactions(Map<String, AttributeValue> item) {
+        return MyReactions.builder()
+                .thumbsUp(boolAttr(item, THUMBS_UP_KEY))
+                .thumbsDown(boolAttr(item, THUMBS_DOWN_KEY))
+                .heart(boolAttr(item, HEART_KEY))
+                .build();
+    }
+
+    private static boolean boolAttr(Map<String, AttributeValue> item, String key) {
+        final AttributeValue v = item.get(key);
+        return v != null && Boolean.TRUE.equals(v.bool());
+    }
+
+    /**
      * Maps a DynamoDB item to a Review object using pre-fetched user metadata.
      */
     private Review mapItemToReview(Map<String, AttributeValue> item, Map<String, PublicUserMetadata> userMetadataMap) {
         final String accountId = getStringAttribute(item, ACCOUNT_ID_KEY);
         final String restaurantId = getStringAttribute(item, RESTAURANT_ID_KEY);
-        final String identifierWithoutPrefix = Objects.requireNonNull(getStringAttribute(item, IDENTIFIER_KEY)).replaceFirst(REVIEW_IDENTIFIER_PREFIX, "");
+        final String identifierValue = Objects.requireNonNull(getStringAttribute(item, IDENTIFIER_KEY));
 
         final PublicUserMetadata userMetadata = accountId != null ? userMetadataMap.get(accountId) : null;
 
-        // TODO(FRY-114): Once we standardize the Review model, we will no longer need to generate a reviewId which
-        // does not exist in dyanmoDB
-        final String reviewId = restaurantId + ":" + identifierWithoutPrefix;
+        // Align with addNewReview: reviewId = restaurantId + ":" + identifier (e.g. res:REVIEW:accountId)
+        final String reviewId = restaurantId + ":" + identifierValue;
 
         assert restaurantId != null;
         return Review.builder()
@@ -542,12 +879,33 @@ public class ReviewDALImpl implements ReviewDAL {
                 .score(Objects.requireNonNull(getDoubleAttribute(item, SCORE_KEY)))
                 .title(Objects.requireNonNull(getStringAttribute(item, TITLE_KEY)))
                 .body(Objects.requireNonNull(getStringAttribute(item, BODY_KEY)))
-                // TODO(FRY-108): Once we update isoDateTime to non-optional we can add a requirement here for non null.
                 .isoDateTime(getStringAttribute(item, ISO_DATE_TIME))
                 .accountId(accountId)
                 .tags(getStringListAttribute(item, TAGS_KEY))
                 .userMetadata(userMetadata)
+                .reactionCounts(mapReactionCountsOrZero(item))
                 .build();
+    }
+
+    private ReactionCounts mapReactionCountsOrZero(Map<String, AttributeValue> item) {
+        final AttributeValue rc = item.get(REACTION_COUNTS_KEY);
+        if (rc == null || rc.m() == null) {
+            return ReactionCounts.zero();
+        }
+        final Map<String, AttributeValue> reactionCountsByKey = rc.m();
+        return ReactionCounts.builder()
+                .thumbsUp(intAttr(reactionCountsByKey, THUMBS_UP_KEY))
+                .thumbsDown(intAttr(reactionCountsByKey, THUMBS_DOWN_KEY))
+                .heart(intAttr(reactionCountsByKey, HEART_KEY))
+                .build();
+    }
+
+    private static int intAttr(Map<String, AttributeValue> countAttributes, String key) {
+        final AttributeValue v = countAttributes.get(key);
+        if (v == null || v.n() == null) {
+            return 0;
+        }
+        return (int) Double.parseDouble(v.n());
     }
 
     /**

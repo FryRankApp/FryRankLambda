@@ -1,6 +1,7 @@
 package com.fryrank.domain;
 
 import static com.fryrank.Constants.REVIEW_VALIDATOR_ERRORS_OBJECT_NAME;
+import static com.fryrank.Constants.PUT_REACTION_REQUEST_VALIDATOR_ERRORS_OBJECT_NAME;
 
 import java.util.Arrays;
 import java.util.List;
@@ -13,6 +14,9 @@ import com.fryrank.model.DeleteReviewRequest;
 import com.fryrank.model.GetAggregateReviewInformationOutput;
 import com.fryrank.model.GetAllReviewsOutput;
 import com.fryrank.model.Review;
+import com.fryrank.model.PutReactionRequest;
+import com.fryrank.model.PutReactionResult;
+import com.fryrank.validator.PutReactionRequestValidator;
 import com.fryrank.model.ReviewFilter;
 import com.fryrank.validator.ReviewValidator;
 import com.fryrank.validator.ValidatorException;
@@ -32,23 +36,48 @@ public class ReviewDomain {
         this.reviewValidator = reviewValidator;
     }
 
-	public GetAllReviewsOutput getAllReviews(final String restaurantId, final String accountId, final Integer limit, final String cursor, @NonNull final ReviewFilter filter) {
+    public GetAllReviewsOutput getAllReviews(
+            final String restaurantId,
+            final String accountId,
+            final Integer limit,
+            final String cursor,
+            @NonNull final ReviewFilter filter
+    ) {
+        return getAllReviews(restaurantId, accountId, limit, cursor, filter, null);
+    }
 
-		log.info("Getting paginated reviews{}{} with limit: {}, cursor: {}, filter: {}",
-				restaurantId != null ? " for restaurantId: " + restaurantId : "",
-				accountId != null ? " for accountId: " + accountId : "",
-				limit,
-				cursor,
-				filter);
+    public GetAllReviewsOutput getAllReviews(
+            final String restaurantId,
+            final String accountId,
+            final Integer limit,
+            final String cursor,
+            @NonNull final ReviewFilter filter,
+            final String viewerAccountId
+    ) {
 
-		if (restaurantId != null) {
-			return reviewDAL.getAllReviewsByRestaurantId(restaurantId, limit, cursor, filter);
-		} else if (accountId != null) {
-			return reviewDAL.getAllReviewsByAccountId(accountId, limit, cursor, filter);
-		} else {
-			throw new NullPointerException("At least one of restaurantId and accountId must not be null.");
-		}
-	}
+        log.info("Getting paginated reviews{}{} with limit: {} and cursor: {}",
+                restaurantId != null ? " for restaurantId: " + restaurantId : "",
+                accountId != null ? " for accountId: " + accountId : "",
+                limit,
+                cursor,
+                filter);
+
+        final GetAllReviewsOutput output;
+        if (restaurantId != null) {
+            output = reviewDAL.getAllReviewsByRestaurantId(restaurantId, limit, cursor, filter);
+        } else if (accountId != null) {
+            output = reviewDAL.getAllReviewsByAccountId(accountId, limit, cursor, filter);
+        } else {
+            throw new NullPointerException("At least one of restaurantId and accountId must not be null.");
+        }
+
+        List<Review> reviews = output.getReviews();
+        if (viewerAccountId != null && !viewerAccountId.isBlank() && !reviews.isEmpty()) {
+            reviews = reviewDAL.getAndFillViewerReactions(viewerAccountId, reviews);
+            return new GetAllReviewsOutput(reviews, output.getNextCursor());
+        }
+        return output;
+    }
 
     public GetAllReviewsOutput getRecentReviews(final Integer count, @NonNull final ReviewFilter filter) {
         return reviewDAL.getRecentReviews(count, filter);
@@ -72,5 +101,21 @@ public class ReviewDomain {
         if (!reviewDAL.deleteUserReview(reviewIDString)) {
             throw new NotFoundException("Review not found in database.");
         }
+    }
+
+    /** Sets a reaction for the authenticated viewer on the given review. */
+    public PutReactionResult putReaction(
+            @NonNull final String viewerAccountId,
+            @NonNull final PutReactionRequest request
+    ) throws ValidatorException {
+        ValidatorUtils.validateAndThrow(
+                request,
+                PUT_REACTION_REQUEST_VALIDATOR_ERRORS_OBJECT_NAME,
+                new PutReactionRequestValidator());
+        return reviewDAL.putReaction(
+                viewerAccountId,
+                request.reviewId(),
+                request.reactionType(),
+                request.action());
     }
 }

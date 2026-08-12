@@ -28,7 +28,7 @@ public class GetRecentReviewsHandler implements RequestHandler<APIGatewayV2HTTPE
         reviewDomain = component.reviewDomain();
         requestValidator = component.apiGatewayRequestValidator();
     }
-    
+
     @Override
     public APIGatewayV2HTTPResponse handleRequest(APIGatewayV2HTTPEvent input, Context context) {
         log.info("Handling request: {}", input);

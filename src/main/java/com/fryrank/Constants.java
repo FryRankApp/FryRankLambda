@@ -23,6 +23,7 @@ public class Constants {
     public static final String REVIEW_VALIDATOR_ERRORS_OBJECT_NAME = "review";
     public static final String DELETE_REVIEW_REQUEST_VALIDATOR_ERRORS_OBJECT_NAME = "DeleteReviewRequest";
     public static final String USER_METADATA_VALIDATOR_ERRORS_OBJECT_NAME = "userMetadata";
+    public static final String PUT_REACTION_REQUEST_VALIDATOR_ERRORS_OBJECT_NAME = "putReactionRequest";
     public static final String REJECTION_REQUIRED_CODE = "field.required";
     public static final String REJECTION_FORMAT_CODE = "field.invalidFormat";
 
@@ -51,6 +52,22 @@ public class Constants {
     // DynamoDB table names
     public static final String RANKINGS_TABLE_NAME = "fryrank-app-rankings";
     public static final String USER_METADATA_TABLE_NAME = "fryrank-app-user-metadata";
+    /** Per-viewer reaction rows: PK viewerAccountId, SK reviewId. */
+    public static final String REACTIONS_TABLE_NAME = "fryrank-app-reactions";
+
+    /** Partition key on reactions table — user performing the reaction (viewer). */
+    public static final String VIEWER_ACCOUNT_ID_KEY = "viewerAccountId";
+
+    /** Sort key on reactions table — matches the review id. */
+    public static final String REVIEW_ID_KEY = "reviewId";
+
+    /** Map attribute on rankings review items storing public reaction totals. */
+    public static final String REACTION_COUNTS_KEY = "reactionCounts";
+
+    /** Field names inside reactionCounts map and boolean flags on reaction items. */
+    public static final String THUMBS_UP_KEY = "thumbsUp";
+    public static final String THUMBS_DOWN_KEY = "thumbsDown";
+    public static final String HEART_KEY = "heart";
 
     // DynamoDB GSI names
     public static final String RESTAURANT_ID_TIME_INDEX = "restaurantId-time-index";
@@ -70,6 +87,7 @@ public class Constants {
     public static final String GET_PUBLIC_USER_METADATA_HANDLER = "GetPublicUserMetadataHandler";
     public static final String PUT_PUBLIC_USER_METADATA_HANDLER = "PutPublicUserMetadataHandler";
     public static final String UPSERT_PUBLIC_USER_METADATA_HANDLER = "UpsertPublicUserMetadataHandler";
+    public static final String PUT_REACTION_HANDLER = "PutReactionHandler";
 
     // Allowed Origins
     public static final String LOCALHOST = "http://localhost:3000";
@@ -83,6 +101,7 @@ public class Constants {
     public static final String FRYRANK_PROD_WWW = "https://www.fryrank.app";
     public static final String FRYRANK_PROD_ALT_URL = "https://pure-temple-61679-98a4d5c2d04e.herokuapp.com";
     public static final String FRYRANK_PROD_CLOUDFRONT = "https://d3h6a05rzfj3y8.cloudfront.net";
+    public static final String FRYRANK_CLOUDFRONT = "https://d34zj8wsl0pw71.cloudfront.net"; //Alma's testing
     public static final Set<String> ALLOWED_ORIGINS = Set.of(
         LOCALHOST,
         FRYRANK_SANDBOX_MATT,
@@ -94,7 +113,8 @@ public class Constants {
         FRYRANK_PROD_ALT_URL,
         FRYRANK_PROD_CLOUDFRONT,
         FRYRANK_PROD_OXYSERVER,
-        FRYRANK_PROD_WWW
+        FRYRANK_PROD_WWW,
+        FRYRANK_CLOUDFRONT
     );
 
     // Authorization Error Messages
