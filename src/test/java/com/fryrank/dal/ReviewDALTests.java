@@ -1015,7 +1015,7 @@ public class ReviewDALTests {
         assertEquals(1, actualOutput.getReviews().size());
 
         Review review = actualOutput.getReviews().get(0);
-        assertEquals(restaurantId + ":" + identifier, review.getReviewId());
+        assertEquals(restaurantId + ":" + accountId, review.getReviewId());
         assertEquals(restaurantId, review.getRestaurantId());
         assertEquals(score, review.getScore());
         assertEquals(title, review.getTitle());
@@ -1084,8 +1084,7 @@ public class ReviewDALTests {
         assertEquals(1, actualOutput.getReviews().size());
 
         Review review = actualOutput.getReviews().get(0);
-        // reviewId matches addNewReview: restaurantId + ":" + identifier (SK includes REVIEW: prefix)
-        assertEquals(restaurantId + ":" + identifier, review.getReviewId());
+        assertEquals(restaurantId + ":" + accountId, review.getReviewId());
     }
 
 

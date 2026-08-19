@@ -49,7 +49,7 @@ import static org.mockito.Mockito.when;
 class ReviewDALImplTest {
 
     private static final String VIEWER = "viewer-acc";
-    private static final String REVIEW_ID = "rest1:REVIEW:author1";
+    private static final String REVIEW_ID = "rest1:author1";
 
     @Mock
     private DynamoDbClient dynamoDb;
