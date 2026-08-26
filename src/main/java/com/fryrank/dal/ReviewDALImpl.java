@@ -324,7 +324,7 @@ public class ReviewDALImpl implements ReviewDAL {
         addReviewWithTransactionalAggregate(restaurantId, reviewItem, review.getScore());
 
         // Return the review with the generated reviewId
-        final String reviewId = review.getRestaurantId() + ":" + identifier;
+        final String reviewId = toPublicReviewId(review.getRestaurantId(), identifier);
         return Review.builder()
                 .reviewId(reviewId)
                 .restaurantId(review.getRestaurantId())
@@ -449,9 +449,9 @@ public class ReviewDALImpl implements ReviewDAL {
     public boolean deleteUserReview(@NonNull final DeleteReviewRequest delReviewRequest) {
         String reviewId = delReviewRequest.reviewId();
 
-        String[] keyParts = reviewId.split(":");
+        final String[] keyParts = toReviewKeyParts(reviewId);
         String restaurantId = keyParts[0];
-        String identifier = REVIEW_IDENTIFIER_PREFIX + keyParts[1];
+        String identifier = keyParts[1];
 
         // First, get the review to find its score (needed for aggregate update)
         final Map<String, AttributeValue> reviewKey = Map.of(
@@ -596,7 +596,7 @@ public class ReviewDALImpl implements ReviewDAL {
             @NonNull final ReactionType reactionType,
             @NonNull final ReactionAction action
     ) {
-        final String[] rk = splitReviewId(reviewId);
+        final String[] rk = toReviewKeyParts(reviewId);
         final Map<String, AttributeValue> reviewKey = Map.of(
                 RESTAURANT_ID_KEY, AttributeValue.builder().s(rk[0]).build(),
                 IDENTIFIER_KEY, AttributeValue.builder().s(rk[1]).build()
@@ -734,12 +734,31 @@ public class ReviewDALImpl implements ReviewDAL {
                 .build());
     }
 
-    private static String[] splitReviewId(String reviewId) {
+    /**
+     * Public review id exposed in API responses: {@code restaurantId:accountId}.
+     */
+    private static String toPublicReviewId(String restaurantId, String identifier) {
+        final String accountId = identifier.startsWith(REVIEW_IDENTIFIER_PREFIX)
+                ? identifier.substring(REVIEW_IDENTIFIER_PREFIX.length())
+                : identifier;
+        return restaurantId + ":" + accountId;
+    }
+
+    /**
+     * Parses a public review id into DynamoDB key parts: {@code [restaurantId, REVIEW:accountId]}.
+     * Accepts both {@code restaurantId:accountId} and legacy {@code restaurantId:REVIEW:accountId}.
+     */
+    private static String[] toReviewKeyParts(String reviewId) {
         final int idx = reviewId.indexOf(':');
         if (idx <= 0 || idx >= reviewId.length() - 1) {
             throw new IllegalArgumentException("Invalid reviewId: " + reviewId);
         }
-        return new String[]{reviewId.substring(0, idx), reviewId.substring(idx + 1)};
+        final String restaurantId = reviewId.substring(0, idx);
+        final String suffix = reviewId.substring(idx + 1);
+        final String identifier = suffix.startsWith(REVIEW_IDENTIFIER_PREFIX)
+                ? suffix
+                : REVIEW_IDENTIFIER_PREFIX + suffix;
+        return new String[]{restaurantId, identifier};
     }
 
     /** Whether the viewer currently has this reaction type turned on. */
@@ -869,8 +888,7 @@ public class ReviewDALImpl implements ReviewDAL {
 
         final PublicUserMetadata userMetadata = accountId != null ? userMetadataMap.get(accountId) : null;
 
-        // Align with addNewReview: reviewId = restaurantId + ":" + identifier (e.g. res:REVIEW:accountId)
-        final String reviewId = restaurantId + ":" + identifierValue;
+        final String reviewId = toPublicReviewId(restaurantId, identifierValue);
 
         assert restaurantId != null;
         return Review.builder()
