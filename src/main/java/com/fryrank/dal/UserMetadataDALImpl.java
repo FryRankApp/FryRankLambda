@@ -28,24 +28,6 @@ public class UserMetadataDALImpl implements UserMetadataDAL {
         this.dynamoDb = dynamoDb;
     }
 
-    // TODO(FRY-137): Consolidate into 1 function
-    @Override
-    public PublicUserMetadataOutput putPublicUserMetadataForAccountId(
-            @NonNull final String accountId,
-            @NonNull final String defaultUserName
-    ) {
-        log.info("Putting public user metadata for accountId: {}", accountId);
-
-        // Check if it already exists; if so, return current value.
-        final PublicUserMetadataOutput existing = getPublicUserMetadataForAccountId(accountId);
-        if (existing.getUsername() != null) {
-            return existing;
-        }
-
-        final PublicUserMetadata newUserMetadata = new PublicUserMetadata(accountId, defaultUserName);
-        return upsertPublicUserMetadata(newUserMetadata);
-    }
-
     @Override
     public PublicUserMetadataOutput getPublicUserMetadataForAccountId(@NonNull final String accountId) {
         log.info("Getting public user metadata for accountId: {}", accountId);
@@ -71,10 +53,9 @@ public class UserMetadataDALImpl implements UserMetadataDAL {
         return new PublicUserMetadataOutput(username);
     }
 
-    // TODO(FRY-137): Consolidate into 1 function
     @Override
-    public PublicUserMetadataOutput upsertPublicUserMetadata(@NonNull final PublicUserMetadata userMetadata) {
-        log.info("Upserting public user metadata for accountId: {}", userMetadata.getAccountId());
+    public PublicUserMetadataOutput putPublicUserMetadata(@NonNull final PublicUserMetadata userMetadata) {
+        log.info("Putting public user metadata for accountId: {}", userMetadata.getAccountId());
 
         final Map<String, AttributeValue> item = Map.of(
                 ACCOUNT_ID_KEY, AttributeValue.builder().s(userMetadata.getAccountId()).build(),

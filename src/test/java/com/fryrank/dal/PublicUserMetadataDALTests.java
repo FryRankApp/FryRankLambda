@@ -1,8 +1,8 @@
 package com.fryrank.dal;
-import com.fryrank.model.PublicUserMetadata;
 import com.fryrank.model.PublicUserMetadataOutput;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -18,14 +18,15 @@ import java.util.Map;
 import static com.fryrank.Constants.ACCOUNT_ID_KEY;
 import static com.fryrank.TestConstants.TEST_ACCOUNT_ID;
 import static com.fryrank.TestConstants.TEST_ACCOUNT_ID_NO_USER_METADATA;
-import static com.fryrank.TestConstants.TEST_DEFAULT_NAME;
 import static com.fryrank.TestConstants.TEST_USER_METADATA_1;
 import static com.fryrank.TestConstants.TEST_USER_METADATA_OUTPUT_1;
 import static com.fryrank.TestConstants.TEST_PUBLIC_USER_METADATA_OUTPUT_EMPTY;
-import static com.fryrank.TestConstants.TEST_PUBLIC_USER_METADATA_OUTPUT_WITH_DEFAULT_NAME;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -35,39 +36,6 @@ public class PublicUserMetadataDALTests {
 
     @InjectMocks
     UserMetadataDALImpl userMetadataDAL;
-
-    @Test
-    public void testPutPublicUserMetadataForAccountId_happyPath() throws Exception {
-        // Mock getItem to return existing user metadata
-        GetItemResponse getItemResponse = GetItemResponse.builder()
-                .item(Map.of(
-                        ACCOUNT_ID_KEY, AttributeValue.builder().s(TEST_ACCOUNT_ID).build(),
-                        "username", AttributeValue.builder().s(TEST_USER_METADATA_1.getUsername()).build()
-                ))
-                .build();
-        when(dynamoDb.getItem(any(GetItemRequest.class))).thenReturn(getItemResponse);
-
-        final PublicUserMetadataOutput actualOutput = userMetadataDAL.putPublicUserMetadataForAccountId(TEST_ACCOUNT_ID, TEST_DEFAULT_NAME);
-        assertEquals(TEST_USER_METADATA_OUTPUT_1, actualOutput);
-    }
-
-    @Test
-    public void testPutPublicUserMetadataForAccountId_noUserMetadata() throws Exception {
-        // Mock getItem to return empty (no existing metadata)
-        GetItemResponse getItemResponse = GetItemResponse.builder()
-                .item(Map.of())
-                .build();
-        when(dynamoDb.getItem(any(GetItemRequest.class))).thenReturn(getItemResponse);
-        when(dynamoDb.putItem(any(PutItemRequest.class))).thenReturn(PutItemResponse.builder().build());
-
-        final PublicUserMetadataOutput actualOutput = userMetadataDAL.putPublicUserMetadataForAccountId(TEST_ACCOUNT_ID_NO_USER_METADATA, TEST_DEFAULT_NAME);
-        assertEquals(TEST_PUBLIC_USER_METADATA_OUTPUT_WITH_DEFAULT_NAME, actualOutput);
-    }
-
-    @Test
-    public void testPutPublicUserMetadataForAccountId_nullAccountId() throws Exception {
-        assertThrows(NullPointerException.class, () -> userMetadataDAL.putPublicUserMetadataForAccountId(null, null));
-    }
 
     @Test
     public void testGetPublicUserMetadataForAccountId_happyPath() throws Exception {
@@ -100,10 +68,18 @@ public class PublicUserMetadataDALTests {
     }
 
     @Test
-    public void testUpsertPublicUserMetadata() throws Exception {
+    public void testPutPublicUserMetadata_writesUnconditionally() throws Exception {
         when(dynamoDb.putItem(any(PutItemRequest.class))).thenReturn(PutItemResponse.builder().build());
 
-        final PublicUserMetadataOutput actualUserMetadata = userMetadataDAL.upsertPublicUserMetadata(TEST_USER_METADATA_1);
-        assertEquals(TEST_USER_METADATA_OUTPUT_1, actualUserMetadata);
+        final PublicUserMetadataOutput actualOutput = userMetadataDAL.putPublicUserMetadata(TEST_USER_METADATA_1);
+        assertEquals(TEST_USER_METADATA_OUTPUT_1, actualOutput);
+
+        final ArgumentCaptor<PutItemRequest> requestCaptor = ArgumentCaptor.forClass(PutItemRequest.class);
+        verify(dynamoDb).putItem(requestCaptor.capture());
+        final PutItemRequest request = requestCaptor.getValue();
+        assertNull(request.conditionExpression());
+        assertEquals(TEST_ACCOUNT_ID, request.item().get(ACCOUNT_ID_KEY).s());
+        assertEquals(TEST_USER_METADATA_1.getUsername(), request.item().get("username").s());
+        verify(dynamoDb, never()).getItem(any(GetItemRequest.class));
     }
 }

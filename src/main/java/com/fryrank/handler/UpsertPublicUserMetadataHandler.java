@@ -38,7 +38,9 @@ public class UpsertPublicUserMetadataHandler implements RequestHandler<APIGatewa
             requestValidator.validateRequest(handlerName, input);
 
             final PublicUserMetadata userMetadata = gson.fromJson(input.getBody(), PublicUserMetadata.class);
-            final PublicUserMetadataOutput output = userMetadataDomain.upsertPublicUserMetadata(userMetadata);
+            final PublicUserMetadataOutput output = userMetadataDomain.putPublicUserMetadata(
+                userMetadata.getAccountId(),
+                userMetadata.getUsername());
 
             log.info("Request processed successfully");
             return APIGatewayResponseBuilder.buildSuccessResponse(output, createCorsHeaders(input));
