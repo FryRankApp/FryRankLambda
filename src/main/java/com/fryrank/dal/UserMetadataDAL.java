@@ -4,9 +4,7 @@ import com.fryrank.model.PublicUserMetadata;
 import com.fryrank.model.PublicUserMetadataOutput;
 
 public interface UserMetadataDAL {
-    PublicUserMetadataOutput putPublicUserMetadataForAccountId(final String accountId, final String defaultUserName);
+    PublicUserMetadataOutput putPublicUserMetadata(final PublicUserMetadata userMetadata);
 
     PublicUserMetadataOutput getPublicUserMetadataForAccountId(final String accountId);
-
-    PublicUserMetadataOutput upsertPublicUserMetadata(final PublicUserMetadata userMetadata);
 }

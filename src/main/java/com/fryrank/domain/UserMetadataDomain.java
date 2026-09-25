@@ -28,16 +28,12 @@ public class UserMetadataDomain {
         return userMetadataDAL.getPublicUserMetadataForAccountId(accountId);
     }
 
-    public PublicUserMetadataOutput putPublicUserMetadata(@NonNull final String accountId, @NonNull final String defaultUserName) {
-        log.info("Putting public user metadata for accountId: {} with default username: {}", accountId, defaultUserName);
-        return userMetadataDAL.putPublicUserMetadataForAccountId(accountId, defaultUserName);
-    }
+    public PublicUserMetadataOutput putPublicUserMetadata(final String accountId, final String username) throws ValidatorException {
+        log.info("Putting public user metadata for accountId: {} with username: {}", accountId, username);
 
-    public PublicUserMetadataOutput upsertPublicUserMetadata(@NonNull final PublicUserMetadata userMetadata) throws ValidatorException {
-        log.info("Upserting public user metadata for accountId: {}", userMetadata.getAccountId());
-        
+        final PublicUserMetadata userMetadata = new PublicUserMetadata(accountId, username);
         ValidatorUtils.validateAndThrow(userMetadata, USER_METADATA_VALIDATOR_ERRORS_OBJECT_NAME, userMetadataValidator);
-        
-        return userMetadataDAL.upsertPublicUserMetadata(userMetadata);
+
+        return userMetadataDAL.putPublicUserMetadata(userMetadata);
     }
 }

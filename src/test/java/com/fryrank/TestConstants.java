@@ -131,9 +131,6 @@ public class TestConstants {
         TEST_USERNAME
     );
 
-    public static final String TEST_DEFAULT_NAME = "test user name";
-    public static final PublicUserMetadataOutput TEST_PUBLIC_USER_METADATA_OUTPUT_WITH_DEFAULT_NAME = new PublicUserMetadataOutput(TEST_DEFAULT_NAME);
-
     public static final PublicUserMetadataOutput TEST_PUBLIC_USER_METADATA_OUTPUT_EMPTY = new PublicUserMetadataOutput(null);
 
     public static final List<PublicUserMetadata> TEST_PUBLIC_USER_METADATA_LIST = new ArrayList<>() {
